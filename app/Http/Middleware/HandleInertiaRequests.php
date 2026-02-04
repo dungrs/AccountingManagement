@@ -2,17 +2,20 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Conversation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
-{
+{   
+    // Dùng để chia sẻ dữ liệu global (như user đăng nhập) từ Laravel sang frontend Inertia cho tất cả các page.
     /**
      * The root template that is loaded on the first page visit.
      *
      * @var string
      */
-    protected $rootView = 'app';
+    protected $rootView = 'admin';
 
     /**
      * Determine the current asset version.
@@ -34,6 +37,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'conversations' => Auth::id() ? Conversation::getConversationForSidebar(Auth::user()) : [],
         ];
     }
 }
