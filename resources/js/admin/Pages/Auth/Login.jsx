@@ -77,8 +77,7 @@ export default function Login() {
                                 Chào mừng bạn trở lại!
                             </CardTitle>
                             <CardDescription>
-                                Nhập email của bạn bên dưới để đăng nhập vào tài
-                                khoản.
+                                Nhập email của bạn bên dưới để đăng nhập vào tài khoản.
                             </CardDescription>
                         </CardHeader>
 

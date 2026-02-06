@@ -13,14 +13,35 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+
+            $table->unsignedBigInteger('user_catalogue_id')->default(0);
+
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('avatar')->nullable();
+            $table->string('phone', 20)->nullable();
+
+            $table->string('province_id', 10)->nullable();
+            $table->string('district_id', 10)->nullable();
+            $table->string('ward_id', 10)->nullable();
+            $table->string('address')->nullable();
+
+            $table->dateTime('birthday')->nullable();
+            $table->string('avatar')->nullable(); // gộp image / avatar → chọn 1
+
+            $table->tinyInteger('publish')->default(1);
+            $table->boolean('is_admin')->default(false);
+
+            $table->text('description')->nullable();
+            $table->text('user_agent')->nullable();
+            $table->text('ip')->nullable();
+
             $table->timestamp('email_verified_at')->nullable();
+            $table->timestamp('blocked_at')->nullable();
+            $table->timestamp('deleted_at')->nullable(); // nếu dùng soft delete
+
             $table->string('password');
             $table->rememberToken();
-            $table->boolean('is_admin')->default(false);
-            $table->timestamp('blocked_at')->nullable();
+
             $table->timestamps();
         });
 

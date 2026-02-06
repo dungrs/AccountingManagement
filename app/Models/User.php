@@ -3,16 +3,18 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+
+use App\Traits\QueryScopes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, QueryScopes, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -21,17 +23,26 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'avatar',
         'email',
-        'email_verified_at',
         'password',
-        'is_admin'
+        'phone',
+        'province_id',
+        'district_id',
+        'ward_id',
+        'address',
+        'birthday',
+        'avatar',
+        'description',
+        'user_catalogue_id',
+        'publish'
     ];
+
+    protected $table = 'users';
 
     /**
      * The attributes that should be hidden for serialization.
      *
-     * @var list<string>
+     * @var array<int, string>
      */
     protected $hidden = [
         'password',
@@ -39,58 +50,26 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+    ];
+
+    public function user_catalogues()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->belongsTo(UserCatalogue::class, 'user_catalogue_id', 'id');
     }
 
-    public function groups() {
+    public function languageable()
+    {
+        return $this->morphTo();
+    }
+
+    public function groups()
+    {
         return $this->belongsToMany(Group::class, 'group_users');
-    }
-    
-    public static function getUserExceptUser(User $user) {
-        $userId = $user->id;
-        $query = User::select(['users.*', 'messages.message as last_message', 'messages.created_at as last_message_date'])
-                        ->where('users.id', '!=', $userId)
-                        ->when(!$user->is_admin, function($query) {
-                            $query->whereNull('users.blocked_at');
-                        })
-                        ->leftJoin('conversations', function($join) use ($userId) {
-                            $join->on('conversations.user_id1', '=', 'users.id')
-                                ->where('conversations.user_id2', '=', $userId)
-                                ->orWhere(function($query) use ($userId) {
-                                    $query->on('conversations.user_id2', '=', 'users.id')
-                                        ->where('conversations.user_id1', '=', $userId);
-                                });
-                        })
-                        ->leftJoin('messages', 'messages.id', '=', 'conversations.last_message_id')
-                        ->orderByRaw('IFNULL(users.blocked_at, 1)')
-                        ->orderBy('messages.created_at', 'desc')
-                        ->orderBy('users.name');
-        
-        return $query->get();
-    }
-
-    public function toConversationArray() {
-        return [
-            'id' => $this->id,
-            'avatar_url' => $this->avatar ? Storage::url($this->avatar) : null,
-            'name' => $this->name,
-            'is_group' => false,
-            'is_user' => true,
-            'is_admin' => (bool) $this->admin,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-            'blocked_at' => $this->blocked_at,
-            'last_message' => $this->last_message,
-            'last_message_date' => $this->last_message_date ? ($this->last_message_date . ' UTC') : null,
-        ];
     }
 }

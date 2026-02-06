@@ -1,4 +1,5 @@
 import AdminLayout from "@/admin/layouts/AdminLayout";
+import { Head } from "@inertiajs/react";
 
 export default function Dashboard() {
     return (
@@ -10,7 +11,8 @@ export default function Dashboard() {
                 },
                 current: "Overview",
             }}
-        >
+        >   
+            <Head title="Trang thống kê" />
             <h1 className="text-xl font-semibold">
                 Chào mừng bạn đến Admin
             </h1>

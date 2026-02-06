@@ -1,0 +1,440 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import AdminLayout from "@/admin/layouts/AdminLayout";
+
+import { Button } from "@/admin/components/ui/button";
+
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/admin/components/ui/card";
+
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/admin/components/ui/dropdown-menu";
+
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/admin/components/ui/select";
+
+import {
+    MoreHorizontal,
+    Plus,
+    ShieldCheck,
+    CheckCircle2,
+    XCircle,
+} from "lucide-react";
+
+import axios from "axios";
+import toast from "react-hot-toast";
+
+import ConfirmDeleteDialog from "@/admin/components/common/ConfirmDeleteDialog";
+import DataTablePagination from "@/admin/components/common/DataTablePagination";
+import DataTableFilter from "@/admin/components/common/DataTableFilter";
+import { Head, usePage } from "@inertiajs/react";
+import UserTable from "@/admin/components/user/UserTable";
+import UserFormModal from "@/admin/components/user/UserFormModal";
+
+export default function User() {
+    const [data, setData] = useState([]);
+    const [selectedRows, setSelectedRows] = useState([]);
+
+    const [pageSize, setPageSize] = useState("10");
+    const [keyword, setKeyword] = useState("");
+    const [debouncedKeyword, setDebouncedKeyword] = useState("");
+    const [statusFilter, setStatusFilter] = useState("all"); // 🔥 Đổi default thành "all"
+
+    const [loading, setLoading] = useState(false);
+
+    const [openModal, setOpenModal] = useState(false);
+    const [modalMode, setModalMode] = useState("create");
+    const [editingRow, setEditingRow] = useState(null);
+
+    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+    const [deletingRow, setDeletingRow] = useState(null);
+
+    const [paginationData, setPaginationData] = useState({
+        current_page: 1,
+        last_page: 1,
+        per_page: 10,
+        total: 0,
+        from: 0,
+        to: 0,
+    });
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedKeyword(keyword);
+        }, 500); // Đợi 500ms sau khi người dùng ngừng nhập
+
+        return () => clearTimeout(timer); // Clear timer nếu keyword thay đổi trước khi hết thời gian
+    }, [keyword]);
+
+    const fetchData = useCallback(
+        async (page = 1) => {
+            setLoading(true);
+
+            try {
+                // 🔥 Chuẩn bị params rõ ràng hơn
+                const params = {
+                    page,
+                    perpage: parseInt(pageSize),
+                    keyword: debouncedKeyword.trim(), // trim whitespace
+                };
+
+                // 🔥 Chỉ gửi publish khi không phải "all"
+                if (statusFilter !== "all") {
+                    params.publish = parseInt(statusFilter);
+                }
+
+                const res = await axios.post(
+                    route("admin.user.filter"),
+                    params,
+                );
+
+                const response = res.data;
+                console.log(response);
+
+                // 🔥 Kiểm tra dữ liệu trả về
+                if (!response || !Array.isArray(response.data)) {
+                    throw new Error("Dữ liệu trả về không hợp lệ");
+                }
+
+                const mappedData = response.data.map((item) => ({
+                    id: item.id,
+                    name: item.name || "",
+                    phone: item.phone || "",
+                    email: item.email || "",
+                    avatar: item.avatar || "",
+                    address: item.address || 0,
+                    birthday: item.birthday || 0,
+                    province_id: item.province_id || 0,
+                    ward_id: item.ward_id || 0,
+                    active: item.publish === 1,
+                    description: item.description || "",
+                    user_catalogue_id: item.user_catalogue_id || "",
+                    user_catalogue_name: item.user_catalogue_name || "",
+                }));
+
+                setData(mappedData);
+
+                // 🔥 Cập nhật pagination với giá trị mặc định
+                setPaginationData({
+                    current_page: response.current_page || 1,
+                    last_page: response.last_page || 1,
+                    per_page: response.per_page || parseInt(pageSize),
+                    total: response.total || 0,
+                    from: response.from || 0,
+                    to: response.to || 0,
+                });
+
+                setSelectedRows([]);
+            } catch (error) {
+                console.error("Lỗi khi tải dữ liệu:", error);
+                toast.error(
+                    error.response?.data?.message || "Không thể tải dữ liệu!",
+                );
+
+                // 🔥 Reset data khi lỗi
+                setData([]);
+                setPaginationData({
+                    current_page: 1,
+                    last_page: 1,
+                    per_page: parseInt(pageSize),
+                    total: 0,
+                    from: 0,
+                    to: 0,
+                });
+            } finally {
+                setLoading(false);
+            }
+        },
+        [pageSize, debouncedKeyword, statusFilter],
+    ); // 🔥 Dependencies rõ ràng
+
+    // 🔥 Load lần đầu
+    useEffect(() => {
+        fetchData(1);
+    }, [fetchData]);
+
+    // Thêm mới
+    const handleCreate = () => {
+        setModalMode("create");
+        setEditingRow(null);
+        setOpenModal(true);
+    };
+
+    // Chỉnh sửa
+    const handleEdit = (row) => {
+        setModalMode("edit");
+        setEditingRow(row);
+        setOpenModal(true);
+    };
+
+    // Xóa
+    const handleDeleteClick = (row) => {
+        setDeletingRow(row);
+        setOpenDeleteDialog(true);
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deletingRow) return;
+
+        try {
+            const res = await axios.post(route("admin.user.delete"), {
+                id: deletingRow.id,
+            });
+
+            toast.success(res.data?.message || "Xóa thành công!");
+
+            setOpenDeleteDialog(false);
+            setDeletingRow(null);
+
+            // 🔥 Fetch lại trang hiện tại
+            fetchData(paginationData.current_page);
+        } catch (err) {
+            console.error("Lỗi khi xóa:", err);
+            toast.error(
+                err.response?.data?.message ||
+                    "Có lỗi xảy ra, vui lòng thử lại!",
+            );
+        }
+    };
+
+    // Toggle checkbox 1 row
+    const toggleRow = (id) => {
+        setSelectedRows((prev) =>
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+        );
+    };
+
+    // Toggle all checkbox
+    const toggleAll = () => {
+        if (selectedRows.length === data.length && data.length > 0) {
+            setSelectedRows([]);
+        } else {
+            setSelectedRows(data.map((item) => item.id));
+        }
+    };
+
+    // Bulk publish/unpublish
+    const bulkUpdateStatus = async (status) => {
+        if (selectedRows.length === 0) {
+            toast.error("Vui lòng chọn ít nhất một mục!");
+            return;
+        }
+
+        try {
+            const res = await axios.post(route("admin.changeStatusAll"), {
+                ids: selectedRows,
+                field: "publish",
+                status: status ? 1 : 0,
+                model: "User",
+                modelParent: "User",
+            });
+
+            toast.success(
+                res.data?.message || "Cập nhật trạng thái thành công!",
+            );
+
+            // update UI ngay lập tức
+            setData((prev) =>
+                prev.map((item) =>
+                    selectedRows.includes(item.id)
+                        ? { ...item, active: status }
+                        : item,
+                ),
+            );
+
+            setSelectedRows([]);
+        } catch (err) {
+            toast.error(
+                err.response?.data?.message ||
+                    "Đã xảy ra lỗi khi cập nhật trạng thái!",
+            );
+        }
+    };
+
+    // Pagination handlers
+    const goToPage = (page) => {
+        if (page >= 1 && page <= paginationData.last_page) {
+            fetchData(page);
+        }
+    };
+
+    const goToFirstPage = () => goToPage(1);
+    const goToPreviousPage = () => goToPage(paginationData.current_page - 1);
+    const goToNextPage = () => goToPage(paginationData.current_page + 1);
+    const goToLastPage = () => goToPage(paginationData.last_page);
+
+    const handleChangePageSize = (value) => {
+        setPageSize(value);
+        // 🔥 Về trang 1 khi đổi page size
+        // fetchData sẽ tự động được gọi qua useEffect
+    };
+
+    return (
+        <AdminLayout
+            breadcrumb={{
+                parent: {
+                    label: "Dashboard",
+                    link: route("admin.dashboard.index"),
+                },
+                current: "QL Thành Viên",
+            }}
+        >   
+            <Head title="Quản Lý Thành Viên" />
+            <Card className="rounded-md shadow-sm">
+                {/* HEADER */}
+                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <CardTitle className="text-2xl font-bold mb-1">
+                            Quản Lý Thành Viên
+                        </CardTitle>
+                        <CardDescription>
+                            Quản lý thông tin, vai trò và trạng thái của các
+                            thành viên trong hệ thống.
+                        </CardDescription>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Button className="rounded-md" onClick={handleCreate}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Thêm mới thành viên
+                        </Button>
+
+                        {/* Bulk Action Dropdown */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    size="icon"
+                                    className="rounded-md"
+                                >
+                                    <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                            </DropdownMenuTrigger>
+
+                            <DropdownMenuContent
+                                align="end"
+                                className="rounded-md"
+                            >
+                                <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    disabled={selectedRows.length === 0}
+                                    onClick={() => bulkUpdateStatus(true)}
+                                >
+                                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                                    Xuất bản
+                                </DropdownMenuItem>
+
+                                <DropdownMenuItem
+                                    className="cursor-pointer"
+                                    disabled={selectedRows.length === 0}
+                                    onClick={() => bulkUpdateStatus(false)}
+                                >
+                                    <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                                    Không xuất bản
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                    <DataTableFilter
+                        keyword={keyword}
+                        setKeyword={setKeyword}
+                        placeholder="Tìm kiếm..."
+                    >
+                        <Select
+                            value={statusFilter}
+                            onValueChange={setStatusFilter}
+                        >
+                            <SelectTrigger className="w-full sm:w-[200px] rounded-md">
+                                <SelectValue placeholder="Tình trạng" />
+                            </SelectTrigger>
+
+                            <SelectContent>
+                                <SelectItem value="all">Tất cả</SelectItem>
+                                <SelectItem value="1">
+                                    Đang hoạt động
+                                </SelectItem>
+                                <SelectItem value="0">
+                                    Ngừng hoạt động
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </DataTableFilter>
+
+                    {/* DATA TABLE */}
+                    <UserTable
+                        data={data}
+                        loading={loading}
+                        selectedRows={selectedRows}
+                        toggleAll={toggleAll}
+                        toggleRow={toggleRow}
+                        handleEdit={handleEdit}
+                        handleDeleteClick={handleDeleteClick}
+                        onToggleActive={(id, newChecked) => {
+                            // 🔥 Cập nhật ngay lập tức UI, sau đó sync với server
+                            setData((prev) =>
+                                prev.map((item) =>
+                                    item.id === id
+                                        ? { ...item, active: newChecked }
+                                        : item,
+                                ),
+                            );
+                        }}
+                    />
+
+                    {/* FOOTER */}
+                    <DataTablePagination
+                        selectedCount={selectedRows.length}
+                        total={paginationData.total}
+                        currentPage={paginationData.current_page}
+                        lastPage={paginationData.last_page}
+                        pageSize={pageSize}
+                        setPageSize={handleChangePageSize}
+                        goToFirstPage={goToFirstPage}
+                        goToPreviousPage={goToPreviousPage}
+                        goToNextPage={goToNextPage}
+                        goToLastPage={goToLastPage}
+                    />
+                </CardContent>
+            </Card>
+
+            {/* Modal */}
+            <UserFormModal
+                open={openModal}
+                mode={modalMode}
+                data={editingRow}
+                onClose={() => setOpenModal(false)}
+                onSuccess={() => fetchData(paginationData.current_page)}
+            />
+
+            {/* Delete Dialog */}
+            <ConfirmDeleteDialog
+                open={openDeleteDialog}
+                title="Xóa nhóm thành viên"
+                description={`Bạn có chắc chắn muốn xóa nhóm "${deletingRow?.name}" không?`}
+                onCancel={() => {
+                    setOpenDeleteDialog(false);
+                    setDeletingRow(null);
+                }}
+                onConfirm={handleConfirmDelete}
+            />
+        </AdminLayout>
+    );
+}

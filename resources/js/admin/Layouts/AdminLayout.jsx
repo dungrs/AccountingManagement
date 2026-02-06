@@ -28,13 +28,14 @@ import {
     PieChart,
     Map,
     GalleryVerticalEnd,
+    Users,
 } from "lucide-react";
 import { useEventBus } from "@/EventBus";
 
 export default function AdminLayout({ children, breadcrumb }) {
-    const { auth, flash } = usePage().props;
+    const { auth } = usePage().props;
     const user = auth.user;
-    const { on } = useEventBus()
+    const { on } = useEventBus();
 
     // Hiển thị flash messages
     useEffect(() => {
@@ -67,16 +68,20 @@ export default function AdminLayout({ children, breadcrumb }) {
             icon: SquareTerminal,
         },
         {
-            title: "Products",
-            icon: Bot,
+            title: "Quản Lý Thành Viên",
+            icon: Users,
             items: [
                 {
-                    title: "Danh sách",
-                    url: route("admin.dashboard.index"),
+                    title: "QL Nhóm Thành Viên",
+                    url: route("admin.user.catalogue.index"),
                 },
                 {
-                    title: "Thêm mới",
-                    url: route("admin.dashboard.index"),
+                    title: "QL Thành Viên",
+                    url: route("admin.user.index"),
+                },
+                {
+                    title: "QL Quyền",
+                    url: route("admin.permission.index"),
                 },
             ],
         },
@@ -119,9 +124,10 @@ export default function AdminLayout({ children, breadcrumb }) {
                 projects={projects}
             />
 
-            <SidebarInset>
+            {/* Full chiều cao màn hình */}
+            <SidebarInset className="h-screen overflow-hidden">
                 {/* HEADER */}
-                <header className="flex h-16 shrink-0 items-center gap-2 px-4">
+                <header className="flex h-16 shrink-0 items-center gap-2 px-4 border-b">
                     <SidebarTrigger className="-ml-1" />
                     <Separator orientation="vertical" className="mr-2 h-4" />
 
@@ -150,12 +156,10 @@ export default function AdminLayout({ children, breadcrumb }) {
                     )}
                 </header>
 
-                {/* CONTENT */}
-                <main className="flex flex-1 flex-col gap-4 p-4 pt-0">
-                    {children}
-                </main>
+                {/* CONTENT - CHỈ PHẦN NÀY SCROLL */}
+                <main className="flex-1 overflow-y-auto p-4">{children}</main>
             </SidebarInset>
-            
+
             <Toaster position="top-right" reverseOrder={false} />
         </SidebarProvider>
     );
