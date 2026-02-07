@@ -42,7 +42,7 @@ class BaseRepository implements BaseRepositoryInterface
             ->extendCustomOrderBy($orderBy ?? ['id', 'DESC']);
 
         // 👉 DEBUG SQL (bật khi cần)
-        // dd($query->toSql())
+        // dd($query->toSql());
 
         return $query
             ->paginate($perpage, ['*'], 'page', $page)

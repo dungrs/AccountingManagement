@@ -40,7 +40,7 @@ class UserController extends Controller
         $userCatalogues = $this->userCatalogueRepository->all();
         $provinces = $this->provinceRepository->all();
 
-        return Inertia::render('User/User', [
+        return Inertia::render('User/Home', [
             'userCatalogues' => $userCatalogues,
             'provinces' => $provinces,
         ]);

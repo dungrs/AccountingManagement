@@ -33,7 +33,7 @@ class UserCatalogueController extends Controller
     {
         $this->authorize('modules', 'user.catalogue.index');
 
-        return Inertia::render('User/UserCatalogue');
+        return Inertia::render('UserCatalogue/Home');
     }
 
     public function permission()
@@ -43,7 +43,7 @@ class UserCatalogueController extends Controller
         $userCatalogues = $this->userCatalogueRepository->all(['permissions']);
         $permissions = $this->permissionRepository->all();
 
-        return Inertia::render('User/UserCataloguePermission', [
+        return Inertia::render('UserCatalogue/Permission', [
             'userCatalogues' => $userCatalogues,
             'permissions' => $permissions
         ]);

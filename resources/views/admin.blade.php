@@ -16,6 +16,7 @@
 
         <!-- ✅ CKFinder -->
         <script src="/backend/libs/ckfinder/ckfinder.js"></script>
+        <script src="/backend/libs/%40ckeditor/ckeditor5-build-classic/build/ckeditor.js"></script>
 
         @inertiaHead
     </head>

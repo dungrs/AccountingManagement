@@ -11,47 +11,52 @@ use Illuminate\Support\Str;
 
 class BaseService implements BaseServiceInterface
 {
-    // protected $routerRepository;
+    protected $routerRepository;
 
-    // public function __construct(RouterRepository $routerRepository) {
-    //     $this->routerRepository = $routerRepository;
-    // }
+    public function __construct(RouterRepository $routerRepository)
+    {
+        $this->routerRepository = $routerRepository;
+    }
 
-    // public function createRouter($request, $model, $controllerName, $languageId) {
-    //     $payloadRouter = $this->formatRouterPayload($request, $model, $controllerName, $languageId);
-    //     $this->routerRepository->create($payloadRouter);
-    // }
+    public function createRouter($request, $model, $controllerName, $languageId)
+    {
+        $payloadRouter = $this->formatRouterPayload($request, $model, $controllerName, $languageId);
+        $this->routerRepository->create($payloadRouter);
+    }
 
-    // public function updateRouter($request, $model, $controllerName, $languageId) {
-    //     $payloadRouter = $this->formatRouterPayload($request, $model, $controllerName, $languageId);
-    //     $condition = [
-    //         ['module_id', '=', $model->id],
-    //         ['language_id', '=', $languageId],
-    //         ['controllers', '=', "App\\Http\\Controllers\Frontend\\$controllerName[parent]\\$controllerName[child]Controller"]
-    //     ];
-    //     $router = $this->routerRepository->findByCondition($condition);
-    //     $this->routerRepository->update($router->id, $payloadRouter);
-    // }
+    public function updateRouter($request, $model, $controllerName, $languageId)
+    {
+        $payloadRouter = $this->formatRouterPayload($request, $model, $controllerName, $languageId);
+        $condition = [
+            ['module_id', '=', $model->id],
+            ['language_id', '=', $languageId],
+            ['controllers', '=', "App\\Http\\Controllers\Web\\$controllerName[parent]\\$controllerName[child]Controller"]
+        ];
+        $router = $this->routerRepository->findByCondition($condition);
+        $this->routerRepository->update($router->id, $payloadRouter);
+    }
 
-    // public function formatRouterPayload($request, $model, $controllerName, $languageId) {
-    //     return [
-    //         'canonical' => Str::slug($request->input('canonical')),
-    //         'module_id' => $model->id,
-    //         'language_id' => $languageId,
-    //         'controllers' =>  "App\\Http\\Controllers\Frontend\\$controllerName[parent]\\$controllerName[child]Controller",
-    //     ];
-    // }
+    public function formatRouterPayload($request, $model, $controllerName, $languageId)
+    {
+        return [
+            'canonical' => Str::slug($request->input('canonical')),
+            'module_id' => $model->id,
+            'language_id' => $languageId,
+            'controllers' =>  "App\\Http\\Controllers\Web\\$controllerName[parent]\\$controllerName[child]Controller",
+        ];
+    }
 
-    // public function formatJson($request, $inputName) {
-    //     return ($request->input($inputName) && !empty($request->input($inputName))) ? json_encode($request->input($inputName)): '';
-    // }
+    public function formatJson($request, $inputName)
+    {
+        return ($request->input($inputName) && !empty($request->input($inputName))) ? json_encode($request->input($inputName)) : '';
+    }
 
-    // public function nestedSet()
-    // {
-    //     $this->nestedSet->Get();
-    //     $this->nestedSet->Recursive(0, $this->nestedSet->Set());
-    //     $this->nestedSet->Action();
-    // }
+    public function nestedSet()
+    {
+        $this->nestedSet->Get();
+        $this->nestedSet->Recursive(0, $this->nestedSet->Set());
+        $this->nestedSet->Action();
+    }
 
     public function updateStatus(array $payload, int $id): bool
     {

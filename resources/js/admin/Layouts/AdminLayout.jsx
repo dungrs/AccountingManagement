@@ -22,13 +22,13 @@ import { AppSidebar } from "@/admin/components/app-sidebar";
 // icon
 import {
     SquareTerminal,
-    Bot,
     Settings2,
     Frame,
     PieChart,
     Map,
     GalleryVerticalEnd,
     Users,
+    Package,
 } from "lucide-react";
 import { useEventBus } from "@/EventBus";
 
@@ -66,6 +66,28 @@ export default function AdminLayout({ children, breadcrumb }) {
             title: "Dashboard",
             url: route("admin.dashboard.index"),
             icon: SquareTerminal,
+        },
+        {
+            title: "Quản Lý Sản Phẩm",
+            icon: Package,
+            items: [
+                {
+                    title: "QL Nhóm Sản Phẩm",
+                    url: route("admin.user.catalogue.index"),
+                },
+                {
+                    title: "QL Sản Phẩm",
+                    url: route("admin.user.index"),
+                },
+                {
+                    title: "QL Loại Thuộc Tính",
+                    url: route("admin.attribute.catalogue.index"),
+                },
+                {
+                    title: "QL Thuộc Tính",
+                    url: route("admin.attribute.index"),
+                },
+            ],
         },
         {
             title: "Quản Lý Thành Viên",

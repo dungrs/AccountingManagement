@@ -34,12 +34,15 @@ class AuthController extends Controller
 
     public function store(AuthRequest $request): RedirectResponse
     {
-        $credentials = $request->only('email', 'password');
+        $credentials = [
+            'email' => $request->input('email'),
+            'password' => $request->input('password'),
+            'publish' => 1,
+        ];
 
         if (Auth::attempt($credentials)) {
             return redirect()
-                ->route('admin.dashboard.index')
-                ->with('success', 'Đăng nhập thành công!');
+                ->route('admin.dashboard.index');
         }
 
         throw ValidationException::withMessages([

@@ -14,10 +14,13 @@
   "rtl": false,
   "aliases": {
     "components": "@/admin/components",
-    "ui": "@/admin/components/ui",
     "utils": "@/admin/lib/utils",
+    "ui": "@/admin/components/ui",
     "lib": "@/admin/lib",
     "hooks": "@/admin/hooks"
   },
-  "registries": {}
+  "registries": {
+    "@shadcnblocks": "https://shadcnblocks.com/r/{name}.json",
+    "@wds": "https://wds-shadcn-registry.netlify.app/r/{name}.json"
+  }
 }
