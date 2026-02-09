@@ -34,8 +34,6 @@ import {
     Eye,
     EyeOff,
     Upload,
-    X,
-    AlertCircle,
 } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { format, parse } from "date-fns";

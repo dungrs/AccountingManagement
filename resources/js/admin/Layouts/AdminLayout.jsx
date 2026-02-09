@@ -67,31 +67,11 @@ export default function AdminLayout({ children, breadcrumb }) {
             url: route("admin.dashboard.index"),
             icon: SquareTerminal,
         },
+
+        // ===================== HỆ THỐNG =====================
         {
-            title: "Quản Lý Sản Phẩm",
-            icon: Package,
-            items: [
-                {
-                    title: "QL Nhóm Sản Phẩm",
-                    url: route("admin.user.catalogue.index"),
-                },
-                {
-                    title: "QL Sản Phẩm",
-                    url: route("admin.user.index"),
-                },
-                {
-                    title: "QL Loại Thuộc Tính",
-                    url: route("admin.attribute.catalogue.index"),
-                },
-                {
-                    title: "QL Thuộc Tính",
-                    url: route("admin.attribute.index"),
-                },
-            ],
-        },
-        {
-            title: "Quản Lý Thành Viên",
-            icon: Users,
+            title: "Hệ Thống",
+            icon: Settings2,
             items: [
                 {
                     title: "QL Nhóm Thành Viên",
@@ -105,14 +85,212 @@ export default function AdminLayout({ children, breadcrumb }) {
                     title: "QL Quyền",
                     url: route("admin.permission.index"),
                 },
+                {
+                    title: "Cấu Hình Hệ Thống",
+                    url: route("admin.dashboard.index"),
+                },
             ],
         },
+
+        // ===================== HÀNG HÓA =====================
         {
-            title: "Settings",
+            title: "Hàng Hóa",
+            icon: Package,
+            items: [
+                {
+                    title: "Nhóm Sản Phẩm",
+                    url: route("admin.product.catalogue.index"),
+                },
+                {
+                    title: "Sản Phẩm",
+                    // url: route("admin.product.index"),
+                },
+                {
+                    title: "Loại Thuộc Tính",
+                    url: route("admin.attribute.catalogue.index"),
+                },
+                {
+                    title: "Thuộc Tính",
+                    url: route("admin.attribute.index"),
+                },
+                {
+                    title: "Đơn Vị Tính",
+                    url: route("admin.dashboard.index"),
+                },
+            ],
+        },
+
+        // ===================== ĐỐI TÁC =====================
+        {
+            title: "Đối Tác",
+            icon: Users,
+            items: [
+                {
+                    title: "Khách Hàng",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Nhà Cung Cấp",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Nhóm Khách Hàng",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Nhóm Nhà Cung Cấp",
+                    url: route("admin.dashboard.index"),
+                },
+            ],
+        },
+
+        // ===================== KHO HÀNG =====================
+        {
+            title: "Kho Hàng",
+            icon: Package,
+            items: [
+                {
+                    title: "Phiếu Nhập Kho",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Phiếu Xuất Kho",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Kiểm Kê Kho",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Báo Cáo Tồn Kho",
+                    url: route("admin.dashboard.index"),
+                },
+            ],
+        },
+
+        // ===================== THU CHI - QUỸ =====================
+        {
+            title: "Thu Chi - Quỹ",
+            icon: SquareTerminal,
+            items: [
+                {
+                    title: "Phiếu Thu",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Phiếu Chi",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Sổ Quỹ",
+                    url: route("admin.dashboard.index"),
+                },
+            ],
+        },
+
+        // ===================== CÔNG NỢ =====================
+        {
+            title: "Công Nợ",
+            icon: SquareTerminal,
+            items: [
+                {
+                    title: "Công Nợ Phải Thu",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Công Nợ Phải Trả",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Báo Cáo Công Nợ",
+                    url: route("admin.dashboard.index"),
+                },
+            ],
+        },
+
+        // ===================== NHÂN SỰ =====================
+        {
+            title: "Nhân Sự",
+            icon: Users,
+            items: [
+                {
+                    title: "Danh Sách Nhân Viên",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Phòng Ban",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Chức Vụ",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Bảng Lương",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Chấm Công",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Tạm Ứng",
+                    url: route("admin.dashboard.index"),
+                },
+            ],
+        },
+
+        // ===================== KẾ TOÁN =====================
+        {
+            title: "Kế Toán",
+            icon: PieChart,
+            items: [
+                {
+                    title: "Hệ Thống Tài Khoản",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Định Khoản",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Sổ Cái",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Báo Cáo Tài Chính",
+                    url: route("admin.dashboard.index"),
+                },
+            ],
+        },
+
+        // ===================== CÀI ĐẶT =====================
+        {
+            title: "Cài Đặt",
             icon: Settings2,
             items: [
                 {
-                    title: "Profile",
+                    title: "Thông Tin Công Ty",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Ngân Hàng",
+                    url: route("admin.bank.index"),
+                },
+                {
+                    title: "Loại Tiền Tệ",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Tỷ Giá",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Thuế VAT",
+                    url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Bảng Giá",
                     url: route("admin.dashboard.index"),
                 },
             ],
@@ -120,21 +298,7 @@ export default function AdminLayout({ children, breadcrumb }) {
     ];
 
     const projects = [
-        {
-            name: "Sales",
-            url: "#",
-            icon: PieChart,
-        },
-        {
-            name: "Marketing",
-            url: "#",
-            icon: Frame,
-        },
-        {
-            name: "Travel",
-            url: "#",
-            icon: Map,
-        },
+   
     ];
 
     return (

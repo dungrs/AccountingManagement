@@ -3,44 +3,44 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Controller;
-use App\Http\Requests\Permission\StorePermissionRequest;
-use App\Http\Requests\Permission\UpdatePermissionRequest;
+use App\Http\Requests\Bank\StoreBankRequest;
+use App\Http\Requests\Bank\UpdateBankRequest;
 use Illuminate\Http\Request;
 
-use App\Services\PermissionService;
+use App\Services\BankService;
 use Inertia\Inertia;
 
-class PermissionController extends Controller
+class BankController extends Controller
 {
-    protected $permissionService;
+    protected $bankService;
 
     public function __construct(
-        PermissionService $permissionService
+        BankService $bankService
     ) {
-        $this->permissionService = $permissionService;
+        $this->bankService = $bankService;
     }
 
     public function index()
     {
-        $this->authorize('modules', 'permission.index');
+        $this->authorize('modules', 'bank.index');
 
-        return Inertia::render('Permission');
+        return Inertia::render('Bank');
     }
 
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'permission.index');
+        $this->authorize('modules', 'bank.index');
 
-        $permissions = $this->permissionService->paginate($request);
-        return response()->json($permissions);
+        $banks = $this->bankService->paginate($request);
+        return response()->json($banks);
     }
 
-    public function store(StorePermissionRequest $request)
+    public function store(StoreBankRequest $request)
     {
-        $this->authorize('modules', 'permission.create');
+        $this->authorize('modules', 'bank.create');
 
         try {
-            $this->permissionService->create($request);
+            $this->bankService->create($request);
 
             return response()->json([
                 'status'  => 'success',
@@ -54,12 +54,12 @@ class PermissionController extends Controller
         }
     }
 
-    public function update(UpdatePermissionRequest $request)
+    public function update(UpdateBankRequest $request)
     {
-        $this->authorize('modules', 'permission.update');
+        $this->authorize('modules', 'bank.update');
 
         try {
-            $this->permissionService->update($request);
+            $this->bankService->update($request);
 
             return response()->json([
                 'status'  => 'success',
@@ -75,12 +75,12 @@ class PermissionController extends Controller
 
     public function delete(Request $request)
     {
-        $this->authorize('modules', 'permission.destroy');
+        $this->authorize('modules', 'bank.destroy');
 
         try {
             $id = $request->input('id');
 
-            $this->permissionService->delete($id);
+            $this->bankService->delete($id);
 
             return response()->json([
                 'status'  => 'success',

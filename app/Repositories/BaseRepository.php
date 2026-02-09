@@ -229,6 +229,10 @@ class BaseRepository implements BaseRepositoryInterface
         return $forceDelete ? $query->forceDelete() : $query->delete();
     }
 
+    public function findLastest() {
+        return $this->model->orderBy('id', 'DESC')->first();
+    }
+
     public function recursveCategory(string $parameter = '', $table = '')
     {
         $table = $table . '_catalogues';

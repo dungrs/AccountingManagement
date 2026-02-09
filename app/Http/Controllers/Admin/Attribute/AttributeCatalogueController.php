@@ -38,7 +38,7 @@ class AttributeCatalogueController extends Controller
 
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'user.catalogue.index');
+        $this->authorize('modules', 'attribute.catalogue.index');
 
         $attributeCatalogues = $this->attributeCatalogueService->paginate($request);
         return response()->json($attributeCatalogues);

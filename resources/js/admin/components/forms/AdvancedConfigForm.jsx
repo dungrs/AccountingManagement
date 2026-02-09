@@ -10,6 +10,7 @@ import CategorySelect from "@/admin/components/fields/CategorySelect";
 import MultiCategorySelect from "@/admin/components/fields/MultiCategorySelect";
 import StatusSelect from "@/admin/components/fields/StatusSelect";
 import NavigationSelect from "@/admin/components/fields/NavigationSelect";
+import { useEffect } from "react";
 
 export default function AdvancedConfigForm({
     data,
@@ -29,35 +30,26 @@ export default function AdvancedConfigForm({
     ],
     hasCatalogue = false,
     excludeCategoryId = null,
+    showInfoMessage,
+    errors = {},
 }) {
-    // DEBUG: Log data mỗi khi component render
-    console.log(
-        "AdvancedConfigForm render - data.catalogues:",
-        data.catalogues,
-    );
-
     const handleChange = (field, value) => {
-        console.log("AdvancedConfigForm handleChange:", field, value);
         const newData = {
             ...data,
             [field]: value,
         };
-        console.log("AdvancedConfigForm calling onChange with:", newData);
         onChange(newData);
     };
 
-    // ✅ Convert dropdown object → array với value là STRING
     const categories = Object.entries(dropdown).map(([key, value]) => ({
         value: key, // GIỮ NGUYÊN STRING - không parseInt
         label: value,
     }));
 
-    // ✅ Chuyển excludeCategoryId về string
     const stringExcludeId = excludeCategoryId
         ? String(excludeCategoryId)
         : null;
 
-    // ✅ Chuyển parentCategory về string
     const stringParentCategory = data.parentCategory
         ? String(data.parentCategory)
         : null;
@@ -77,7 +69,8 @@ export default function AdvancedConfigForm({
                     required
                     categories={categories}
                     excludeValue={stringExcludeId}
-                    showInfoMessage
+                    showInfoMessage={showInfoMessage}
+                    errors = {errors}
                 />
 
                 {hasCatalogue && (

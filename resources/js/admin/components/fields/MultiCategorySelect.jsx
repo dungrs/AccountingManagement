@@ -83,7 +83,7 @@ export default function MultiCategorySelect({
                     >
                         <div className="flex flex-wrap gap-1 flex-1 mr-2">
                             {selectedCategories.length === 0 ? (
-                                <span className="text-muted-foreground">
+                                <span className="text-muted-foreground text-sm">
                                     {placeholder}
                                 </span>
                             ) : (
@@ -91,18 +91,39 @@ export default function MultiCategorySelect({
                                     <Badge
                                         key={category.value}
                                         variant="secondary"
-                                        className="flex items-center gap-1 text-xs"
+                                        className="text-xs"
+                                        asChild
                                     >
-                                        {category.label}
-                                        <button
-                                            type="button"
-                                            onClick={(e) =>
-                                                handleRemove(category.value, e)
-                                            }
-                                            className="hover:text-destructive"
-                                        >
-                                            <X className="h-3 w-3" />
-                                        </button>
+                                        <span className="inline-flex items-center gap-1 leading-none">
+                                            <span className="leading-none">
+                                                {category.label}
+                                            </span>
+
+                                            <span
+                                                role="button"
+                                                tabIndex={0}
+                                                onClick={(e) =>
+                                                    handleRemove(
+                                                        category.value,
+                                                        e,
+                                                    )
+                                                }
+                                                onKeyDown={(e) => {
+                                                    if (
+                                                        e.key === "Enter" ||
+                                                        e.key === " "
+                                                    ) {
+                                                        handleRemove(
+                                                            category.value,
+                                                            e,
+                                                        );
+                                                    }
+                                                }}
+                                                className="inline-flex h-4 w-4 items-center justify-center rounded-sm cursor-pointer hover:text-destructive"
+                                            >
+                                                <X className="h-3 w-3" />
+                                            </span>
+                                        </span>
                                     </Badge>
                                 ))
                             )}

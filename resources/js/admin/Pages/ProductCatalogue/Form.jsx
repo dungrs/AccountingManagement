@@ -9,32 +9,22 @@ import GeneralInfoForm from "@/admin/components/forms/GeneralInfoForm";
 import SEOForm from "@/admin/components/forms/SEOForm";
 import AdvancedConfigForm from "@/admin/components/forms/AdvancedConfigForm";
 import ImageUpload from "@/admin/components/upload/ImageUpload";
-import AlbumUpload from "@/admin/components/upload/AlbumUpload";
+// import AlbumUpload from "@/admin/components/upload/AlbumUpload";
 
 import { useEventBus } from "@/EventBus";
-import { parseJsonArray } from "@/admin/utils/parseJsonArray";
 
-const normalizeCatalogues = (value) => {
-    if (!value) return [];
-    if (Array.isArray(value)) return value.map(String);
-    return [];
-};
-
-export default function Form() {
+export default function FormCatalogue() {
     const {
         dropdown,
-        attribute,
-        catalogues,
+        productCatalogue,
         errors: serverErrors,
         flash,
     } = usePage().props;
+
     const { emit } = useEventBus();
 
-    // Kiểm tra xem đang ở chế độ Edit hay Create
-    const isEdit = !!attribute;
-    useEffect(() => {
-        console.log(attribute);
-    }, []);
+    // Kiểm tra đang edit hay create
+    const isEdit = !!productCatalogue;
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,7 +40,6 @@ export default function Form() {
         parentCategory: "0",
         status: "0",
         navigation: "0",
-        catalogues: [],
 
         meta_title: "",
         canonical: "",
@@ -60,33 +49,28 @@ export default function Form() {
 
     // Load dữ liệu khi Edit
     useEffect(() => {
-        if (!attribute) return;
+        if (productCatalogue) {
+            setFormData({
+                name: productCatalogue.name || "",
+                description: productCatalogue.description || "",
+                content: productCatalogue.content || "",
 
-        setFormData((prev) => ({
-            ...prev,
+                album: productCatalogue.album || [],
+                image: productCatalogue.image || null,
 
-            name: attribute.name || "",
-            description: attribute.description || "",
-            content: attribute.content || "",
+                parentCategory: productCatalogue.parent_id?.toString() || "0",
+                status: productCatalogue.publish?.toString() || "0",
+                navigation: productCatalogue.follow?.toString() || "0",
 
-            album: parseJsonArray(attribute.album),
-            image: attribute.image || null,
+                meta_title: productCatalogue.meta_title || "",
+                canonical: productCatalogue.canonical || "",
+                meta_keyword: productCatalogue.meta_keyword || "",
+                meta_description: productCatalogue.meta_description || "",
+            });
+        }
+    }, [productCatalogue]);
 
-            parentCategory: attribute.attribute_catalogue_id?.toString() || "0",
-            status: attribute.publish?.toString() || "0",
-            navigation: attribute.follow?.toString() || "0",
-
-            // ✅ nhận catalogues từ props
-            catalogues: normalizeCatalogues(catalogues),
-
-            meta_title: attribute.meta_title || "",
-            canonical: attribute.canonical || "",
-            meta_keyword: attribute.meta_keyword || "",
-            meta_description: attribute.meta_description || "",
-        }));
-    }, [attribute, catalogues]);
-
-    // Xử lý flash messages
+    // Flash message
     useEffect(() => {
         if (flash?.success) {
             emit("toast:success", flash.success);
@@ -96,12 +80,22 @@ export default function Form() {
         }
     }, [flash, emit]);
 
-    // Sync server errors vào state
+    // Server errors
     useEffect(() => {
         if (serverErrors && Object.keys(serverErrors).length > 0) {
             setErrors(serverErrors);
         }
     }, [serverErrors]);
+
+    const clearFieldErrors = (fields) => {
+        setErrors((prev) => {
+            const newErrors = { ...prev };
+            fields.forEach((field) => {
+                delete newErrors[field];
+            });
+            return newErrors;
+        });
+    };
 
     // Handle General Info changes
     const handleGeneralChange = (data) => {
@@ -112,7 +106,6 @@ export default function Form() {
             content: data.content,
         }));
 
-        // Clear errors khi user nhập
         clearFieldErrors(["name", "description", "content"]);
     };
 
@@ -126,7 +119,6 @@ export default function Form() {
             meta_description: data.meta_description,
         }));
 
-        // Clear errors khi user nhập
         clearFieldErrors([
             "meta_title",
             "canonical",
@@ -142,10 +134,8 @@ export default function Form() {
             parentCategory: data.parentCategory,
             status: data.status,
             navigation: data.navigation,
-            catalogues: data.catalogues ?? prev.catalogues, // ✅ GIỮ LẠI
         }));
 
-        // Clear errors khi user nhập
         clearFieldErrors(["parent_id", "publish", "follow"]);
     };
 
@@ -169,33 +159,10 @@ export default function Form() {
         clearFieldErrors(["album"]);
     };
 
-    // Helper function để clear errors
-    const clearFieldErrors = (fields) => {
-        setErrors((prev) => {
-            const newErrors = { ...prev };
-            fields.forEach((field) => {
-                delete newErrors[field];
-            });
-            return newErrors;
-        });
-    };
-
     const handleSubmit = () => {
         if (isSubmitting) return;
 
-        // Clear tất cả errors trước khi submit
         setErrors({});
-
-        // Validation phía client
-        if (formData.status === "2") {
-            emit("toast:error", "Vui lòng chọn tình trạng!");
-            return;
-        }
-
-        if (formData.navigation === "2") {
-            emit("toast:error", "Vui lòng chọn điều hướng!");
-            return;
-        }
 
         setIsSubmitting(true);
 
@@ -207,12 +174,9 @@ export default function Form() {
             image: formData.image,
             album: formData.album,
 
-            attribute_catalogue_id: formData.parentCategory,
+            parent_id: formData.parentCategory,
             publish: formData.status,
             follow: formData.navigation,
-
-            // ✅ THÊM DÒNG NÀY
-            catalogues: formData.catalogues,
 
             meta_title: formData.meta_title,
             canonical: formData.canonical,
@@ -220,12 +184,10 @@ export default function Form() {
             meta_description: formData.meta_description,
         };
 
-        // Xác định route và method dựa vào chế độ Edit/Create
         const submitRoute = isEdit
-            ? route("admin.attribute.update", attribute.id)
-            : route("admin.attribute.store");
+            ? route("admin.product.catalogue.update", productCatalogue.id)
+            : route("admin.product.catalogue.store");
 
-        // Sử dụng PUT cho Edit, POST cho Create
         const submitMethod = isEdit ? "put" : "post";
 
         router[submitMethod](submitRoute, submitData, {
@@ -234,11 +196,11 @@ export default function Form() {
             onSuccess: () => {
                 setErrors({});
 
-                emit("toast.attribute.success", {
+                emit("toast.product.catalogue.success", {
                     action: isEdit ? "update" : "create",
                     message: isEdit
-                        ? "Cập nhật loại thuộc tính thành công!"
-                        : "Thêm mới loại thuộc tính thành công!",
+                        ? "Cập nhật nhóm sản phẩm thành công!"
+                        : "Thêm mới nhóm sản phẩm thành công!",
                 });
             },
 
@@ -265,15 +227,13 @@ export default function Form() {
                     link: route("admin.dashboard.index"),
                 },
                 current: isEdit
-                    ? "Cập Nhật Loại Thuộc Tính"
-                    : "Thêm Mới Loại Thuộc Tính",
+                    ? "Cập Nhật Nhóm Sản Phẩm"
+                    : "Thêm Mới Nhóm Sản Phẩm",
             }}
         >
             <Head
                 title={
-                    isEdit
-                        ? "Cập Nhật Loại Thuộc Tính"
-                        : "Thêm Mới Loại Thuộc Tính"
+                    isEdit ? "Cập Nhật Nhóm Sản Phẩm" : "Thêm Mới Nhóm Sản Phẩm"
                 }
             />
 
@@ -286,14 +246,15 @@ export default function Form() {
                             description: formData.description,
                             content: formData.content,
                         }}
+                        description="Nhập thông tin chung về nhóm sản phẩm"
                         onChange={handleGeneralChange}
                         errors={errors}
                     />
 
-                    <AlbumUpload
+                    {/* <AlbumUpload
                         images={formData.album}
                         onChange={handleAlbumChange}
-                    />
+                    /> */}
 
                     <SEOForm
                         seoData={{
@@ -314,14 +275,11 @@ export default function Form() {
                             parentCategory: formData.parentCategory,
                             status: formData.status,
                             navigation: formData.navigation,
-                            catalogues: formData.catalogues, // ✅
                         }}
                         onChange={handleAdvancedChange}
                         dropdown={dropdown}
-                        hasCatalogue={true}
-                        excludeCategoryId={attribute?.id ?? null}
-                        showInfoMessage={false}
-                        errors={errors}
+                        hasCatalogue={false}
+                        excludeCategoryId={productCatalogue?.id ?? null}
                     />
 
                     <ImageUpload

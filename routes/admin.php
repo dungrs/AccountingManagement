@@ -8,6 +8,8 @@ use App\Http\Controllers\Admin\User\UserCatalogueController;
 use App\Http\Controllers\Admin\User\UserController;
 use App\Http\Controllers\Admin\Attribute\AttributeCatalogueController;
 use App\Http\Controllers\Admin\Attribute\AttributeController;
+use App\Http\Controllers\Admin\BankController;
+use App\Http\Controllers\Admin\Product\ProductCatalogueController;
 use App\Http\Controllers\LocationController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,7 +18,17 @@ Route::middleware('auth')->group(function () {
     // DASHBOARD
     Route::get('/dashboard/index', [DashboardController::class, 'index'])->name('admin.dashboard.index');
 
+    // PRODUCT CATALOGUE
+    Route::prefix('product/catalogue')->group(function () {
+        Route::get('index', [ProductCatalogueController::class, 'index'])->name('admin.product.catalogue.index');
+        Route::get('create', [ProductCatalogueController::class, 'create'])->name('admin.product.catalogue.create');
+        Route::get('edit/{id}', [ProductCatalogueController::class, 'edit'])->name('admin.product.catalogue.edit')->where(['id' => '[0-9]+']);
 
+        Route::post('filter', [ProductCatalogueController::class, 'filter'])->name('admin.product.catalogue.filter');
+        Route::post('store', [ProductCatalogueController::class, 'store'])->name('admin.product.catalogue.store');
+        Route::put('update/{id}', [ProductCatalogueController::class, 'update'])->name('admin.product.catalogue.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [ProductCatalogueController::class, 'delete'])->name('admin.product.catalogue.delete')->where(['id' => '[0-9]+']);
+    });
 
     // ATTRIBUTE CATALOGUE
     Route::prefix('attribute/catalogue')->group(function () {
@@ -61,6 +73,17 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [UserController::class, 'store'])->name('admin.user.store');
         Route::post('update', [UserController::class, 'update'])->name('admin.user.update');
         Route::post('delete', [UserController::class, 'delete'])->name('admin.user.delete');
+    });
+
+    // BANK
+    Route::prefix('bank')->group(function () {
+        Route::get('index', [BankController::class, 'index'])->name('admin.bank.index');
+
+        Route::post('filter', [BankController::class, 'filter'])->name('admin.bank.filter');
+        Route::post('store', [BankController::class, 'store'])->name('admin.bank.store');
+        Route::post('update', [BankController::class, 'update'])->name('admin.bank.update');
+        Route::post('delete', [BankController::class, 'delete'])->name('admin.bank.delete');
+        Route::get('permission', [BankController::class, 'permission'])->name('admin.bank.permission');
     });
 
     // PERMISSION

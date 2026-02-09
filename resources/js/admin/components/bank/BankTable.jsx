@@ -29,7 +29,7 @@ import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import ChangeStatusSwitch from "../common/ChangeStatusSwitch";
 import { getInitials } from "@/admin/utils/helpers";
 
-export default function UserTable({
+export default function BankTable({
     data = [],
     loading = false,
     selectedRows = [],
@@ -54,14 +54,12 @@ export default function UserTable({
                             />
                         </TableHead>
 
-                        <TableHead>Họ và tên</TableHead>
-                        <TableHead>Số điện thoại</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Địa chỉ</TableHead>
-                        <TableHead className="text-center">
-                            Nhóm thành viên
-                        </TableHead>
-                        <TableHead className="text-center">Tình trạng</TableHead>
+                        <TableHead>Ngân hàng</TableHead>
+                        <TableHead>Mã ngân hàng</TableHead>
+                        <TableHead>Tên viết tắt</TableHead>
+                        <TableHead>Swift Code</TableHead>
+                        <TableHead>BIN Code</TableHead>
+                        <TableHead className="text-center">Trạng thái</TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -89,19 +87,18 @@ export default function UserTable({
                                     />
                                 </TableCell>
 
-                                {/* Họ tên + Avatar */}
+                                {/* Bank name + logo */}
                                 <TableCell>
                                     <div className="flex items-center gap-3">
                                         <Avatar className="h-8 w-8">
                                             <AvatarImage
-                                                src={row.avatar || ""}
+                                                src={row.logo || ""}
                                                 alt={row.name}
                                             />
                                             <AvatarFallback>
                                                 {getInitials(row.name)}
                                             </AvatarFallback>
                                         </Avatar>
-
 
                                         <div className="flex flex-col">
                                             <span className="font-medium leading-tight">
@@ -111,18 +108,20 @@ export default function UserTable({
                                     </div>
                                 </TableCell>
 
-                                <TableCell>{row.phone || "-"}</TableCell>
-
-                                <TableCell className="text-muted-foreground">
-                                    {row.email || "-"}
+                                <TableCell className="font-semibold">
+                                    {row.bank_code || "-"}
                                 </TableCell>
 
                                 <TableCell className="text-muted-foreground">
-                                    {row.address || "-"}
+                                    {row.short_name || "-"}
                                 </TableCell>
 
-                                <TableCell className="text-center font-semibold">
-                                    {row.user_catalogue_name || "-"}
+                                <TableCell className="text-muted-foreground">
+                                    {row.swift_code || "-"}
+                                </TableCell>
+
+                                <TableCell className="text-muted-foreground">
+                                    {row.bin_code || "-"}
                                 </TableCell>
 
                                 <TableCell className="text-center">
@@ -131,8 +130,8 @@ export default function UserTable({
                                             id={row.id}
                                             checked={row.active}
                                             field="publish"
-                                            model="User"
-                                            modelParent="User"
+                                            model="Bank"
+                                            modelParent=""
                                             onSuccess={(res) => {
                                                 onToggleActive?.(row.id, res.checked);
                                             }}

@@ -27,8 +27,8 @@ export default function CategorySelect({
     categories = [{ value: "root", label: "[Root]" }],
     excludeValue = null,
     showInfoMessage = true,
+    errors = {},
 }) {
-    // Loại bỏ danh mục bị exclude
     const filteredCategories = categories
         .map((cat) => ({
             ...cat,
@@ -36,10 +36,14 @@ export default function CategorySelect({
         }))
         .filter((cat) => cat.value !== String(excludeValue));
 
-    // Lấy label đang chọn
     const selectedCategory = filteredCategories.find(
         (cat) => cat.value === String(value),
     );
+
+    const getError = (field) => {
+        if (!errors[field]) return null;
+        return Array.isArray(errors[field]) ? errors[field][0] : errors[field];
+    };
 
     return (
         <div className="space-y-2">
@@ -53,8 +57,12 @@ export default function CategorySelect({
                     <Button
                         variant="outline"
                         role="combobox"
-                        className="w-full justify-between"
                         type="button"
+                        className={cn(
+                            "w-full justify-between",
+                            getError("attribute_catalogue_id") &&
+                                "border-red-500 focus-visible:ring-red-500",
+                        )}
                     >
                         {selectedCategory ? (
                             selectedCategory.label
@@ -102,6 +110,11 @@ export default function CategorySelect({
                     </Command>
                 </PopoverContent>
             </Popover>
+            {errors.attribute_catalogue_id && (
+                <p className="text-sm text-red-500 mt-1">
+                    {errors.attribute_catalogue_id}
+                </p>
+            )}
 
             {showInfoMessage && (
                 <small className="text-xs text-gray-500 flex items-start gap-1">
