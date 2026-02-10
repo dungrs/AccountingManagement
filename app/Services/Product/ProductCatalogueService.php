@@ -28,15 +28,15 @@ class ProductCatalogueService extends BaseService implements ProductCatalogueSer
 
     public function __construct(
         ProductCatalogueRepository $productCatalogueRepository,
-        // ProductVariantRepository $productVariantRepository,
-        // ProductVariantAttributeRepository $productVariantAttributeRepository,
-        // ProductRepository $productRepository,
-        RouterRepository $routerRepository
+        ProductVariantRepository $productVariantRepository,
+        ProductVariantAttributeRepository $productVariantAttributeRepository,
+        ProductRepository $productRepository,
+        RouterRepository $routerRepository,
     ) {
         $this->productCatalogueRepository = $productCatalogueRepository;
-        // $this->productVariantRepository = $productVariantRepository;
-        // $this->productVariantAttributeRepository = $productVariantAttributeRepository;
-        // $this->productRepository = $productRepository;
+        $this->productVariantRepository = $productVariantRepository;
+        $this->productVariantAttributeRepository = $productVariantAttributeRepository;
+        $this->productRepository = $productRepository;
         $this->routerRepository = $routerRepository;
     }
 

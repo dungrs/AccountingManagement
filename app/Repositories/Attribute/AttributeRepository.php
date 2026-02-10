@@ -45,7 +45,7 @@ class AttributeRepository extends BaseRepository implements AttributeRepositoryI
             ->join('attribute_catalogue_attributes', 'attributes.id', '=', 'attribute_catalogue_attributes.attribute_id')
             ->join('attribute_languages', 'attributes.id', '=', 'attribute_languages.attribute_id')
             ->where('attribute_catalogue_attributes.attribute_catalogue_id', $attributeCatalogueId)
-            ->where('attributes.publish', '=', 2)
+            ->where('attributes.publish', '=', 1)
             ->where('attribute_languages.language_id', $languageId)
             ->select('attributes.id', 'attribute_languages.name')
             ->get();

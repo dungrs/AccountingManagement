@@ -1,115 +1,175 @@
 <?php
 
-namespace App\Http\Controllers\Backend\Product;
+namespace App\Http\Controllers\Admin\Product;
 
-use App\Http\Controllers\BackendController;
 use Illuminate\Http\Request;
 
-use App\Services\Attribute\AttributeCatalogueService;
 use App\Services\Product\ProductService;
 
 use App\Classes\Nestedsetbie;
+use App\Http\Controllers\Admin\Controller;
+use App\Http\Requests\Product\StoreProductRequest;
+use App\Http\Requests\Product\UpdateProductRequest;
+use App\Services\Attribute\AttributeCatalogueService;
+use Inertia\Inertia;
 
-class ProductController extends BackendController
-{   
-    protected $productService;
+class ProductController extends Controller
+{
     protected $attributeCatalogueService;
+    protected $productService;
     protected $nestedSet;
     protected $languageId;
 
-    public function __construct(ProductService $productService, AttributeCatalogueService $attributeCatalogueService) {
+    public function __construct(
+        AttributeCatalogueService $attributeCatalogueService,
+        ProductService $productService
+    ) {
         $this->productService = $productService;
         $this->attributeCatalogueService = $attributeCatalogueService;
-        $this->middleware(function($request, $next) {
-            $this->languageId = session('currentLanguage')->id;
+        $this->middleware(function ($request, $next) {
+            $this->languageId = 1; // Tạm thời lấy bằng 1 
             $this->initialize();
             return $next($request);
         });
         $this->initialize();
     }
 
-    public function index(Request $request) {
+    public function index()
+    {
         $this->authorize('modules', 'product.index');
-        $template = 'backend.product.product.index';
         $dropdown = $this->nestedSet->Dropdown();
-        $configs = $this->configs();
-        $configs['seo'] = __('messages.product');
-        $configs['method'] = 'index';
-        return view('backend.dashboard.layout', compact(
-            'template',
-            'configs',
-            'dropdown'
-        ));
+        return Inertia::render('Product/Home', [
+            'dropdown' => $dropdown
+        ]);
     }
 
-    public function create() {
+    public function filter(Request $request)
+    {
+        $this->authorize('modules', 'product.index');
+
+        $products = $this->productService->paginate($request);
+        return response()->json($products);
+    }
+
+    public function create()
+    {
         $this->authorize('modules', 'product.create');
-        $template = 'backend.product.product.store';
         $dropdown = $this->nestedSet->Dropdown();
         $attributeCatalogues = $this->attributeCatalogueService->getAttributeCatalogueLanguages();
-        $configs = $this->prepareConfigs('create');
-        return view('backend.dashboard.layout', compact(
-            'template', 
-            'configs', 
-            'dropdown',
-            'attributeCatalogues'
-        ));
+        return Inertia::render('Product/Form', [
+            'dropdown' => $dropdown,
+            'attributeCatalogues' => $attributeCatalogues
+        ]);
     }
 
-    public function edit($id, $languageId) {
+    public function edit($id)
+    {
         $this->authorize('modules', 'product.update');
-        $template = 'backend.product.product.store';
-        $this->languageId = $languageId;
         $this->initialize();
+
+        // Dropdown danh mục
         $dropdown = $this->nestedSet->Dropdown();
-        $attributeCatalogues = $this->attributeCatalogueService->getAttributeCatalogueLanguages($languageId);
-        $product = $this->productService->getProductDetails($id, $languageId);
-        $album = json_decode($product->album);
-        $configs = $this->prepareConfigs('edit');
-        return view('backend.dashboard.layout', compact(
-            'template', 
-            'configs', 
-            'attributeCatalogues',
-            'dropdown', 
-            'product',
-            'album'
-        ));
-    }
-    
-    public function configs() {
-        return [
-            'js' => [
-                'backend/js/jquery-ui.js',
-                'backend/js/library.js',
-                'backend/js/pages/products.js',
-            ],
-            'css' => [
-                'backend/libs/dropzone/min/dropzone.min.css'
-            ],
-            'model' => 'Product',
-            'modelParent' => 'Product'
-        ];
-    }
-    
-    private function prepareConfigs($method) {
-        $configs = $this->configs();
-        $configs['seo'] = __('messages.product');
-        $configs['method'] = $method;
-        
-        $additionalJs = [
-            'backend/libs/%40ckeditor/ckeditor5-build-classic/build/ckeditor.js',
-            'backend/libs/ckfinder/ckfinder.js',
-            'backend/js/ckfinder.js',
-            'backend/js/ckeditor.js',
-            'backend/js/seo.js',
-        ];
 
-        $configs['js'] = array_merge($configs['js'], $additionalJs);
-        
-        return $configs;
+        // Lấy product + load sẵn quan hệ cần dùng
+        $product = $this->productService
+            ->getProductDetails($id, $this->languageId)
+            ->load([
+                'product_variants',
+                'product_catalogues',
+            ]);
+
+        // Biến thể sản phẩm (convert sang array)
+        $attributes = $product->product_variants
+            ? $product->product_variants->values()->toArray()
+            : [];
+
+        // Danh mục thuộc tính
+        $attributeCatalogues = $this->attributeCatalogueService
+            ->getAttributeCatalogueLanguages($this->languageId)
+            ->values()
+            ->toArray();
+
+        // Catalogue IDs
+        $catalogues = $product->product_catalogues
+            ? $product->product_catalogues->pluck('id')->toArray()
+            : [];
+
+        return Inertia::render('Product/Form', [
+            'dropdown'            => $dropdown,
+            'product'             => $product->toArray(),
+            'catalogues'          => $catalogues,
+            'attribute'          => $attributes,
+            'attributeCatalogues' => $attributeCatalogues,
+        ]);
     }
 
-    private function initialize() {
+    public function store(StoreProductRequest $request)
+    {
+        $response = $this->productService->create($request);
+        try {
+
+            if ($response) {
+                return redirect()
+                    ->route('admin.product.index');
+            }
+        } catch (\Throwable $e) {
+            return redirect()
+                ->back()
+                ->withInput();
+        }
+    }
+
+    public function update(UpdateProductRequest $request, $id)
+    {
+        try {
+            $this->productService->update($request, $id, $this->languageId);
+
+            return redirect()
+                ->route('admin.product.index');
+        } catch (\Throwable $e) {
+            return redirect()
+                ->back()
+                ->withInput();
+        }
+    }
+
+    public function delete($id)
+    {
+        $this->authorize('modules', 'product.destroy');
+        try {
+            $this->productService->delete($id);
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Xóa sản phẩm thành công.',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    public function loadVariant(Request $request)
+    {
+        try {
+            $response = $this->productService->loadVariant($request);
+
+            return response()->json([
+                'status' => 'success',
+                'data' => $response,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    private function initialize()
+    {
         $this->nestedSet = new Nestedsetbie([
             'table' => 'product_catalogues',
             'foreignkey' => 'product_catalogue_id',

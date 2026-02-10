@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\Controller;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\PermissionController;
+use App\Http\Controllers\Admin\Product\ProductController;
 use App\Http\Controllers\Admin\User\UserCatalogueController;
 use App\Http\Controllers\Admin\User\UserController;
 use App\Http\Controllers\Admin\Attribute\AttributeCatalogueController;
@@ -17,6 +18,19 @@ Route::middleware('auth')->group(function () {
 
     // DASHBOARD
     Route::get('/dashboard/index', [DashboardController::class, 'index'])->name('admin.dashboard.index');
+
+    // PRODUCT
+    Route::prefix('product')->group(function () {
+        Route::get('index', [ProductController::class, 'index'])->name('admin.product.index');
+        Route::get('create', [ProductController::class, 'create'])->name('admin.product.create');
+        Route::get('edit/{id}', [ProductController::class, 'edit'])->name('admin.product.edit')->where(['id' => '[0-9]+']);
+
+        Route::post('filter', [ProductController::class, 'filter'])->name('admin.product.filter');
+        Route::post('store', [ProductController::class, 'store'])->name('admin.product.store');
+        Route::put('update/{id}', [ProductController::class, 'update'])->name('admin.product.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [ProductController::class, 'delete'])->name('admin.product.delete')->where(['id' => '[0-9]+']);
+        Route::get('/loadVariant', [ProductController::class, 'loadVariant'])->name('admin.product.loadVariant');
+    });
 
     // PRODUCT CATALOGUE
     Route::prefix('product/catalogue')->group(function () {
@@ -52,6 +66,7 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [AttributeController::class, 'store'])->name('admin.attribute.store');
         Route::put('update/{id}', [AttributeController::class, 'update'])->name('admin.attribute.update')->where(['id' => '[0-9]+']);
         Route::post('delete/{id}', [AttributeController::class, 'delete'])->name('admin.attribute.delete')->where(['id' => '[0-9]+']);
+        Route::get('getAttribute', [AttributeController::class, 'getAttribute'])->name('admin.attribute.getAttribute');
     });
 
     // USER CATALOGUE

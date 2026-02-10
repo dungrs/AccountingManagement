@@ -221,15 +221,19 @@ export default function FormCatalogue() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: isEdit
-                    ? "Cập Nhật Nhóm Sản Phẩm"
-                    : "Thêm Mới Nhóm Sản Phẩm",
-            }}
+                {
+                    label: "QL Nhóm Sản Phẩm",
+                    link: route("admin.product.catalogue.index"),
+                },
+                                {
+                    label: isEdit ? "Cập Nhật Nhóm Sản Phẩm" : "Thêm Mới Nhóm Sản Phẩm",
+                },
+            ]}
         >
             <Head
                 title={

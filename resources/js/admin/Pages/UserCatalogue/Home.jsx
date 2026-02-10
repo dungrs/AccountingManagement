@@ -63,7 +63,11 @@ export default function Home() {
         to: 0,
     });
 
-    const bulkUpdateStatus = useBulkUpdateStatus(selectedRows, setData, setSelectedRows);
+    const bulkUpdateStatus = useBulkUpdateStatus(
+        selectedRows,
+        setData,
+        setSelectedRows,
+    );
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -88,7 +92,7 @@ export default function Home() {
 
                 const res = await axios.post(
                     route("admin.user.catalogue.filter"),
-                    params
+                    params,
                 );
 
                 const response = res.data;
@@ -120,7 +124,7 @@ export default function Home() {
             } catch (error) {
                 console.error("Lỗi khi tải dữ liệu:", error);
                 toast.error(
-                    error.response?.data?.message || "Không thể tải dữ liệu!"
+                    error.response?.data?.message || "Không thể tải dữ liệu!",
                 );
                 setData([]);
                 setPaginationData({
@@ -135,7 +139,7 @@ export default function Home() {
                 setLoading(false);
             }
         },
-        [pageSize, debouncedKeyword, statusFilter]
+        [pageSize, debouncedKeyword, statusFilter],
     );
 
     useEffect(() => {
@@ -175,14 +179,14 @@ export default function Home() {
             console.error("Lỗi khi xóa:", err);
             toast.error(
                 err.response?.data?.message ||
-                    "Có lỗi xảy ra, vui lòng thử lại!"
+                    "Có lỗi xảy ra, vui lòng thử lại!",
             );
         }
     };
 
     const toggleRow = (id) => {
         setSelectedRows((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
         );
     };
 
@@ -211,13 +215,15 @@ export default function Home() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: "QL Nhóm Thành Viên",
-            }}
+                {
+                    label: "QL Nhóm Thành Viên",
+                },
+            ]}
         >
             <Head title="Quản Lý Nhóm Thành Viên" />
             <Card className="rounded-md shadow-sm">
@@ -238,7 +244,9 @@ export default function Home() {
                                 className="rounded-md"
                                 onClick={() =>
                                     router.visit(
-                                        route("admin.user.catalogue.permission")
+                                        route(
+                                            "admin.user.catalogue.permission",
+                                        ),
                                     )
                                 }
                             >
@@ -246,7 +254,10 @@ export default function Home() {
                                 Phân quyền
                             </Button>
 
-                            <Button className="rounded-md" onClick={handleCreate}>
+                            <Button
+                                className="rounded-md"
+                                onClick={handleCreate}
+                            >
                                 <Plus className="mr-2 h-4 w-4" />
                                 Thêm mới nhóm thành viên
                             </Button>
@@ -274,7 +285,7 @@ export default function Home() {
                                             bulkUpdateStatus(
                                                 true,
                                                 "UserCatalogue",
-                                                "User"
+                                                "User",
                                             )
                                         }
                                     >
@@ -289,7 +300,7 @@ export default function Home() {
                                             bulkUpdateStatus(
                                                 false,
                                                 "UserCatalogue",
-                                                "User"
+                                                "User",
                                             )
                                         }
                                     >
@@ -318,8 +329,12 @@ export default function Home() {
 
                             <SelectContent>
                                 <SelectItem value="all">Tất cả</SelectItem>
-                                <SelectItem value="1">Đang hoạt động</SelectItem>
-                                <SelectItem value="0">Ngừng hoạt động</SelectItem>
+                                <SelectItem value="1">
+                                    Đang hoạt động
+                                </SelectItem>
+                                <SelectItem value="0">
+                                    Ngừng hoạt động
+                                </SelectItem>
                             </SelectContent>
                         </Select>
                     </DataTableFilter>
@@ -337,8 +352,8 @@ export default function Home() {
                                 prev.map((item) =>
                                     item.id === id
                                         ? { ...item, active: newChecked }
-                                        : item
-                                )
+                                        : item,
+                                ),
                             );
                         }}
                     />

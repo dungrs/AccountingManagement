@@ -40,7 +40,7 @@ class AttributeController extends Controller
 
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'user.catalogue.index');
+        $this->authorize('modules', 'attribute.catalogue.index');
 
         $attributes = $this->attributeService->paginate($request);
         return response()->json($attributes);
@@ -117,6 +117,15 @@ class AttributeController extends Controller
                 'message' => $e->getMessage(),
             ], 400);
         }
+    }
+
+    public function getAttribute(Request $request)
+    {
+        $response = $this->attributeService->getAttributeAjax($request);
+        return response()->json([
+            'status' => 'success',
+            'data' => $response,
+        ], 201);
     }
 
     private function initialize()

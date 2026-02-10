@@ -256,13 +256,15 @@ export default function Home() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: "QL Thành Viên",
-            }}
+                {
+                    label: "QL Thành Viên",
+                },
+            ]}
         >
             <Head title="Quản Lý Thành Viên" />
             <Card className="rounded-md shadow-sm">
@@ -401,8 +403,8 @@ export default function Home() {
             {/* Delete Dialog */}
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
-                title="Xóa nhóm thành viên"
-                description={`Bạn có chắc chắn muốn xóa nhóm "${deletingRow?.name}" không?`}
+                title="Xóa thành viên"
+                description={`Bạn có chắc chắn muốn xóa "${deletingRow?.name}" không?`}
                 onCancel={() => {
                     setOpenDeleteDialog(false);
                     setDeletingRow(null);

@@ -259,21 +259,25 @@ export default function Form() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: isEdit
-                    ? "Cập Nhật Loại Thuộc Tính"
-                    : "Thêm Mới Loại Thuộc Tính",
-            }}
+                {
+                    label: "QL Thuộc Tính",
+                    link: route("admin.attribute.index"),
+                },
+                {
+                    label: isEdit ? "Cập Nhật Thuộc Tính" : "Thêm Mới Thuộc Tính",
+                },
+            ]}
         >
             <Head
                 title={
                     isEdit
-                        ? "Cập Nhật Loại Thuộc Tính"
-                        : "Thêm Mới Loại Thuộc Tính"
+                        ? "Cập Nhật Thuộc Tính"
+                        : "Thêm Mới Thuộc Tính"
                 }
             />
 

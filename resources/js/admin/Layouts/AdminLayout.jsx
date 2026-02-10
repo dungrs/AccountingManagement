@@ -74,15 +74,15 @@ export default function AdminLayout({ children, breadcrumb }) {
             icon: Settings2,
             items: [
                 {
-                    title: "QL Nhóm Thành Viên",
+                    title: "Nhóm Thành Viên",
                     url: route("admin.user.catalogue.index"),
                 },
                 {
-                    title: "QL Thành Viên",
+                    title: "Thành Viên",
                     url: route("admin.user.index"),
                 },
                 {
-                    title: "QL Quyền",
+                    title: "Quyền",
                     url: route("admin.permission.index"),
                 },
                 {
@@ -103,7 +103,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Sản Phẩm",
-                    // url: route("admin.product.index"),
+                    url: route("admin.product.index"),
                 },
                 {
                     title: "Loại Thuộc Tính",
@@ -112,10 +112,6 @@ export default function AdminLayout({ children, breadcrumb }) {
                 {
                     title: "Thuộc Tính",
                     url: route("admin.attribute.index"),
-                },
-                {
-                    title: "Đơn Vị Tính",
-                    url: route("admin.dashboard.index"),
                 },
             ],
         },
@@ -130,11 +126,11 @@ export default function AdminLayout({ children, breadcrumb }) {
                     url: route("admin.dashboard.index"),
                 },
                 {
-                    title: "Nhà Cung Cấp",
+                    title: "Nhóm Khách Hàng",
                     url: route("admin.dashboard.index"),
                 },
                 {
-                    title: "Nhóm Khách Hàng",
+                    title: "Nhà Cung Cấp",
                     url: route("admin.dashboard.index"),
                 },
                 {
@@ -208,38 +204,6 @@ export default function AdminLayout({ children, breadcrumb }) {
             ],
         },
 
-        // ===================== NHÂN SỰ =====================
-        {
-            title: "Nhân Sự",
-            icon: Users,
-            items: [
-                {
-                    title: "Danh Sách Nhân Viên",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Phòng Ban",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Chức Vụ",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Bảng Lương",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Chấm Công",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Tạm Ứng",
-                    url: route("admin.dashboard.index"),
-                },
-            ],
-        },
-
         // ===================== KẾ TOÁN =====================
         {
             title: "Kế Toán",
@@ -247,10 +211,6 @@ export default function AdminLayout({ children, breadcrumb }) {
             items: [
                 {
                     title: "Hệ Thống Tài Khoản",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Định Khoản",
                     url: route("admin.dashboard.index"),
                 },
                 {
@@ -297,9 +257,7 @@ export default function AdminLayout({ children, breadcrumb }) {
         },
     ];
 
-    const projects = [
-   
-    ];
+    const projects = [];
 
     return (
         <SidebarProvider>
@@ -317,26 +275,31 @@ export default function AdminLayout({ children, breadcrumb }) {
                     <SidebarTrigger className="-ml-1" />
                     <Separator orientation="vertical" className="mr-2 h-4" />
 
-                    {breadcrumb && (
+                    {Array.isArray(breadcrumb) && breadcrumb.length > 0 && (
                         <Breadcrumb>
                             <BreadcrumbList>
-                                {breadcrumb.parent && (
-                                    <>
-                                        <BreadcrumbItem className="hidden md:block">
-                                            <BreadcrumbLink
-                                                href={breadcrumb.parent.link}
-                                            >
-                                                {breadcrumb.parent.label}
-                                            </BreadcrumbLink>
+                                {breadcrumb.map((item, index) => {
+                                    const isLast =
+                                        index === breadcrumb.length - 1;
+
+                                    return (
+                                        <BreadcrumbItem key={index}>
+                                            {!isLast && item.link ? (
+                                                <BreadcrumbLink
+                                                    href={item.link}
+                                                >
+                                                    {item.label}
+                                                </BreadcrumbLink>
+                                            ) : (
+                                                <BreadcrumbPage>
+                                                    {item.label}
+                                                </BreadcrumbPage>
+                                            )}
+
+                                            {!isLast && <BreadcrumbSeparator />}
                                         </BreadcrumbItem>
-                                        <BreadcrumbSeparator className="hidden md:block" />
-                                    </>
-                                )}
-                                <BreadcrumbItem>
-                                    <BreadcrumbPage>
-                                        {breadcrumb.current}
-                                    </BreadcrumbPage>
-                                </BreadcrumbItem>
+                                    );
+                                })}
                             </BreadcrumbList>
                         </Breadcrumb>
                     )}

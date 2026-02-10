@@ -215,13 +215,15 @@ export default function Home() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: "Quản Lý Nhóm Sản Phẩm",
-            }}
+                {
+                    label: "QL Nhóm Sản Phẩm",
+                },
+            ]}
         >
             <Head title="Quản Lý Nhóm Sản Phẩm" />
 

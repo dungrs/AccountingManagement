@@ -38,7 +38,7 @@ class ProductCatalogueController extends Controller
 
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'user.catalogue.index');
+        $this->authorize('modules', 'product.catalogue.index');
 
         $productCatalogues = $this->productCatalogueService->paginate($request);
         return response()->json($productCatalogues);

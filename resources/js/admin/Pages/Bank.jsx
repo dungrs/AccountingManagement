@@ -213,13 +213,15 @@ export default function Home() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: "QL Ngân Hàng",
-            }}
+                {
+                    label: "QL Ngân Hàng",
+                },
+            ]}
         >
             <Head title="Quản Lý Ngân Hàng" />
             <Card className="rounded-md shadow-sm">

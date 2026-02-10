@@ -212,24 +212,26 @@ export default function Home() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: "QL Loại Thuộc Tính",
-            }}
+                {
+                    label: "QL Thuộc Tinh",
+                },
+            ]}
         >
-            <Head title="Quản Lý Loại Thuộc Tinh" />
+            <Head title="Quản Lý Thuộc Tinh" />
             <Card className="rounded-md shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <CardTitle className="text-2xl font-bold mb-1">
-                                Quản Lý Loại Thuộc Tính
+                                Quản Lý Thuộc Tính
                             </CardTitle>
                             <CardDescription>
-                                Quản lý loại thuộc tính của từng thuộc tính.
+                                Quản lý thuộc tính của sản phẩm.
                             </CardDescription>
                         </div>
 
@@ -243,7 +245,7 @@ export default function Home() {
                                 }
                             >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Thêm mới loại thuộc tính
+                                Thêm mới thuộc tính
                             </Button>
 
                             <DropdownMenu>
@@ -354,8 +356,8 @@ export default function Home() {
 
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
-                title="Xóa nhóm thành viên"
-                description={`Bạn có chắc chắn muốn xóa nhóm "${deletingRow?.name}" không?`}
+                title="Xóa thuộc tính"
+                description={`Bạn có chắc chắn muốn xóa thuộc tính "${deletingRow?.name}" không?`}
                 onCancel={() => {
                     setOpenDeleteDialog(false);
                     setDeletingRow(null);

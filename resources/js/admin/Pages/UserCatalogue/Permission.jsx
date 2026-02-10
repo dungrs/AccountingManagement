@@ -229,13 +229,15 @@ export default function Permission() {
 
     return (
         <AdminLayout
-            breadcrumb={{
-                parent: {
+            breadcrumb={[
+                {
                     label: "Dashboard",
                     link: route("admin.dashboard.index"),
                 },
-                current: "Phân quyền",
-            }}
+                {
+                    label: "Phân Quyền",
+                },
+            ]}
         >
             <Head title="Cập nhật quyền" />
 

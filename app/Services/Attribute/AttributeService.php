@@ -191,11 +191,8 @@ class AttributeService extends BaseService implements AttributeServiceInterface
     {
         $payload = $request->input();
         $languageId = 1;
-        $attributes = $this->attributeRepository->searchAttributes($payload['attributeCatalogueId'], $languageId);
-        return response()->json([
-            'status' => 'success',
-            'data' => $attributes,
-        ], 201);
+        $attributes = $this->attributeRepository->searchAttributes($payload['attribute_catalogue_id'], $languageId);
+        return $attributes;
     }
 
     public function loadAttributeAjax($request, $languageId)

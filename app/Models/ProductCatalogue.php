@@ -38,10 +38,10 @@ class ProductCatalogue extends Model
                     ->withTimestamps();
     }
 
-    // public function products() {
-    //     return $this->belongsToMany(Product::class, 'product_catalogue_products', 'product_catalogue_id', 'product_id')
-    //                 ->with('languages');
-    // }
+    public function products() {
+        return $this->belongsToMany(Product::class, 'product_catalogue_products', 'product_catalogue_id', 'product_id')
+                    ->with('languages');
+    }
 
     public static function isNodeCheck($id = 0) {
         $productCatalogue = ProductCatalogue::find($id);

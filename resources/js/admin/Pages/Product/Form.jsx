@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Button } from "@/admin/components/ui/button";
 import { Head, usePage, router } from "@inertiajs/react";
@@ -9,21 +9,33 @@ import GeneralInfoForm from "@/admin/components/forms/GeneralInfoForm";
 import SEOForm from "@/admin/components/forms/SEOForm";
 import AdvancedConfigForm from "@/admin/components/forms/AdvancedConfigForm";
 import ImageUpload from "@/admin/components/upload/ImageUpload";
-// import AlbumUpload from "@/admin/components/upload/AlbumUpload";
+import AlbumUpload from "@/admin/components/upload/AlbumUpload";
 
 import { useEventBus } from "@/EventBus";
+import { parseJsonArray } from "@/admin/utils/parseJsonArray";
+import ProductVariantManager from "@/admin/components/product/ProductVariantManager";
 
-export default function FormCatalogue() {
+const normalizeCatalogues = (value) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.map(String);
+    return [];
+};
+
+export default function Form() {
+    const variantManagerRef = useRef(null);
+
     const {
         dropdown,
-        attributeCatalogue,
+        product,
+        catalogues,
+        attribute, // Nhận attribute từ controller
+        attributeCatalogues,
         errors: serverErrors,
         flash,
     } = usePage().props;
     const { emit } = useEventBus();
 
-    // Kiểm tra xem đang ở chế độ Edit hay Create
-    const isEdit = !!attributeCatalogue;
+    const isEdit = !!product;
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,6 +44,7 @@ export default function FormCatalogue() {
         name: "",
         description: "",
         content: "",
+        price: "",
 
         album: [],
         image: null,
@@ -39,6 +52,7 @@ export default function FormCatalogue() {
         parentCategory: "0",
         status: "0",
         navigation: "0",
+        catalogues: [],
 
         meta_title: "",
         canonical: "",
@@ -48,26 +62,31 @@ export default function FormCatalogue() {
 
     // Load dữ liệu khi Edit
     useEffect(() => {
-        if (attributeCatalogue) {
-            setFormData({
-                name: attributeCatalogue.name || "",
-                description: attributeCatalogue.description || "",
-                content: attributeCatalogue.content || "",
+        if (!product) return;
 
-                album: attributeCatalogue.album || [],
-                image: attributeCatalogue.image || null,
+        setFormData((prev) => ({
+            ...prev,
 
-                parentCategory: attributeCatalogue.parent_id?.toString() || "0",
-                status: attributeCatalogue.publish?.toString() || "0",
-                navigation: attributeCatalogue.follow?.toString() || "0",
+            name: product.name || "",
+            description: product.description || "",
+            content: product.content || "",
+            price: product.price || "",
 
-                meta_title: attributeCatalogue.meta_title || "",
-                canonical: attributeCatalogue.canonical || "",
-                meta_keyword: attributeCatalogue.meta_keyword || "",
-                meta_description: attributeCatalogue.meta_description || "",
-            });
-        }
-    }, [attributeCatalogue]);
+            album: parseJsonArray(product.album),
+            image: product.image || null,
+
+            parentCategory: product.product_catalogue_id?.toString() || "0",
+            status: product.publish?.toString() || "0",
+            navigation: product.follow?.toString() || "0",
+
+            catalogues: normalizeCatalogues(catalogues),
+
+            meta_title: product.meta_title || "",
+            canonical: product.canonical || "",
+            meta_keyword: product.meta_keyword || "",
+            meta_description: product.meta_description || "",
+        }));
+    }, [product, catalogues]);
 
     // Xử lý flash messages
     useEffect(() => {
@@ -95,7 +114,6 @@ export default function FormCatalogue() {
             content: data.content,
         }));
 
-        // Clear errors khi user nhập
         clearFieldErrors(["name", "description", "content"]);
     };
 
@@ -109,7 +127,6 @@ export default function FormCatalogue() {
             meta_description: data.meta_description,
         }));
 
-        // Clear errors khi user nhập
         clearFieldErrors([
             "meta_title",
             "canonical",
@@ -125,9 +142,9 @@ export default function FormCatalogue() {
             parentCategory: data.parentCategory,
             status: data.status,
             navigation: data.navigation,
+            catalogues: data.catalogues ?? prev.catalogues,
         }));
 
-        // Clear errors khi user nhập
         clearFieldErrors(["parent_id", "publish", "follow"]);
     };
 
@@ -165,7 +182,6 @@ export default function FormCatalogue() {
     const handleSubmit = () => {
         if (isSubmitting) return;
 
-        // Clear tất cả errors trước khi submit
         setErrors({});
 
         // Validation phía client
@@ -179,32 +195,56 @@ export default function FormCatalogue() {
             return;
         }
 
+        // 🔥 Lấy mã sản phẩm
+        const productCode = variantManagerRef.current?.getProductCode() || "";
+
+        // ❌ CHẶN SUBMIT nếu chưa nhập mã sản phẩm
+        if (!productCode.trim()) {
+            emit("toast:error", "Vui lòng nhập mã sản phẩm trước khi lưu!");
+            return;
+        }
+
         setIsSubmitting(true);
+
+        // Lấy variant data
+        const variantData = variantManagerRef.current?.getVariantData() || {
+            variant: null,
+            productVariant: null,
+            attribute: null,
+        };
 
         const submitData = {
             name: formData.name,
             description: formData.description,
             content: formData.content,
+            price: formData.price,
+            code: productCode, // ✅ đảm bảo luôn có mã
 
             image: formData.image,
             album: formData.album,
 
-            parent_id: formData.parentCategory,
+            product_catalogue_id: formData.parentCategory,
             publish: formData.status,
             follow: formData.navigation,
+
+            catalogues: formData.catalogues,
 
             meta_title: formData.meta_title,
             canonical: formData.canonical,
             meta_keyword: formData.meta_keyword,
             meta_description: formData.meta_description,
+
+            variant: variantData.variant,
+            productVariant: variantData.productVariant,
+            attribute: variantData.attribute,
         };
 
-        // Xác định route và method dựa vào chế độ Edit/Create
-        const submitRoute = isEdit
-            ? route("admin.attribute.catalogue.update", attributeCatalogue.id)
-            : route("admin.attribute.catalogue.store");
+        console.log("Submit Data:", submitData);
 
-        // Sử dụng PUT cho Edit, POST cho Create
+        const submitRoute = isEdit
+            ? route("admin.product.update", product.id)
+            : route("admin.product.store");
+
         const submitMethod = isEdit ? "put" : "post";
 
         router[submitMethod](submitRoute, submitData, {
@@ -213,15 +253,16 @@ export default function FormCatalogue() {
             onSuccess: () => {
                 setErrors({});
 
-                emit("toast.attribute.catalogue.success", {
-                    action: isEdit ? "update" : "create",
-                    message: isEdit
-                        ? "Cập nhật loại thuộc tính thành công!"
-                        : "Thêm mới loại thuộc tính thành công!",
-                });
+                emit(
+                    "toast:success",
+                    isEdit
+                        ? "Cập nhật sản phẩm thành công!"
+                        : "Thêm mới sản phẩm thành công!",
+                );
             },
 
             onError: (errors) => {
+                console.log("Errors:", errors);
                 if (Object.keys(errors).length > 0) {
                     emit(
                         "toast:error",
@@ -244,21 +285,15 @@ export default function FormCatalogue() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "QL Thuộc Tính",
-                    link: route("admin.attribute.catalogue.index"),
+                    label: "QL Sản Phẩm",
+                    link: route("admin.product.index"),
                 },
                 {
-                    label: isEdit ? "Cập Nhật Loại Thuộc Tính" : "Thêm Mới Loại Thuộc Tính",
+                    label: isEdit ? "Cập Nhật Sản Phẩm" : "Thêm Mới Sản Phẩm",
                 },
             ]}
         >
-            <Head
-                title={
-                    isEdit
-                        ? "Cập Nhật Loại Thuộc Tính"
-                        : "Thêm Mới Loại Thuộc Tính"
-                }
-            />
+            <Head title={isEdit ? "Cập Nhật Sản Phẩm" : "Thêm Mới Sản Phẩm"} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column */}
@@ -271,12 +306,27 @@ export default function FormCatalogue() {
                         }}
                         onChange={handleGeneralChange}
                         errors={errors}
+                        description="Nhập thông tin chung về sản phẩm"
                     />
 
-                    {/* <AlbumUpload
+                    <AlbumUpload
                         images={formData.album}
                         onChange={handleAlbumChange}
-                    /> */}
+                    />
+
+                    <ProductVariantManager
+                        ref={variantManagerRef}
+                        attributeCatalogues={attributeCatalogues || []}
+                        mainPrice={formData.price}
+                        productData={
+                            isEdit
+                                ? {
+                                      ...product,
+                                      product_variants: attribute || [], // Sử dụng attribute từ controller
+                                  }
+                                : null
+                        }
+                    />
 
                     <SEOForm
                         seoData={{
@@ -297,11 +347,14 @@ export default function FormCatalogue() {
                             parentCategory: formData.parentCategory,
                             status: formData.status,
                             navigation: formData.navigation,
+                            catalogues: formData.catalogues,
                         }}
                         onChange={handleAdvancedChange}
                         dropdown={dropdown}
-                        hasCatalogue={false}
-                        excludeCategoryId={attributeCatalogue?.id ?? null}
+                        hasCatalogue={true}
+                        excludeCategoryId={product?.id ?? null}
+                        showInfoMessage={false}
+                        errors={errors}
                     />
 
                     <ImageUpload
@@ -311,7 +364,7 @@ export default function FormCatalogue() {
                 </div>
             </div>
 
-            {/* Save Button */}
+            {/* Floating Save Button */}
             <div className="fixed bottom-6 right-6">
                 <Button
                     size="lg"

@@ -27,7 +27,7 @@ import { MoreHorizontal, Plus, CheckCircle2, XCircle } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import ConfirmDeleteDialog from "@/admin/components/common/ConfirmDeleteDialog";
-import AttributeCatalogueTable from "@/admin/components/attribute-catalogue/AttributeCatalogueTable";
+import ProductTable from "@/admin/components/product/ProductTable";
 import DataTablePagination from "@/admin/components/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
@@ -41,13 +41,13 @@ export default function Home() {
 
     useEffect(() => {
         const offSuccess = on(
-            "toast.attribute.catalogue.success",
+            "toast.product.success",
             (payload) => {
                 toast.success(payload.message);
-            },
+            }
         );
 
-        const offError = on("toast.attribute.catalogue.error", (payload) => {
+        const offError = on("toast.product.error", (payload) => {
             toast.error(payload.message);
         });
 
@@ -76,11 +76,7 @@ export default function Home() {
     });
 
     // 🔥 Sử dụng custom hook bulkUpdateStatus
-    const bulkUpdateStatus = useBulkUpdateStatus(
-        selectedRows,
-        setData,
-        setSelectedRows,
-    );
+    const bulkUpdateStatus = useBulkUpdateStatus(selectedRows, setData, setSelectedRows);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -104,8 +100,8 @@ export default function Home() {
                 }
 
                 const res = await axios.post(
-                    route("admin.attribute.catalogue.filter"),
-                    params,
+                    route("admin.product.filter"),
+                    params
                 );
 
                 const response = res.data;
@@ -117,7 +113,6 @@ export default function Home() {
                 const mappedData = response.data.map((item) => ({
                     id: item.id,
                     name: item.name ?? "-",
-                    level: item.level ?? 0,
                     publish: item.publish,
                     active: item.publish === 1,
                     language_id: item.language_id,
@@ -137,7 +132,7 @@ export default function Home() {
             } catch (error) {
                 console.error("Lỗi khi tải dữ liệu:", error);
                 toast.error(
-                    error.response?.data?.message || "Không thể tải dữ liệu!",
+                    error.response?.data?.message || "Không thể tải dữ liệu!"
                 );
                 setData([]);
                 setPaginationData({
@@ -152,7 +147,7 @@ export default function Home() {
                 setLoading(false);
             }
         },
-        [pageSize, debouncedKeyword, statusFilter],
+        [pageSize, debouncedKeyword, statusFilter]
     );
 
     useEffect(() => {
@@ -169,7 +164,7 @@ export default function Home() {
 
         try {
             const res = await axios.post(
-                route("admin.attribute.catalogue.delete", deletingRow.id),
+                route("admin.product.delete", deletingRow.id)
             );
 
             toast.success(res.data?.message || "Xóa thành công!");
@@ -180,14 +175,14 @@ export default function Home() {
             console.error("Lỗi khi xóa:", err);
             toast.error(
                 err.response?.data?.message ||
-                    "Có lỗi xảy ra, vui lòng thử lại!",
+                    "Có lỗi xảy ra, vui lòng thử lại!"
             );
         }
     };
 
     const toggleRow = (id) => {
         setSelectedRows((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
         );
     };
 
@@ -222,20 +217,21 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "QL Loại Thuộc Tinh",
+                    label: "QL Sản Phẩm",
                 },
             ]}
         >
-            <Head title="Quản Lý Loại Thuộc Tinh" />
+        
+            <Head title="Quản Lý Sản phẩm" />
             <Card className="rounded-md shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <CardTitle className="text-2xl font-bold mb-1">
-                                Quản Lý Loại Thuộc Tính
+                                Quản Lý Sản Phẩm
                             </CardTitle>
                             <CardDescription>
-                                Quản lý loại thuộc tính của từng thuộc tính.
+                                    Quản lý danh sách sản phẩm, trạng thái hiển thị.
                             </CardDescription>
                         </div>
 
@@ -244,14 +240,12 @@ export default function Home() {
                                 className="rounded-md"
                                 onClick={() =>
                                     router.visit(
-                                        route(
-                                            "admin.attribute.catalogue.create",
-                                        ),
+                                        route("admin.product.create")
                                     )
                                 }
                             >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Thêm mới loại thuộc tính
+                                Thêm mới sản phẩm
                             </Button>
 
                             <DropdownMenu>
@@ -276,8 +270,8 @@ export default function Home() {
                                         onClick={() =>
                                             bulkUpdateStatus(
                                                 true,
-                                                "AttributeCatalogue",
-                                                "Attribute",
+                                                "Product",
+                                                "Product"
                                             )
                                         }
                                     >
@@ -291,8 +285,8 @@ export default function Home() {
                                         onClick={() =>
                                             bulkUpdateStatus(
                                                 false,
-                                                "AttributeCatalogue",
-                                                "Attribute",
+                                                "Product",
+                                                "Product"
                                             )
                                         }
                                     >
@@ -321,17 +315,13 @@ export default function Home() {
 
                             <SelectContent>
                                 <SelectItem value="all">Tất cả</SelectItem>
-                                <SelectItem value="1">
-                                    Đang hoạt động
-                                </SelectItem>
-                                <SelectItem value="0">
-                                    Ngừng hoạt động
-                                </SelectItem>
+                                <SelectItem value="1">Đang hoạt động</SelectItem>
+                                <SelectItem value="0">Ngừng hoạt động</SelectItem>
                             </SelectContent>
                         </Select>
                     </DataTableFilter>
 
-                    <AttributeCatalogueTable
+                    <ProductTable
                         data={data}
                         loading={loading}
                         selectedRows={selectedRows}
@@ -343,8 +333,8 @@ export default function Home() {
                                 prev.map((item) =>
                                     item.id === id
                                         ? { ...item, active: newChecked }
-                                        : item,
-                                ),
+                                        : item
+                                )
                             );
                         }}
                     />
@@ -366,8 +356,8 @@ export default function Home() {
 
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
-                title="Xóa loại thuộc tính"
-                description={`Bạn có chắc chắn muốn xóa loại thuộc tính "${deletingRow?.name}" không?`}
+                title="Xóa sản phẩm"
+                description={`Bạn có chắc chắn muốn xóa sản phẩm "${deletingRow?.name}" không?`}
                 onCancel={() => {
                     setOpenDeleteDialog(false);
                     setDeletingRow(null);

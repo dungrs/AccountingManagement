@@ -28,21 +28,21 @@ class StoreProductRequest extends FormRequest
     }
 
     /**
-     * Các thông báo lỗi tuỳ chỉnh.
+     * Các thông báo lỗi tuỳ chỉnh (tiếng Việt).
      */
     public function messages()
     {
-        $messages = __('validation_create.model_catalogue_model');
-        $messageProducts = __('validation_create.product');
-
         return [
-            'name.required' => $messages['name']['required'],
-            'canonical.required' => $messages['canonical']['required'],
-            'canonical.unique' => $messages['canonical']['unique'],
-            'product_catalogue_id.required' => $messageProducts['product_catalogue_id']['required'],
-            'product_catalogue_id.not_in' => $messageProducts['product_catalogue_id']['not_in'],
-            'attribute.array' => $messageProducts['attribute']['array'],
-            'attribute.min' => $messageProducts['attribute']['min_empty'],
+            'name.required' => 'Tên sản phẩm không được để trống.',
+
+            'canonical.required' => 'Đường dẫn (canonical) không được để trống.',
+            'canonical.unique' => 'Đường dẫn (canonical) đã tồn tại, vui lòng chọn đường dẫn khác.',
+
+            'product_catalogue_id.required' => 'Bạn chưa chọn danh mục sản phẩm.',
+            'product_catalogue_id.not_in' => 'Bạn chưa chọn danh mục sản phẩm.',
+
+            'attribute.array' => 'Thuộc tính sản phẩm không hợp lệ.',
+            'attribute.min' => 'Bạn phải chọn ít nhất 1 thuộc tính sản phẩm.',
         ];
     }
 
@@ -50,18 +50,21 @@ class StoreProductRequest extends FormRequest
      * Kiểm tra nâng cao sau khi các rule mặc định đã được áp dụng.
      */
     public function withValidator($validator)
-    {   
+    {
         $validator->after(function ($validator) {
-            $messageProducts = __('validation_create.product');
+
             $attributes = $this->input('attribute');
 
+            // Nếu attribute không tồn tại
             if ($attributes === null) {
-                $validator->errors()->add('attribute', $messageProducts['attribute']['min_empty']);
+                $validator->errors()->add('attribute', 'Bạn phải chọn ít nhất 1 thuộc tính sản phẩm.');
                 return;
             }
 
+            // Nếu attribute là mảng
             if (is_array($attributes)) {
                 $hasValue = false;
+
                 foreach ($attributes as $values) {
                     if (!empty($values)) {
                         $hasValue = true;
@@ -70,7 +73,7 @@ class StoreProductRequest extends FormRequest
                 }
 
                 if (!$hasValue) {
-                    $validator->errors()->add('attribute', $messageProducts['attribute']['min_empty']);
+                    $validator->errors()->add('attribute', 'Bạn phải chọn ít nhất 1 thuộc tính sản phẩm.');
                 }
             }
         });
