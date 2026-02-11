@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\User\UserController;
 use App\Http\Controllers\Admin\Attribute\AttributeCatalogueController;
 use App\Http\Controllers\Admin\Attribute\AttributeController;
 use App\Http\Controllers\Admin\BankController;
+use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
+use App\Http\Controllers\Admin\Customer\CustomerController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
 use App\Http\Controllers\Admin\VatTaxController;
 use App\Http\Controllers\LocationController;
@@ -69,6 +71,27 @@ Route::middleware('auth')->group(function () {
         Route::put('update/{id}', [AttributeController::class, 'update'])->name('admin.attribute.update')->where(['id' => '[0-9]+']);
         Route::post('delete/{id}', [AttributeController::class, 'delete'])->name('admin.attribute.delete')->where(['id' => '[0-9]+']);
         Route::get('getAttribute', [AttributeController::class, 'getAttribute'])->name('admin.attribute.getAttribute');
+    });
+
+    // USER CATALOGUE
+    Route::prefix('customer/catalogue')->group(function () {
+        Route::get('index', [CustomerCatalogueController::class, 'index'])->name('admin.customer.catalogue.index');
+
+        Route::post('filter', [CustomerCatalogueController::class, 'filter'])->name('admin.customer.catalogue.filter');
+        Route::post('store', [CustomerCatalogueController::class, 'store'])->name('admin.customer.catalogue.store');
+        Route::post('update', [CustomerCatalogueController::class, 'update'])->name('admin.customer.catalogue.update');
+        Route::post('delete', [CustomerCatalogueController::class, 'delete'])->name('admin.customer.catalogue.delete');
+        Route::get('permission', [CustomerCatalogueController::class, 'permission'])->name('admin.customer.catalogue.permission');
+    });
+
+    // USER
+    Route::prefix('customer')->group(function () {
+        Route::get('index', [CustomerController::class, 'index'])->name('admin.customer.index');
+
+        Route::post('filter', [CustomerController::class, 'filter'])->name('admin.customer.filter');
+        Route::post('store', [CustomerController::class, 'store'])->name('admin.customer.store');
+        Route::post('update', [CustomerController::class, 'update'])->name('admin.customer.update');
+        Route::post('delete', [CustomerController::class, 'delete'])->name('admin.customer.delete');
     });
 
     // USER CATALOGUE

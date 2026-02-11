@@ -123,18 +123,14 @@ export default function AdminLayout({ children, breadcrumb }) {
             items: [
                 {
                     title: "Khách Hàng",
-                    url: route("admin.dashboard.index"),
+                    url: route("admin.customer.index"),
                 },
                 {
                     title: "Nhóm Khách Hàng",
-                    url: route("admin.dashboard.index"),
+                    url: route("admin.customer.catalogue.index"),
                 },
                 {
                     title: "Nhà Cung Cấp",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Nhóm Nhà Cung Cấp",
                     url: route("admin.dashboard.index"),
                 },
             ],

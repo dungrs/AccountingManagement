@@ -24,10 +24,10 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { CalendarIcon, Eye, EyeOff, Upload } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import SelectCombobox from "../../ui/select-combobox";
 
-export default function UserFormModal({
+export default function CustomerFormModal({
     open,
     mode = "create",
     data = null,
@@ -35,7 +35,7 @@ export default function UserFormModal({
     onSuccess,
 }) {
     const isEdit = mode === "edit";
-    const { userCatalogues, provinces } = usePage().props;
+    const { customerCatalogues, provinces } = usePage().props;
 
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState({});
@@ -50,10 +50,10 @@ export default function UserFormModal({
     const [form, setForm] = useState({
         name: "",
         email: "",
-        user_catalogue_id: "",
+        customer_catalogue_id: "",
         password: "",
         password_confirmation: "",
-        avatar: "",
+        image: "",
         province_id: "",
         ward_id: "",
         address: "",
@@ -82,12 +82,12 @@ export default function UserFormModal({
             setForm({
                 name: data.name || "",
                 email: data.email || "",
-                user_catalogue_id: data.user_catalogue_id
-                    ? String(data.user_catalogue_id)
+                customer_catalogue_id: data.customer_catalogue_id
+                    ? String(data.customer_catalogue_id)
                     : "",
                 password: "",
                 password_confirmation: "",
-                avatar: data.avatar || "",
+                image: data.image || "",
                 province_id: data.province_id ? String(data.province_id) : "",
                 ward_id: data.ward_id ? String(data.ward_id) : "",
                 address: data.address || "",
@@ -104,10 +104,10 @@ export default function UserFormModal({
             setForm({
                 name: "",
                 email: "",
-                user_catalogue_id: "",
+                customer_catalogue_id: "",
                 password: "",
                 password_confirmation: "",
-                avatar: "",
+                image: "",
                 province_id: "",
                 ward_id: "",
                 address: "",
@@ -138,7 +138,7 @@ export default function UserFormModal({
             selectActionFunction: function (fileUrl) {
                 console.log("CKFinder selected:", fileUrl);
 
-                handleChange("avatar", fileUrl);
+                handleChange("image", fileUrl);
                 toast.success("Đã chọn ảnh thành công!");
             },
 
@@ -197,8 +197,8 @@ export default function UserFormModal({
         setErrors({});
 
         const apiRoute = isEdit
-            ? route("admin.user.update")
-            : route("admin.user.store");
+            ? route("admin.customer.update")
+            : route("admin.customer.store");
 
         const payload = {
             ...form,
@@ -234,14 +234,14 @@ export default function UserFormModal({
                     <DialogHeader>
                         <DialogTitle className="text-xl">
                             {isEdit
-                                ? "Chỉnh sửa thành viên"
-                                : "Thêm thành viên mới"}
+                                ? "Chỉnh sửa khách hàng"
+                                : "Thêm khách hàng mới"}
                         </DialogTitle>
 
                         <DialogDescription className="text-sm text-muted-foreground">
                             {isEdit
-                                ? "Cập nhật thông tin của thành viên hiện có. Vui lòng kiểm tra kỹ trước khi lưu thay đổi."
-                                : "Nhập đầy đủ thông tin để thêm một thành viên mới vào hệ thống."}
+                                ? "Cập nhật thông tin của khách hàng hiện có. Vui lòng kiểm tra kỹ trước khi lưu thay đổi."
+                                : "Nhập đầy đủ thông tin để thêm một khách hàng mới vào hệ thống."}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -321,14 +321,14 @@ export default function UserFormModal({
                                     <SelectCombobox
                                         label="Nhóm khách hàng"
                                         required
-                                        value={form.user_catalogue_id}
+                                        value={form.customer_catalogue_id}
                                         onChange={(v) =>
                                             handleChange(
-                                                "user_catalogue_id",
+                                                "customer_catalogue_id",
                                                 v,
                                             )
                                         }
-                                        options={userCatalogues.map(
+                                        options={customerCatalogues.map(
                                             (u) => ({
                                                 value: u.id,
                                                 label: u.name,
@@ -336,7 +336,7 @@ export default function UserFormModal({
                                         )}
                                         placeholder="Chọn nhóm khách hàng..."
                                         error={
-                                            errors.user_catalogue_id?.[0]
+                                            errors.customer_catalogue_id?.[0]
                                         }
                                     />
                                 </div>
@@ -523,7 +523,7 @@ export default function UserFormModal({
                                         <Input
                                             readOnly
                                             placeholder="Nhập URL hoặc chọn ảnh..."
-                                            value={form.avatar}
+                                            value={form.image}
                                             className="flex-1"
                                         />
                                         <Button
