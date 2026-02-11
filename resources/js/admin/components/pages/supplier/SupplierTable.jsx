@@ -8,34 +8,24 @@ import {
     TableHeader,
     TableRow,
 } from "@/admin/components/ui/table";
-
 import { Checkbox } from "@/admin/components/ui/checkbox";
 import { Button } from "@/admin/components/ui/button";
-
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/admin/components/ui/dropdown-menu";
-
-import {
-    Avatar,
-    AvatarFallback,
-    AvatarImage,
-} from "@/admin/components/ui/avatar";
-
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { getInitials } from "@/admin/utils/helpers";
 import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
+import { router } from "@inertiajs/react";
 
-export default function UserTable({
+export default function SupplierTable({
     data = [],
     loading = false,
     selectedRows = [],
     toggleAll,
     toggleRow,
-    handleEdit,
     handleDeleteClick,
     onToggleActive,
 }) {
@@ -47,20 +37,17 @@ export default function UserTable({
                         <TableHead className="w-12">
                             <Checkbox
                                 checked={
-                                    data.length > 0 &&
-                                    selectedRows.length === data.length
+                                    selectedRows.length === data.length &&
+                                    data.length > 0
                                 }
                                 onCheckedChange={toggleAll}
                             />
                         </TableHead>
-
-                        <TableHead>Họ và tên</TableHead>
-                        <TableHead>Số điện thoại</TableHead>
+                        <TableHead>Tên NCC</TableHead>
+                        <TableHead>Mã số thuế</TableHead>
                         <TableHead>Email</TableHead>
+                        <TableHead>Điện thoại</TableHead>
                         <TableHead>Địa chỉ</TableHead>
-                        <TableHead className="text-center">
-                            Nhóm thành viên
-                        </TableHead>
                         <TableHead className="text-center">Tình trạng</TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
@@ -89,40 +76,24 @@ export default function UserTable({
                                     />
                                 </TableCell>
 
-                                {/* Họ tên + Avatar */}
+                                <TableCell className="font-medium">
+                                    {row.name}
+                                </TableCell>
+
                                 <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage
-                                                src={row.image || ""}
-                                                alt={row.name}
-                                            />
-                                            <AvatarFallback>
-                                                {getInitials(row.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-
-
-                                        <div className="flex flex-col">
-                                            <span className="font-medium leading-tight">
-                                                {row.name}
-                                            </span>
-                                        </div>
-                                    </div>
+                                    {row.tax_code}
                                 </TableCell>
 
-                                <TableCell>{row.phone || "-"}</TableCell>
-
-                                <TableCell className="text-muted-foreground">
-                                    {row.email || "-"}
+                                <TableCell>
+                                    {row.email}
                                 </TableCell>
 
-                                <TableCell className="text-muted-foreground">
-                                    {row.address || "-"}
+                                <TableCell>
+                                    {row.phone}
                                 </TableCell>
 
-                                <TableCell className="text-center font-semibold">
-                                    {row.customer_catalogue_name || "-"}
+                                <TableCell className="max-w-[200px] truncate">
+                                    {row.address}
                                 </TableCell>
 
                                 <TableCell className="text-center">
@@ -131,10 +102,13 @@ export default function UserTable({
                                             id={row.id}
                                             checked={row.active}
                                             field="publish"
-                                            model="Customer"
-                                            modelParent="Customer"
+                                            model="Supplier"
+                                            modelParent=""
                                             onSuccess={(res) => {
-                                                onToggleActive?.(row.id, res.checked);
+                                                onToggleActive?.(
+                                                    row.id,
+                                                    res.checked,
+                                                );
                                             }}
                                         />
                                     </div>
@@ -158,17 +132,26 @@ export default function UserTable({
                                         >
                                             <DropdownMenuItem
                                                 className="cursor-pointer"
-                                                onClick={() => handleEdit(row)}
+                                                onClick={() =>
+                                                    router.visit(
+                                                        route(
+                                                            "admin.supplier.edit",
+                                                            row.id,
+                                                        ),
+                                                    )
+                                                }
                                             >
-                                                <Pencil className="mr-2 h-4 w-4 text-yellow-600" />
+                                                <Pencil className="mr-1 h-4 w-4 text-yellow-600" />
                                                 Chỉnh sửa
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
                                                 className="cursor-pointer text-red-600"
-                                                onClick={() => handleDeleteClick(row)}
+                                                onClick={() =>
+                                                    handleDeleteClick(row)
+                                                }
                                             >
-                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                <Trash2 className="mr-1 h-4 w-4" />
                                                 Xóa
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>

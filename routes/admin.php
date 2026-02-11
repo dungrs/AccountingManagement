@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
 use App\Http\Controllers\Admin\Customer\CustomerController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
+use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\VatTaxController;
 use App\Http\Controllers\LocationController;
 use Illuminate\Support\Facades\Route;
@@ -73,7 +74,7 @@ Route::middleware('auth')->group(function () {
         Route::get('getAttribute', [AttributeController::class, 'getAttribute'])->name('admin.attribute.getAttribute');
     });
 
-    // USER CATALOGUE
+    // CUSTOMER CATALOGUE
     Route::prefix('customer/catalogue')->group(function () {
         Route::get('index', [CustomerCatalogueController::class, 'index'])->name('admin.customer.catalogue.index');
 
@@ -84,7 +85,7 @@ Route::middleware('auth')->group(function () {
         Route::get('permission', [CustomerCatalogueController::class, 'permission'])->name('admin.customer.catalogue.permission');
     });
 
-    // USER
+    // CUSTOMER
     Route::prefix('customer')->group(function () {
         Route::get('index', [CustomerController::class, 'index'])->name('admin.customer.index');
 
@@ -92,6 +93,17 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [CustomerController::class, 'store'])->name('admin.customer.store');
         Route::post('update', [CustomerController::class, 'update'])->name('admin.customer.update');
         Route::post('delete', [CustomerController::class, 'delete'])->name('admin.customer.delete');
+    });
+
+    Route::prefix('supplier')->group(function () {
+        Route::get('index', [SupplierController::class, 'index'])->name('admin.supplier.index');
+        Route::get('create', [SupplierController::class, 'create'])->name('admin.supplier.create');
+        Route::get('edit/{id}', [SupplierController::class, 'edit'])->name('admin.supplier.edit')->where(['id' => '[0-9]+']);
+
+        Route::post('filter', [SupplierController::class, 'filter'])->name('admin.supplier.filter');
+        Route::post('store', [SupplierController::class, 'store'])->name('admin.supplier.store');
+        Route::put('update/{id}', [SupplierController::class, 'update'])->name('admin.supplier.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [SupplierController::class, 'delete'])->name('admin.supplier.delete')->where(['id' => '[0-9]+']);
     });
 
     // USER CATALOGUE

@@ -31,6 +31,13 @@ export default function SelectCombobox({
 }) {
     const selected = options.find((o) => String(o.value) === String(value));
 
+    const truncateText = (text, maxLength = 30) => {
+        if (!text) return "";
+        return text.length > maxLength
+            ? text.substring(0, maxLength) + "..."
+            : text;
+    };
+
     return (
         <div className="space-y-2">
             {label && (
@@ -52,13 +59,15 @@ export default function SelectCombobox({
                         )}
                     >
                         {selected ? (
-                            selected.label
+                            <span className="truncate block text-left">
+                                {truncateText(selected.label, 35)}
+                            </span>
                         ) : (
                             <span className="text-muted-foreground">
                                 {placeholder}
                             </span>
                         )}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                 </PopoverTrigger>
 
@@ -81,14 +90,16 @@ export default function SelectCombobox({
                                     >
                                         <Check
                                             className={cn(
-                                                "mr-2 h-4 w-4",
+                                                "mr-2 h-4 w-4 shrink-0",
                                                 String(item.value) ===
                                                     String(value)
                                                     ? "opacity-100"
                                                     : "opacity-0",
                                             )}
                                         />
-                                        {item.label}
+                                        <span className="truncate">
+                                            {item.label}
+                                        </span>
                                     </CommandItem>
                                 ))}
                             </CommandGroup>

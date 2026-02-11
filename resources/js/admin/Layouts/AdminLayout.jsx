@@ -131,7 +131,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Nhà Cung Cấp",
-                    url: route("admin.dashboard.index"),
+                    url: route("admin.supplier.index"),
                 },
             ],
         },

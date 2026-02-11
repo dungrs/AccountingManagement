@@ -37,7 +37,10 @@ class CustomerController extends Controller
     {
         $this->authorize('modules', 'customer.index');
 
-        $customerCatalogues = $this->customerCatalogueRepository->all();
+        $customerCatalogues = $this->customerCatalogueRepository->findByCondition([
+            ['publish', '=', 1]
+        ], true);
+
         $provinces = $this->provinceRepository->all();
 
         return Inertia::render('Customer', [

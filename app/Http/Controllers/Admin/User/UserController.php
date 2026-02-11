@@ -37,7 +37,9 @@ class UserController extends Controller
     {
         $this->authorize('modules', 'user.index');
 
-        $userCatalogues = $this->userCatalogueRepository->all();
+        $userCatalogues = $this->userCatalogueRepository->findByCondition([
+            ['publish', '=', 1]
+        ], true);
         $provinces = $this->provinceRepository->all();
 
         return Inertia::render('User/Home', [

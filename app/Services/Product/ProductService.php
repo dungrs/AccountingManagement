@@ -447,7 +447,6 @@ class ProductService extends BaseService implements ProductServiceInterface
 
     private function uploadCatalogueForProduct($product, $request)
     {   
-        dd($request);
         $product->product_catalogues()->sync($this->catalogue($request));
     }
 

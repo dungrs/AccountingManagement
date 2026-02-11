@@ -15,7 +15,7 @@ return new class extends Migration
             $table->bigIncrements('id');
 
             $table->char('supplier_code', 7);
-            $table->char('bank_code', 6);
+            $table->char('bank_code', 10);
 
             $table->string('account_number', 30);
 
