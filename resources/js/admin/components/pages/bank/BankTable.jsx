@@ -19,18 +19,25 @@ import {
     DropdownMenuTrigger,
 } from "@/admin/components/ui/dropdown-menu";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import ChangeStatusSwitch from "../common/ChangeStatusSwitch";
-import { router } from "@inertiajs/react";
+import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+} from "@/admin/components/ui/avatar";
 
-export default function ProductCatalogueTable({
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
+import { getInitials } from "@/admin/utils/helpers";
+
+export default function BankTable({
     data = [],
     loading = false,
     selectedRows = [],
     toggleAll,
     toggleRow,
+    handleEdit,
     handleDeleteClick,
-    onToggleActive, // thêm cái này
+    onToggleActive,
 }) {
     return (
         <div className="rounded-md border overflow-hidden">
@@ -40,17 +47,19 @@ export default function ProductCatalogueTable({
                         <TableHead className="w-12">
                             <Checkbox
                                 checked={
-                                    selectedRows.length === data.length &&
-                                    data.length > 0
+                                    data.length > 0 &&
+                                    selectedRows.length === data.length
                                 }
                                 onCheckedChange={toggleAll}
                             />
                         </TableHead>
 
-                        <TableHead>Tên Nhóm</TableHead>
-                        <TableHead className="text-center">
-                            Tình trạng
-                        </TableHead>
+                        <TableHead>Ngân hàng</TableHead>
+                        <TableHead>Mã ngân hàng</TableHead>
+                        <TableHead>Tên viết tắt</TableHead>
+                        <TableHead>Swift Code</TableHead>
+                        <TableHead>BIN Code</TableHead>
+                        <TableHead className="text-center">Trạng thái</TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -59,7 +68,7 @@ export default function ProductCatalogueTable({
                     {loading ? (
                         <TableRow>
                             <TableCell
-                                colSpan={7}
+                                colSpan={8}
                                 className="text-center text-muted-foreground py-10"
                             >
                                 Đang tải dữ liệu...
@@ -74,19 +83,45 @@ export default function ProductCatalogueTable({
                                 <TableCell>
                                     <Checkbox
                                         checked={selectedRows.includes(row.id)}
-                                        onCheckedChange={() =>
-                                            toggleRow(row.id)
-                                        }
+                                        onCheckedChange={() => toggleRow(row.id)}
                                     />
                                 </TableCell>
 
-                                <TableCell className="font-medium">
-                                    <span>
-                                        {"|----".repeat(
-                                            row.level > 0 ? row.level - 1 : 0,
-                                        )}
-                                        {row.name}
-                                    </span>
+                                {/* Bank name + logo */}
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-8 w-8">
+                                            <AvatarImage
+                                                src={row.logo || ""}
+                                                alt={row.name}
+                                            />
+                                            <AvatarFallback>
+                                                {getInitials(row.name)}
+                                            </AvatarFallback>
+                                        </Avatar>
+
+                                        <div className="flex flex-col">
+                                            <span className="font-medium leading-tight">
+                                                {row.name}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </TableCell>
+
+                                <TableCell className="font-semibold">
+                                    {row.bank_code || "-"}
+                                </TableCell>
+
+                                <TableCell className="text-muted-foreground">
+                                    {row.short_name || "-"}
+                                </TableCell>
+
+                                <TableCell className="text-muted-foreground">
+                                    {row.swift_code || "-"}
+                                </TableCell>
+
+                                <TableCell className="text-muted-foreground">
+                                    {row.bin_code || "-"}
                                 </TableCell>
 
                                 <TableCell className="text-center">
@@ -95,13 +130,10 @@ export default function ProductCatalogueTable({
                                             id={row.id}
                                             checked={row.active}
                                             field="publish"
-                                            model="ProductCatalogue"
-                                            modelParent="Product"
+                                            model="Bank"
+                                            modelParent=""
                                             onSuccess={(res) => {
-                                                onToggleActive?.(
-                                                    row.id,
-                                                    res.checked,
-                                                );
+                                                onToggleActive?.(row.id, res.checked);
                                             }}
                                         />
                                     </div>
@@ -125,26 +157,17 @@ export default function ProductCatalogueTable({
                                         >
                                             <DropdownMenuItem
                                                 className="cursor-pointer"
-                                                onClick={() =>
-                                                    router.visit(
-                                                        route(
-                                                            "admin.product.catalogue.edit",
-                                                            row.id,
-                                                        ),
-                                                    )
-                                                }
+                                                onClick={() => handleEdit(row)}
                                             >
-                                                <Pencil className="mr-1 h-4 w-4 text-yellow-600" />
+                                                <Pencil className="mr-2 h-4 w-4 text-yellow-600" />
                                                 Chỉnh sửa
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
                                                 className="cursor-pointer text-red-600"
-                                                onClick={() =>
-                                                    handleDeleteClick(row)
-                                                }
+                                                onClick={() => handleDeleteClick(row)}
                                             >
-                                                <Trash2 className="mr-1 h-4 w-4" />
+                                                <Trash2 className="mr-2 h-4 w-4" />
                                                 Xóa
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -155,7 +178,7 @@ export default function ProductCatalogueTable({
                     ) : (
                         <TableRow>
                             <TableCell
-                                colSpan={7}
+                                colSpan={8}
                                 className="text-center text-muted-foreground py-10"
                             >
                                 Không tìm thấy dữ liệu phù hợp.

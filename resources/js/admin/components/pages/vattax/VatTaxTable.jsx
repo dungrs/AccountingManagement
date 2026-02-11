@@ -20,17 +20,17 @@ import {
 } from "@/admin/components/ui/dropdown-menu";
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import ChangeStatusSwitch from "../common/ChangeStatusSwitch";
-import { router } from "@inertiajs/react";
+import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
 
-export default function AttributeCatalogueTable({
+export default function VatTaxTable({
     data = [],
     loading = false,
     selectedRows = [],
     toggleAll,
     toggleRow,
+    handleEdit,
     handleDeleteClick,
-    onToggleActive, // thêm cái này
+    onToggleActive,
 }) {
     return (
         <div className="rounded-md border overflow-hidden">
@@ -40,16 +40,21 @@ export default function AttributeCatalogueTable({
                         <TableHead className="w-12">
                             <Checkbox
                                 checked={
-                                    selectedRows.length === data.length &&
-                                    data.length > 0
+                                    data.length > 0 &&
+                                    selectedRows.length === data.length
                                 }
                                 onCheckedChange={toggleAll}
                             />
                         </TableHead>
 
-                        <TableHead>Tên Nhóm</TableHead>
+                        <TableHead>Mã VAT</TableHead>
+                        <TableHead>Tên thuế</TableHead>
                         <TableHead className="text-center">
-                            Tình trạng
+                            Thuế suất (%)
+                        </TableHead>
+                        <TableHead className="text-center">Loại</TableHead>
+                        <TableHead className="text-center">
+                            Trạng thái
                         </TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
@@ -80,13 +85,20 @@ export default function AttributeCatalogueTable({
                                     />
                                 </TableCell>
 
-                                <TableCell className="font-medium">
-                                    <span>
-                                        {"|----".repeat(
-                                            row.level > 0 ? row.level - 1 : 0,
-                                        )}
-                                        {row.name}
-                                    </span>
+                                <TableCell className="font-semibold">
+                                    {row.code}
+                                </TableCell>
+
+                                <TableCell>{row.name}</TableCell>
+
+                                <TableCell className="text-center">
+                                    {row.rate}%
+                                </TableCell>
+
+                                <TableCell className="text-center capitalize">
+                                    {row.direction === "input"
+                                        ? "Đầu vào"
+                                        : "Đầu ra"}
                                 </TableCell>
 
                                 <TableCell className="text-center">
@@ -95,8 +107,8 @@ export default function AttributeCatalogueTable({
                                             id={row.id}
                                             checked={row.active}
                                             field="publish"
-                                            model="AttributeCatalogue"
-                                            modelParent="Attribute"
+                                            model="VatTax"
+                                            modelParent=""
                                             onSuccess={(res) => {
                                                 onToggleActive?.(
                                                     row.id,
@@ -125,26 +137,17 @@ export default function AttributeCatalogueTable({
                                         >
                                             <DropdownMenuItem
                                                 className="cursor-pointer"
-                                                onClick={() =>
-                                                    router.visit(
-                                                        route(
-                                                            "admin.attribute.catalogue.edit",
-                                                            row.id,
-                                                        ),
-                                                    )
-                                                }
+                                                onClick={() => handleEdit(row)}
                                             >
-                                                <Pencil className="mr-1 h-4 w-4 text-yellow-600" />
+                                                <Pencil className="mr-2 h-4 w-4 text-yellow-600" />
                                                 Chỉnh sửa
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
                                                 className="cursor-pointer text-red-600"
-                                                onClick={() =>
-                                                    handleDeleteClick(row)
-                                                }
+                                                onClick={() => handleDeleteClick(row)}
                                             >
-                                                <Trash2 className="mr-1 h-4 w-4" />
+                                                <Trash2 className="mr-2 h-4 w-4" />
                                                 Xóa
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -158,7 +161,7 @@ export default function AttributeCatalogueTable({
                                 colSpan={7}
                                 className="text-center text-muted-foreground py-10"
                             >
-                                Không tìm thấy dữ liệu phù hợp.
+                                Không có dữ liệu thuế VAT.
                             </TableCell>
                         </TableRow>
                     )}

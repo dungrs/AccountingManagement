@@ -44,12 +44,12 @@ class BankController extends Controller
 
             return response()->json([
                 'status'  => 'success',
-                'message' => 'Tạo quyền thành công.',
+                'message' => 'Tạo ngân hàng thành công.',
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Tạo quyền thất bại. Vui lòng thử lại.',
+                'message' => 'Tạo ngân hàng thất bại. Vui lòng thử lại.',
             ], 500);
         }
     }
@@ -63,12 +63,12 @@ class BankController extends Controller
 
             return response()->json([
                 'status'  => 'success',
-                'message' => 'Cập nhật quyền thành công.',
+                'message' => 'Cập nhật ngân hàng thành công.',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'error',
-                'message' => 'Cập nhật quyền thất bại. Vui lòng thử lại.',
+                'message' => 'Cập nhật ngân hàng thất bại. Vui lòng thử lại.',
             ], 500);
         }
     }
@@ -84,7 +84,7 @@ class BankController extends Controller
 
             return response()->json([
                 'status'  => 'success',
-                'message' => 'Xóa quyền thành công.',
+                'message' => 'Xóa ngân hàng thành công.',
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

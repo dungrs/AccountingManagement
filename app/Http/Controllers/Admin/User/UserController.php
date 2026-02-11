@@ -48,8 +48,7 @@ class UserController extends Controller
 
     public function filter(Request $request)
     {
-        // $this->authorize('modules', 'user.index');
-
+        $this->authorize('modules', 'user.index');
         $users = $this->userService->paginate($request);
         return response()->json($users);
     }

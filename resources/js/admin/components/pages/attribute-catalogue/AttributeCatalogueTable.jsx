@@ -20,10 +20,10 @@ import {
 } from "@/admin/components/ui/dropdown-menu";
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import ChangeStatusSwitch from "../common/ChangeStatusSwitch";
+import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
 import { router } from "@inertiajs/react";
 
-export default function ProductTable({
+export default function AttributeCatalogueTable({
     data = [],
     loading = false,
     selectedRows = [],
@@ -47,7 +47,7 @@ export default function ProductTable({
                             />
                         </TableHead>
 
-                        <TableHead>Tên sản phẩm</TableHead>
+                        <TableHead>Tên Nhóm</TableHead>
                         <TableHead className="text-center">
                             Tình trạng
                         </TableHead>
@@ -95,8 +95,8 @@ export default function ProductTable({
                                             id={row.id}
                                             checked={row.active}
                                             field="publish"
-                                            model="Product"
-                                            modelParent="Product"
+                                            model="AttributeCatalogue"
+                                            modelParent="Attribute"
                                             onSuccess={(res) => {
                                                 onToggleActive?.(
                                                     row.id,
@@ -128,7 +128,7 @@ export default function ProductTable({
                                                 onClick={() =>
                                                     router.visit(
                                                         route(
-                                                            "admin.product.edit",
+                                                            "admin.attribute.catalogue.edit",
                                                             row.id,
                                                         ),
                                                     )

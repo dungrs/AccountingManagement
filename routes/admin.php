@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AccountingAccountController;
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\Controller;
 use App\Http\Controllers\Admin\DashboardController;
@@ -11,6 +12,7 @@ use App\Http\Controllers\Admin\Attribute\AttributeCatalogueController;
 use App\Http\Controllers\Admin\Attribute\AttributeController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
+use App\Http\Controllers\Admin\VatTaxController;
 use App\Http\Controllers\LocationController;
 use Illuminate\Support\Facades\Route;
 
@@ -98,7 +100,6 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [BankController::class, 'store'])->name('admin.bank.store');
         Route::post('update', [BankController::class, 'update'])->name('admin.bank.update');
         Route::post('delete', [BankController::class, 'delete'])->name('admin.bank.delete');
-        Route::get('permission', [BankController::class, 'permission'])->name('admin.bank.permission');
     });
 
     // PERMISSION
@@ -110,6 +111,26 @@ Route::middleware('auth')->group(function () {
         Route::post('update', [PermissionController::class, 'update'])->name('admin.permission.update');
         Route::post('delete', [PermissionController::class, 'delete'])->name('admin.permission.delete');
         Route::post('updatePermission', [UserCatalogueController::class, 'updatePermission'])->name('admin.user.catalogue.updatePermission');
+    });
+
+    // VAT TAX
+    Route::prefix('vattax')->group(function () {
+        Route::get('index', [VatTaxController::class, 'index'])->name('admin.vattax.index');
+
+        Route::post('filter', [VatTaxController::class, 'filter'])->name('admin.vattax.filter');
+        Route::post('store', [VatTaxController::class, 'store'])->name('admin.vattax.store');
+        Route::post('update', [VatTaxController::class, 'update'])->name('admin.vattax.update');
+        Route::post('delete', [VatTaxController::class, 'delete'])->name('admin.vattax.delete');
+    });
+
+    // ACCCOUNTING ACCOUNT
+    Route::prefix('accounting_account')->group(function () {
+        Route::get('index', [AccountingAccountController::class, 'index'])->name('admin.accounting_account.index');
+
+        Route::post('filter', [AccountingAccountController::class, 'filter'])->name('admin.accounting_account.filter');
+        Route::post('store', [AccountingAccountController::class, 'store'])->name('admin.accounting_account.store');
+        Route::post('update', [AccountingAccountController::class, 'update'])->name('admin.accounting_account.update');
+        Route::post('delete', [AccountingAccountController::class, 'delete'])->name('admin.accounting_account.delete');
     });
 
     Route::post('/changeStatus/{id}', [Controller::class, 'changeStatus'])->name('admin.changeStatus');

@@ -29,14 +29,10 @@ import {
 import { Info } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import {
-    CalendarIcon,
-    Eye,
-    EyeOff,
-    Upload,
-} from "lucide-react";
+import { CalendarIcon, Eye, EyeOff, Upload } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { format, parse } from "date-fns";
+import SelectCombobox from "../ui/select-combobox";
 
 export default function UserFormModal({
     open,
@@ -326,40 +322,20 @@ export default function UserFormModal({
 
                                 {/* Nhóm thành viên */}
                                 <div className="space-y-2">
-                                    <Label>
-                                        Nhóm thành viên{" "}
-                                        <span className="text-red-500">*</span>
-                                    </Label>
-                                    <Select
+                                    <SelectCombobox
+                                        label="Nhóm thành viên"
+                                        required
                                         value={form.user_catalogue_id}
-                                        onValueChange={(v) =>
+                                        onChange={(v) =>
                                             handleChange("user_catalogue_id", v)
                                         }
-                                    >
-                                        <SelectTrigger
-                                            className={cn(
-                                                errors.user_catalogue_id &&
-                                                    "border-red-500",
-                                            )}
-                                        >
-                                            <SelectValue placeholder="Chọn nhóm thành viên..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {userCatalogues.map((item) => (
-                                                <SelectItem
-                                                    key={item.id}
-                                                    value={String(item.id)}
-                                                >
-                                                    {item.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    {errors.user_catalogue_id && (
-                                        <p className="text-xs text-red-500">
-                                            {errors.user_catalogue_id[0]}
-                                        </p>
-                                    )}
+                                        options={userCatalogues.map((u) => ({
+                                            value: u.id,
+                                            label: u.name,
+                                        }))}
+                                        placeholder="Chọn nhóm thành viên..."
+                                        error={errors.user_catalogue_id?.[0]}
+                                    />
                                 </div>
 
                                 {/* Ngày sinh */}
@@ -580,69 +556,38 @@ export default function UserFormModal({
                             <div className="grid grid-cols-2 gap-4">
                                 {/* Thành phố */}
                                 <div className="space-y-2">
-                                    <Label>Tỉnh/Thành phố</Label>
-                                    <Select
+                                    <SelectCombobox
+                                        label="Tỉnh/Thành phố"
                                         value={form.province_id}
-                                        onValueChange={handleProvinceChange}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Chọn Tỉnh/Thành phố..." />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {provinces.map((p) => (
-                                                <SelectItem
-                                                    key={p.province_code}
-                                                    value={String(
-                                                        p.province_code,
-                                                    )}
-                                                >
-                                                    {p.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        onChange={handleProvinceChange}
+                                        options={provinces.map((p) => ({
+                                            value: p.province_code,
+                                            label: p.name,
+                                        }))}
+                                        placeholder="Chọn Tỉnh/Thành phố..."
+                                    />
                                 </div>
 
                                 {/* Phường/Xã */}
                                 <div className="space-y-2">
-                                    <Label>Phường/Xã</Label>
-                                    <Select
+                                    <SelectCombobox
+                                        label="Phường/Xã"
                                         value={form.ward_id}
-                                        onValueChange={(v) =>
+                                        onChange={(v) =>
                                             handleChange("ward_id", v)
                                         }
+                                        options={wards}
                                         disabled={
                                             !form.province_id || loadingWard
                                         }
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue
-                                                placeholder={
-                                                    loadingWard
-                                                        ? "Đang tải..."
-                                                        : !form.province_id
-                                                          ? "Chọn Tỉnh/Thành phố trước"
-                                                          : "Chọn Phường/Xã..."
-                                                }
-                                            />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {wards.length === 0 &&
-                                                !loadingWard && (
-                                                    <div className="p-2 text-sm text-gray-500">
-                                                        Không có dữ liệu
-                                                    </div>
-                                                )}
-                                            {wards.map((w) => (
-                                                <SelectItem
-                                                    key={w.value}
-                                                    value={String(w.value)}
-                                                >
-                                                    {w.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                        placeholder={
+                                            loadingWard
+                                                ? "Đang tải..."
+                                                : !form.province_id
+                                                  ? "Chọn Tỉnh/Thành phố trước"
+                                                  : "Chọn Phường/Xã..."
+                                        }
+                                    />
                                 </div>
 
                                 {/* Địa chỉ */}

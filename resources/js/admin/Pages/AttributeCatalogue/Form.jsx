@@ -5,10 +5,10 @@ import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Button } from "@/admin/components/ui/button";
 import { Head, usePage, router } from "@inertiajs/react";
 
-import GeneralInfoForm from "@/admin/components/forms/GeneralInfoForm";
-import SEOForm from "@/admin/components/forms/SEOForm";
-import AdvancedConfigForm from "@/admin/components/forms/AdvancedConfigForm";
-import ImageUpload from "@/admin/components/upload/ImageUpload";
+import GeneralInfoForm from "@/admin/components/shared/forms/GeneralInfoForm";
+import SEOForm from "@/admin/components/shared/forms/SEOForm";
+import AdvancedConfigForm from "@/admin/components/shared/forms/AdvancedConfigForm";
+import ImageUpload from "@/admin/components/shared/upload/ImageUpload";
 // import AlbumUpload from "@/admin/components/upload/AlbumUpload";
 
 import { useEventBus } from "@/EventBus";

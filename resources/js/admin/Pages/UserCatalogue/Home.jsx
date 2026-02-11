@@ -32,11 +32,11 @@ import {
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import UserCatalogueFormModal from "@/admin/components/user-catalogue/UserCatalogueFormModal";
-import ConfirmDeleteDialog from "@/admin/components/common/ConfirmDeleteDialog";
-import UserCatalogueTable from "@/admin/components/user-catalogue/UserCatalogueTable";
-import DataTablePagination from "@/admin/components/common/DataTablePagination";
-import DataTableFilter from "@/admin/components/common/DataTableFilter";
+import UserCatalogueFormModal from "@/admin/components/pages/user-catalogue/UserCatalogueFormModal";
+import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
+import UserCatalogueTable from "@/admin/components/pages/user-catalogue/UserCatalogueTable";
+import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
+import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
 
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";

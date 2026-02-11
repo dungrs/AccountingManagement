@@ -36,7 +36,7 @@ import { Switch } from "@/admin/components/ui/switch";
 import { Check, ChevronsUpDown, Trash2, Plus, X } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { useEventBus } from "@/EventBus";
-import AlbumUpload from "@/admin/components/upload/AlbumUpload";
+import AlbumUpload from "@/admin/components/shared/upload/AlbumUpload";
 import React from "react";
 
 const ProductVariantManager = forwardRef(

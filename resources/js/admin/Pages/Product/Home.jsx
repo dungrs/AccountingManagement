@@ -26,10 +26,10 @@ import {
 import { MoreHorizontal, Plus, CheckCircle2, XCircle } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import ConfirmDeleteDialog from "@/admin/components/common/ConfirmDeleteDialog";
-import ProductTable from "@/admin/components/product/ProductTable";
-import DataTablePagination from "@/admin/components/common/DataTablePagination";
-import DataTableFilter from "@/admin/components/common/DataTableFilter";
+import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
+import ProductTable from "@/admin/components/pages/product/ProductTable";
+import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
+import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
 import { useEventBus } from "@/EventBus";
 

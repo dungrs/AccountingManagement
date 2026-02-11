@@ -20,7 +20,7 @@ import {
 } from "@/admin/components/ui/dropdown-menu";
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import ChangeStatusSwitch from "../common/ChangeStatusSwitch";
+import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
 import { router } from "@inertiajs/react";
 
 export default function AttributeTable({

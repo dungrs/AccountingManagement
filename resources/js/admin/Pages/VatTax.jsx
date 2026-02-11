@@ -2,9 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
-
 import { Button } from "@/admin/components/ui/button";
-
 import {
     Card,
     CardContent,
@@ -12,14 +10,12 @@ import {
     CardHeader,
     CardTitle,
 } from "@/admin/components/ui/card";
-
 import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/admin/components/ui/dropdown-menu";
-
 import {
     Select,
     SelectContent,
@@ -27,51 +23,36 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/admin/components/ui/select";
-
 import {
     MoreHorizontal,
     Plus,
-    ShieldCheck,
     CheckCircle2,
     XCircle,
 } from "lucide-react";
-
 import axios from "axios";
 import toast from "react-hot-toast";
-
+import VatTaxFormModal from "@/admin/components/pages/vattax/VatTaxFormModal";
 import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
+import VatTaxTable from "@/admin/components/pages/vattax/VatTaxTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head } from "@inertiajs/react";
-import UserTable from "@/admin/components/pages/user/UserTable";
-import UserFormModal from "@/admin/components/pages/user/UserFormModal";
 
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
 
 export default function Home() {
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
-
     const [pageSize, setPageSize] = useState("10");
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all"); // 🔥 Đổi default thành "all"
-
+    const [statusFilter, setStatusFilter] = useState("all");
     const [loading, setLoading] = useState(false);
-
     const [openModal, setOpenModal] = useState(false);
     const [modalMode, setModalMode] = useState("create");
     const [editingRow, setEditingRow] = useState(null);
-
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [deletingRow, setDeletingRow] = useState(null);
-
-    const bulkUpdateStatus = useBulkUpdateStatus(
-        selectedRows,
-        setData,
-        setSelectedRows,
-    );
-
     const [paginationData, setPaginationData] = useState({
         current_page: 1,
         last_page: 1,
@@ -81,63 +62,51 @@ export default function Home() {
         to: 0,
     });
 
+    const bulkUpdateStatus = useBulkUpdateStatus(selectedRows, setData, setSelectedRows);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedKeyword(keyword);
-        }, 500); // Đợi 500ms sau khi người dùng ngừng nhập
-
-        return () => clearTimeout(timer); // Clear timer nếu keyword thay đổi trước khi hết thời gian
+        }, 500);
+        return () => clearTimeout(timer);
     }, [keyword]);
 
     const fetchData = useCallback(
         async (page = 1) => {
             setLoading(true);
-
             try {
-                // 🔥 Chuẩn bị params rõ ràng hơn
                 const params = {
                     page,
                     perpage: parseInt(pageSize),
-                    keyword: debouncedKeyword.trim(), // trim whitespace
+                    keyword: debouncedKeyword.trim(),
                 };
 
-                // 🔥 Chỉ gửi publish khi không phải "all"
                 if (statusFilter !== "all") {
                     params.publish = parseInt(statusFilter);
                 }
 
                 const res = await axios.post(
-                    route("admin.user.filter"),
-                    params,
+                    route("admin.vattax.filter"),
+                    params
                 );
 
                 const response = res.data;
-                console.log(response);
 
-                // 🔥 Kiểm tra dữ liệu trả về
                 if (!response || !Array.isArray(response.data)) {
                     throw new Error("Dữ liệu trả về không hợp lệ");
                 }
 
                 const mappedData = response.data.map((item) => ({
                     id: item.id,
-                    name: item.name || "",
-                    phone: item.phone || "",
-                    email: item.email || "",
-                    avatar: item.avatar || "",
-                    address: item.address || 0,
-                    birthday: item.birthday || 0,
-                    province_id: item.province_id || 0,
-                    ward_id: item.ward_id || 0,
-                    active: item.publish === 1,
+                    code: item.code,
+                    name: item.name,
+                    rate: item.rate,
+                    direction: item.direction,
                     description: item.description || "",
-                    user_catalogue_id: item.user_catalogue_id || "",
-                    user_catalogue_name: item.user_catalogue_name || "",
+                    active: item.publish === 1,
                 }));
 
                 setData(mappedData);
-
-                // 🔥 Cập nhật pagination với giá trị mặc định
                 setPaginationData({
                     current_page: response.current_page || 1,
                     last_page: response.last_page || 1,
@@ -146,15 +115,12 @@ export default function Home() {
                     from: response.from || 0,
                     to: response.to || 0,
                 });
-
                 setSelectedRows([]);
             } catch (error) {
                 console.error("Lỗi khi tải dữ liệu:", error);
                 toast.error(
-                    error.response?.data?.message || "Không thể tải dữ liệu!",
+                    error.response?.data?.message || "Không thể tải dữ liệu!"
                 );
-
-                // 🔥 Reset data khi lỗi
                 setData([]);
                 setPaginationData({
                     current_page: 1,
@@ -168,29 +134,25 @@ export default function Home() {
                 setLoading(false);
             }
         },
-        [pageSize, debouncedKeyword, statusFilter],
-    ); // 🔥 Dependencies rõ ràng
+        [pageSize, debouncedKeyword, statusFilter]
+    );
 
-    // 🔥 Load lần đầu
     useEffect(() => {
         fetchData(1);
     }, [fetchData]);
 
-    // Thêm mới
     const handleCreate = () => {
         setModalMode("create");
         setEditingRow(null);
         setOpenModal(true);
     };
 
-    // Chỉnh sửa
     const handleEdit = (row) => {
         setModalMode("edit");
         setEditingRow(row);
         setOpenModal(true);
     };
 
-    // Xóa
     const handleDeleteClick = (row) => {
         setDeletingRow(row);
         setOpenDeleteDialog(true);
@@ -200,34 +162,29 @@ export default function Home() {
         if (!deletingRow) return;
 
         try {
-            const res = await axios.post(route("admin.user.delete"), {
+            const res = await axios.post(route("admin.vattax.delete"), {
                 id: deletingRow.id,
             });
 
             toast.success(res.data?.message || "Xóa thành công!");
-
             setOpenDeleteDialog(false);
             setDeletingRow(null);
-
-            // 🔥 Fetch lại trang hiện tại
             fetchData(paginationData.current_page);
         } catch (err) {
             console.error("Lỗi khi xóa:", err);
             toast.error(
                 err.response?.data?.message ||
-                    "Có lỗi xảy ra, vui lòng thử lại!",
+                    "Có lỗi xảy ra, vui lòng thử lại!"
             );
         }
     };
 
-    // Toggle checkbox 1 row
     const toggleRow = (id) => {
         setSelectedRows((prev) =>
-            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+            prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
         );
     };
 
-    // Toggle all checkbox
     const toggleAll = () => {
         if (selectedRows.length === data.length && data.length > 0) {
             setSelectedRows([]);
@@ -236,7 +193,6 @@ export default function Home() {
         }
     };
 
-    // Pagination handlers
     const goToPage = (page) => {
         if (page >= 1 && page <= paginationData.last_page) {
             fetchData(page);
@@ -250,8 +206,6 @@ export default function Home() {
 
     const handleChangePageSize = (value) => {
         setPageSize(value);
-        // 🔥 Về trang 1 khi đổi page size
-        // fetchData sẽ tự động được gọi qua useEffect
     };
 
     return (
@@ -262,69 +216,77 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "QL Thành Viên",
+                    label: "QL Thuế VAT",
                 },
             ]}
         >
-            <Head title="Quản Lý Thành Viên" />
+            <Head title="Quản lý Thuế VAT" />
             <Card className="rounded-md shadow-sm">
-                {/* HEADER */}
-                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <CardTitle className="text-2xl font-bold mb-1">
-                            Quản Lý Thành Viên
-                        </CardTitle>
-                        <CardDescription>
-                            Quản lý thông tin, vai trò và trạng thái của các
-                            thành viên trong hệ thống.
-                        </CardDescription>
-                    </div>
+                <CardHeader className="pb-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <CardTitle className="text-2xl font-bold mb-1">
+                                Quản Lý Thuế VAT
+                            </CardTitle>
+                            <CardDescription>
+                                Quản lý danh mục thuế VAT đầu vào / đầu ra
+                            </CardDescription>
+                        </div>
 
-                    <div className="flex items-center gap-2">
-                        <Button className="rounded-md" onClick={handleCreate}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Thêm mới thành viên
-                        </Button>
+                        <div className="flex items-center gap-2">
+                            <Button className="rounded-md" onClick={handleCreate}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Thêm thuế VAT
+                            </Button>
 
-                        {/* Bulk Action Dropdown */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="rounded-md"
+                                    >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+
+                                <DropdownMenuContent
+                                    align="end"
                                     className="rounded-md"
                                 >
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
+                                    {/* 🔥 Sử dụng bulkUpdateStatus từ hook */}
+                                    <DropdownMenuItem
+                                        className="cursor-pointer"
+                                        disabled={selectedRows.length === 0}
+                                        onClick={() =>
+                                            bulkUpdateStatus(
+                                                true,
+                                                "VatTax",
+                                                ""
+                                            )
+                                        }
+                                    >
+                                        <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                                        Xuất bản
+                                    </DropdownMenuItem>
 
-                            <DropdownMenuContent
-                                align="end"
-                                className="rounded-md"
-                            >
-                                <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    disabled={selectedRows.length === 0}
-                                    onClick={() =>
-                                        bulkUpdateStatus(true, "User", "User")
-                                    }
-                                >
-                                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                                    Xuất bản
-                                </DropdownMenuItem>
-
-                                <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    disabled={selectedRows.length === 0}
-                                    onClick={() =>
-                                        bulkUpdateStatus(false, "User", "User")
-                                    }
-                                >
-                                    <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                                    Không xuất bản
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    <DropdownMenuItem
+                                        className="cursor-pointer"
+                                        disabled={selectedRows.length === 0}
+                                        onClick={() =>
+                                            bulkUpdateStatus(
+                                                false,
+                                                "VatTax",
+                                                ""
+                                            )
+                                        }
+                                    >
+                                        <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                                        Không xuất bản
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
                 </CardHeader>
 
@@ -344,18 +306,13 @@ export default function Home() {
 
                             <SelectContent>
                                 <SelectItem value="all">Tất cả</SelectItem>
-                                <SelectItem value="1">
-                                    Đang hoạt động
-                                </SelectItem>
-                                <SelectItem value="0">
-                                    Ngừng hoạt động
-                                </SelectItem>
+                                <SelectItem value="1">Đang hoạt động</SelectItem>
+                                <SelectItem value="0">Ngừng hoạt động</SelectItem>
                             </SelectContent>
                         </Select>
                     </DataTableFilter>
 
-                    {/* DATA TABLE */}
-                    <UserTable
+                    <VatTaxTable
                         data={data}
                         loading={loading}
                         selectedRows={selectedRows}
@@ -364,18 +321,16 @@ export default function Home() {
                         handleEdit={handleEdit}
                         handleDeleteClick={handleDeleteClick}
                         onToggleActive={(id, newChecked) => {
-                            // 🔥 Cập nhật ngay lập tức UI, sau đó sync với server
                             setData((prev) =>
                                 prev.map((item) =>
                                     item.id === id
                                         ? { ...item, active: newChecked }
-                                        : item,
-                                ),
+                                        : item
+                                )
                             );
                         }}
                     />
 
-                    {/* FOOTER */}
                     <DataTablePagination
                         selectedCount={selectedRows.length}
                         total={paginationData.total}
@@ -391,8 +346,7 @@ export default function Home() {
                 </CardContent>
             </Card>
 
-            {/* Modal */}
-            <UserFormModal
+            <VatTaxFormModal
                 open={openModal}
                 mode={modalMode}
                 data={editingRow}
@@ -400,10 +354,9 @@ export default function Home() {
                 onSuccess={() => fetchData(paginationData.current_page)}
             />
 
-            {/* Delete Dialog */}
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
-                title="Xóa thành viên"
+                title="Xóa thuế"
                 description={`Bạn có chắc chắn muốn xóa "${deletingRow?.name}" không?`}
                 onCancel={() => {
                     setOpenDeleteDialog(false);

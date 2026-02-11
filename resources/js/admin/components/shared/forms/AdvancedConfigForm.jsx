@@ -6,10 +6,10 @@ import {
     CardTitle,
 } from "@/admin/components/ui/card";
 
-import CategorySelect from "@/admin/components/fields/CategorySelect";
-import MultiCategorySelect from "@/admin/components/fields/MultiCategorySelect";
-import StatusSelect from "@/admin/components/fields/StatusSelect";
-import NavigationSelect from "@/admin/components/fields/NavigationSelect";
+import CategorySelect from "@/admin/components/shared/fields/CategorySelect";
+import MultiCategorySelect from "@/admin/components/shared/fields/MultiCategorySelect";
+import StatusSelect from "@/admin/components/shared/fields/StatusSelect";
+import NavigationSelect from "@/admin/components/shared/fields/NavigationSelect";
 import { useEffect } from "react";
 
 export default function AdvancedConfigForm({

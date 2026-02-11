@@ -19,25 +19,18 @@ import {
     DropdownMenuTrigger,
 } from "@/admin/components/ui/dropdown-menu";
 
-import {
-    Avatar,
-    AvatarFallback,
-    AvatarImage,
-} from "@/admin/components/ui/avatar";
-
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import ChangeStatusSwitch from "../common/ChangeStatusSwitch";
-import { getInitials } from "@/admin/utils/helpers";
+import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
+import { router } from "@inertiajs/react";
 
-export default function BankTable({
+export default function ProductTable({
     data = [],
     loading = false,
     selectedRows = [],
     toggleAll,
     toggleRow,
-    handleEdit,
     handleDeleteClick,
-    onToggleActive,
+    onToggleActive, // thêm cái này
 }) {
     return (
         <div className="rounded-md border overflow-hidden">
@@ -47,19 +40,17 @@ export default function BankTable({
                         <TableHead className="w-12">
                             <Checkbox
                                 checked={
-                                    data.length > 0 &&
-                                    selectedRows.length === data.length
+                                    selectedRows.length === data.length &&
+                                    data.length > 0
                                 }
                                 onCheckedChange={toggleAll}
                             />
                         </TableHead>
 
-                        <TableHead>Ngân hàng</TableHead>
-                        <TableHead>Mã ngân hàng</TableHead>
-                        <TableHead>Tên viết tắt</TableHead>
-                        <TableHead>Swift Code</TableHead>
-                        <TableHead>BIN Code</TableHead>
-                        <TableHead className="text-center">Trạng thái</TableHead>
+                        <TableHead>Tên sản phẩm</TableHead>
+                        <TableHead className="text-center">
+                            Tình trạng
+                        </TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
                 </TableHeader>
@@ -68,7 +59,7 @@ export default function BankTable({
                     {loading ? (
                         <TableRow>
                             <TableCell
-                                colSpan={8}
+                                colSpan={7}
                                 className="text-center text-muted-foreground py-10"
                             >
                                 Đang tải dữ liệu...
@@ -83,45 +74,19 @@ export default function BankTable({
                                 <TableCell>
                                     <Checkbox
                                         checked={selectedRows.includes(row.id)}
-                                        onCheckedChange={() => toggleRow(row.id)}
+                                        onCheckedChange={() =>
+                                            toggleRow(row.id)
+                                        }
                                     />
                                 </TableCell>
 
-                                {/* Bank name + logo */}
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar className="h-8 w-8">
-                                            <AvatarImage
-                                                src={row.logo || ""}
-                                                alt={row.name}
-                                            />
-                                            <AvatarFallback>
-                                                {getInitials(row.name)}
-                                            </AvatarFallback>
-                                        </Avatar>
-
-                                        <div className="flex flex-col">
-                                            <span className="font-medium leading-tight">
-                                                {row.name}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </TableCell>
-
-                                <TableCell className="font-semibold">
-                                    {row.bank_code || "-"}
-                                </TableCell>
-
-                                <TableCell className="text-muted-foreground">
-                                    {row.short_name || "-"}
-                                </TableCell>
-
-                                <TableCell className="text-muted-foreground">
-                                    {row.swift_code || "-"}
-                                </TableCell>
-
-                                <TableCell className="text-muted-foreground">
-                                    {row.bin_code || "-"}
+                                <TableCell className="font-medium">
+                                    <span>
+                                        {"|----".repeat(
+                                            row.level > 0 ? row.level - 1 : 0,
+                                        )}
+                                        {row.name}
+                                    </span>
                                 </TableCell>
 
                                 <TableCell className="text-center">
@@ -130,10 +95,13 @@ export default function BankTable({
                                             id={row.id}
                                             checked={row.active}
                                             field="publish"
-                                            model="Bank"
-                                            modelParent=""
+                                            model="Product"
+                                            modelParent="Product"
                                             onSuccess={(res) => {
-                                                onToggleActive?.(row.id, res.checked);
+                                                onToggleActive?.(
+                                                    row.id,
+                                                    res.checked,
+                                                );
                                             }}
                                         />
                                     </div>
@@ -157,17 +125,26 @@ export default function BankTable({
                                         >
                                             <DropdownMenuItem
                                                 className="cursor-pointer"
-                                                onClick={() => handleEdit(row)}
+                                                onClick={() =>
+                                                    router.visit(
+                                                        route(
+                                                            "admin.product.edit",
+                                                            row.id,
+                                                        ),
+                                                    )
+                                                }
                                             >
-                                                <Pencil className="mr-2 h-4 w-4 text-yellow-600" />
+                                                <Pencil className="mr-1 h-4 w-4 text-yellow-600" />
                                                 Chỉnh sửa
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
                                                 className="cursor-pointer text-red-600"
-                                                onClick={() => handleDeleteClick(row)}
+                                                onClick={() =>
+                                                    handleDeleteClick(row)
+                                                }
                                             >
-                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                <Trash2 className="mr-1 h-4 w-4" />
                                                 Xóa
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
@@ -178,7 +155,7 @@ export default function BankTable({
                     ) : (
                         <TableRow>
                             <TableCell
-                                colSpan={8}
+                                colSpan={7}
                                 className="text-center text-muted-foreground py-10"
                             >
                                 Không tìm thấy dữ liệu phù hợp.

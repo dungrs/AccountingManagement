@@ -211,7 +211,7 @@ export default function AdminLayout({ children, breadcrumb }) {
             items: [
                 {
                     title: "Hệ Thống Tài Khoản",
-                    url: route("admin.dashboard.index"),
+                    url: route("admin.accounting_account.index"),
                 },
                 {
                     title: "Sổ Cái",
@@ -238,16 +238,8 @@ export default function AdminLayout({ children, breadcrumb }) {
                     url: route("admin.bank.index"),
                 },
                 {
-                    title: "Loại Tiền Tệ",
-                    url: route("admin.dashboard.index"),
-                },
-                {
-                    title: "Tỷ Giá",
-                    url: route("admin.dashboard.index"),
-                },
-                {
                     title: "Thuế VAT",
-                    url: route("admin.dashboard.index"),
+                    url: route("admin.vattax.index"),
                 },
                 {
                     title: "Bảng Giá",
@@ -283,21 +275,26 @@ export default function AdminLayout({ children, breadcrumb }) {
                                         index === breadcrumb.length - 1;
 
                                     return (
-                                        <BreadcrumbItem key={index}>
-                                            {!isLast && item.link ? (
-                                                <BreadcrumbLink
-                                                    href={item.link}
-                                                >
-                                                    {item.label}
-                                                </BreadcrumbLink>
-                                            ) : (
-                                                <BreadcrumbPage>
-                                                    {item.label}
-                                                </BreadcrumbPage>
-                                            )}
+                                        <div
+                                            key={index}
+                                            className="flex items-center"
+                                        >
+                                            <BreadcrumbItem>
+                                                {!isLast && item.link ? (
+                                                    <BreadcrumbLink
+                                                        href={item.link}
+                                                    >
+                                                        {item.label}
+                                                    </BreadcrumbLink>
+                                                ) : (
+                                                    <BreadcrumbPage>
+                                                        {item.label}
+                                                    </BreadcrumbPage>
+                                                )}
+                                            </BreadcrumbItem>
 
                                             {!isLast && <BreadcrumbSeparator />}
-                                        </BreadcrumbItem>
+                                        </div>
                                     );
                                 })}
                             </BreadcrumbList>

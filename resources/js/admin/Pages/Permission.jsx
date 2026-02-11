@@ -20,11 +20,11 @@ import {
 import axios from "axios";
 import toast from "react-hot-toast";
 
-import PermissionFormModal from "@/admin/components/permission/PermissionFormModal";
-import ConfirmDeleteDialog from "@/admin/components/common/ConfirmDeleteDialog";
-import PermissionTable from "@/admin/components/permission/PermissionTable";
-import DataTablePagination from "@/admin/components/common/DataTablePagination";
-import DataTableFilter from "@/admin/components/common/DataTableFilter";
+import PermissionFormModal from "@/admin/components/pages/permission/PermissionFormModal";
+import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
+import PermissionTable from "@/admin/components/pages/permission/PermissionTable";
+import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
+import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head } from "@inertiajs/react";
 
 export default function UserCatalogue() {

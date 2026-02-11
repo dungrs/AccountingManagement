@@ -19,6 +19,18 @@ class Nestedsetbie {
 
     // Phương thức Get để lấy dữ liệu từ cơ sở dữ liệu.
     public function Get() {
+        // Kiểm tra nếu có tham số customLanguageTable (cho các bảng đặc biệt như accounting_account)
+        if (isset($this->params['customLanguageTable']) && $this->params['customLanguageTable'] === true) {
+            // Xử lý cho các bảng đặc biệt
+            $this->getCustomLanguageTable();
+        } else {
+            // Xử lý cho các catalogue thông thường (post_catalogue, product_catalogue, ...)
+            $this->getStandardCatalogue();
+        }
+    }
+
+    // Phương thức lấy dữ liệu cho catalogue thông thường
+    private function getStandardCatalogue() {
         $catalogue = (isset($this->params['isMenu']) && $this->params['isMenu'] === TRUE) ? '' : '_catalogue';
         
         // Xác định khóa ngoại nếu được truyền vào, nếu không thì mặc định là ''.
@@ -29,20 +41,61 @@ class Nestedsetbie {
         $join = (isset($this->params['isMenu']) && $this->params['isMenu'] == true) ? substr($moduleExtract[0], 0, -1) : $moduleExtract[0];
 
         // Tạo câu truy vấn để lấy dữ liệu từ bảng được chỉ định.
-        $result = DB::table($this->params['table'] . ' as tb1')  // Chọn bảng chính với alias 'tb1'.
-            ->select('tb1.id', 'tb2.name', 'tb1.parent_id', 'tb1.lft', 'tb1.rgt', 'tb1.level', 'tb1.order')  // Chọn các cột cần lấy.
-            ->join($join . $catalogue . '_languages as tb2', 'tb1.id', '=', 'tb2.' . $foreignkey)  // Thực hiện join với bảng dịch thuật (language).
+        $result = DB::table($this->params['table'] . ' as tb1')
+            ->select('tb1.id', 'tb2.name', 'tb1.parent_id', 'tb1.lft', 'tb1.rgt', 'tb1.level', 'tb1.order')
+            ->join($join . $catalogue . '_languages as tb2', 'tb1.id', '=', 'tb2.' . $foreignkey)
             ->where([
-                [
-                    'tb2.language_id', '=', $this->params['language_id'],
-                ],
-                [
-                    'tb1.deleted_at', '=', NULL
-                ]
+                ['tb2.language_id', '=', $this->params['language_id']],
+                ['tb1.deleted_at', '=', NULL]
             ])
-            ->orderBy('tb1.lft', 'asc')->get()->toArray();  // Sắp xếp theo cột 'left' theo thứ tự tăng dần và chuyển kết quả thành mảng.
+            ->orderBy('tb1.lft', 'asc')
+            ->get()
+            ->toArray();
 
-        // Gán kết quả truy vấn vào thuộc tính data.
+        $this->data = $result;
+    }
+
+    // Phương thức lấy dữ liệu cho bảng có tên ngôn ngữ đặc biệt
+    private function getCustomLanguageTable() {
+        // Xác định foreignkey từ params
+        $foreignkey = $this->params['foreignkey'] ?? 'id';
+        
+        // Xác định tên bảng chính và bảng ngôn ngữ
+        $mainTable = $this->params['table'];
+        
+        // Xác định tên bảng ngôn ngữ
+        // Nếu có languageTableName thì dùng, nếu không thì tự động thêm _languages
+        $languageTable = isset($this->params['languageTableName']) 
+            ? $this->params['languageTableName'] 
+            : $mainTable . '_languages';
+        
+        // Các cột cần select
+        $selectColumns = [
+            'tb1.id', 
+            'tb2.name', 
+            'tb1.parent_id', 
+            'tb1.lft', 
+            'tb1.rgt', 
+            'tb1.level'
+        ];
+        
+        // Nếu bảng có cột order thì thêm vào
+        if (isset($this->params['hasOrderColumn']) && $this->params['hasOrderColumn'] === true) {
+            $selectColumns[] = 'tb1.order';
+        }
+        
+        // Tạo câu truy vấn
+        $result = DB::table($mainTable . ' as tb1')
+            ->select($selectColumns)
+            ->join($languageTable . ' as tb2', 'tb1.id', '=', 'tb2.' . $foreignkey)
+            ->where([
+                ['tb2.language_id', '=', $this->params['language_id']],
+                ['tb1.deleted_at', '=', NULL]
+            ])
+            ->orderBy('tb1.lft', 'asc')
+            ->get()
+            ->toArray();
+
         $this->data = $result;
     }
 
@@ -129,10 +182,10 @@ class Nestedsetbie {
             // Nếu mảng `$data` tồn tại và là mảng với ít nhất một phần tử
             if (isset($data) && is_array($data) && count($data)) {
                 // Sử dụng phương thức `upsert` để chèn hoặc cập nhật dữ liệu trong bảng
-                DB::table($this->params['table'])->upsert($data, 'id', ['level', 'lft', 'rgt']);
+                DB::table($this->params['table'])->upsert($data, 'id', ['level', 'lft', 'rgt', 'user_id']);
                 // `upsert`: Cập nhật nếu ID đã tồn tại, chèn mới nếu chưa tồn tại
                 // `id`: Cột dùng để kiểm tra trùng lặp
-                // `['level', 'lft', 'rgt']`: Các cột sẽ được cập nhật nếu có trùng lặp
+                // `['level', 'lft', 'rgt', 'user_id']`: Các cột sẽ được cập nhật nếu có trùng lặp
             }
         }
     }
