@@ -114,13 +114,15 @@ class SupplierService extends BaseService implements SupplierServiceInterface
         $latest = $this->supplierRepository->findLastest();
 
         if (!$latest) {
-            return 'NCC_001';
+            return 'SUP_001';
         }
 
-        $number = (int) substr($latest, 3);
-        $number++;
+        $latestCode = $latest->supplier_code; // ví dụ BANK_0012
+        preg_match('/(\d+)/', $latestCode, $matches);
 
-        return 'NCC_' . str_pad($number, 3, '0', STR_PAD_LEFT);
+        $number = isset($matches[1]) ? (int)$matches[1] + 1 : 1;
+
+        return 'SUP_' . str_pad($number, 3, '0', STR_PAD_LEFT);
     }
 
     private function syncBankAccounts($supplier, $banks)

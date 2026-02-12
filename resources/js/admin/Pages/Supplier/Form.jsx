@@ -87,7 +87,6 @@ export default function SupplierForm() {
     }, [supplier, isInitialized]);
 
     useEffect(() => {
-        if (flash?.success) emit("toast:success", flash.success);
         if (flash?.error) emit("toast:error", flash.error);
     }, [flash, emit]);
 
@@ -227,12 +226,6 @@ export default function SupplierForm() {
 
             onSuccess: () => {
                 setErrors({});
-                emit(
-                    "toast:error",
-                    isEdit
-                        ? "Cập nhật nhà cung cấp thất bại!"
-                        : "Thêm mới nhà cung cấp thất bại!",
-                );
             },
 
             onError: (errors) => {

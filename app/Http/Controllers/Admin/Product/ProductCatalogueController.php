@@ -73,11 +73,12 @@ class ProductCatalogueController extends Controller
             $this->productCatalogueService->create($request);
 
             return redirect()
-                ->route('admin.product.catalogue.index');
+                ->route('admin.product.catalogue.index')
+                ->with('success', 'Thêm mới nhóm sản phẩm thành công!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.product.catalogue.create')
+                ->with('error', 'Thêm mới nhóm sản phẩm thất bại!');
         }
     }
 
@@ -88,16 +89,17 @@ class ProductCatalogueController extends Controller
             $this->productCatalogueService->update($request, $id, $this->languageId);
 
             return redirect()
-                ->route('admin.product.catalogue.index');
+                ->route('admin.product.catalogue.index')
+                ->with('success', 'Cập nhật nhóm sản phẩm thành công!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.product.catalogue.edit', ['id' => $id])
+                ->with('error', 'Cập nhật nhóm sản phẩm thất bại!');
         }
     }
 
     public function delete(DeleteProductCatalogueRequest $request, $id)
-    {   
+    {
         $this->authorize('modules', 'product.catalogue.destroy');
         try {
             $this->productCatalogueService->delete($id);

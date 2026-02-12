@@ -31,26 +31,10 @@ import SupplierTable from "@/admin/components/pages/supplier/SupplierTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
-import { useEventBus } from "@/EventBus";
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
 
 export default function Home() {
-    const { on } = useEventBus();
-
-    useEffect(() => {
-        const offSuccess = on("toast.supplier.success", (payload) => {
-            toast.success(payload.message);
-        });
-
-        const offError = on("toast.supplier.error", (payload) => {
-            toast.error(payload.message);
-        });
-
-        return () => {
-            offSuccess();
-            offError();
-        };
-    }, []);
+    useFlashToast();
 
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
@@ -234,7 +218,8 @@ export default function Home() {
                                 Quản Lý Nhà Cung Cấp
                             </CardTitle>
                             <CardDescription>
-                                Quản lý thông tin nhà cung cấp, bao gồm tên, mã số thuế, thông tin liên hệ.
+                                Quản lý thông tin nhà cung cấp, bao gồm tên, mã
+                                số thuế, thông tin liên hệ.
                             </CardDescription>
                         </div>
 

@@ -105,19 +105,25 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
-        $response = $this->productService->create($request);
         try {
+            $response = $this->productService->create($request);
 
             if ($response) {
                 return redirect()
-                    ->route('admin.product.index');
+                    ->route('admin.product.index')
+                    ->with('success', 'Thêm mới sản phẩm thành công!');
             }
+
+            return redirect()
+                ->route('admin.product.create')
+                ->with('error', 'Thêm mới sản phẩm thất bại!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.product.create')
+                ->with('error', 'Có lỗi xảy ra khi thêm sản phẩm!');
         }
     }
+
 
     public function update(UpdateProductRequest $request, $id)
     {
@@ -125,11 +131,12 @@ class ProductController extends Controller
             $this->productService->update($request, $id, $this->languageId);
 
             return redirect()
-                ->route('admin.product.index');
+                ->route('admin.product.index')
+                ->with('success', 'Cập nhật sản phẩm thành công!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.product.edit', ['id' => $id])
+                ->with('error', 'Cập nhật sản phẩm thất bại!');
         }
     }
 

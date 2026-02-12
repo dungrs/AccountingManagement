@@ -30,32 +30,14 @@ import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteD
 import AttributeCatalogueTable from "@/admin/components/pages/attribute-catalogue/AttributeCatalogueTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
-import { Head, router } from "@inertiajs/react";
-import { useEventBus } from "@/EventBus";
+import { Head, router, usePage } from "@inertiajs/react";
 
 // 🔥 Import custom hook
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
+import useFlashToast from "@/admin/hooks/useFlashToast";
 
 export default function Home() {
-    const { on } = useEventBus();
-
-    useEffect(() => {
-        const offSuccess = on(
-            "toast.attribute.catalogue.success",
-            (payload) => {
-                toast.success(payload.message);
-            },
-        );
-
-        const offError = on("toast.attribute.catalogue.error", (payload) => {
-            toast.error(payload.message);
-        });
-
-        return () => {
-            offSuccess();
-            offError();
-        };
-    }, []);
+    useFlashToast();
 
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);

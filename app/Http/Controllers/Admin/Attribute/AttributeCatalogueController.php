@@ -67,17 +67,19 @@ class AttributeCatalogueController extends Controller
         ]);
     }
 
+
     public function store(StoreAttributeCatalogueRequest $request)
     {
+        $this->attributeCatalogueService->create($request);
         try {
-            $this->attributeCatalogueService->create($request);
 
             return redirect()
-                ->route('admin.attribute.catalogue.index');
+                ->route('admin.attribute.catalogue.index')
+                ->with('success', 'Thêm mới nhóm thuộc tính thành công!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.attribute.catalogue.create')
+                ->with('error', 'Thêm mới nhóm thuộc tính thất bại!');
         }
     }
 
@@ -88,16 +90,18 @@ class AttributeCatalogueController extends Controller
             $this->attributeCatalogueService->update($request, $id, $this->languageId);
 
             return redirect()
-                ->route('admin.attribute.catalogue.index');
+                ->route('admin.attribute.catalogue.index')
+                ->with('success', 'Cập nhật nhóm thuộc tính thành công!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.attribute.catalogue.edit', ['id' => $id])
+                ->with('error', 'Cập nhật nhóm thuộc tính thất bại!');
         }
     }
 
+
     public function delete(DeleteAttributeCatalogueRequest $request, $id)
-    {   
+    {
         $this->authorize('modules', 'attribute.catalogue.destroy');
         try {
             $this->attributeCatalogueService->delete($id);

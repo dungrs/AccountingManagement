@@ -252,13 +252,6 @@ export default function Form() {
 
             onSuccess: () => {
                 setErrors({});
-
-                emit(
-                    "toast:success",
-                    isEdit
-                        ? "Cập nhật sản phẩm thành công!"
-                        : "Thêm mới sản phẩm thành công!",
-                );
             },
 
             onError: (errors) => {

@@ -233,13 +233,6 @@ export default function Form() {
 
             onSuccess: () => {
                 setErrors({});
-
-                emit("toast.attribute.success", {
-                    action: isEdit ? "update" : "create",
-                    message: isEdit
-                        ? "Cập nhật loại thuộc tính thành công!"
-                        : "Thêm mới loại thuộc tính thành công!",
-                });
             },
 
             onError: (errors) => {

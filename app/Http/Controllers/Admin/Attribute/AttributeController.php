@@ -78,11 +78,12 @@ class AttributeController extends Controller
             $this->attributeService->create($request);
 
             return redirect()
-                ->route('admin.attribute.index');
+                ->route('admin.attribute.index')
+                ->with('success', 'Thêm mới thuộc tính thành công!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.attribute.create')
+                ->with('error', 'Thêm mới thuộc tính thất bại!');
         }
     }
 
@@ -93,11 +94,12 @@ class AttributeController extends Controller
             $this->attributeService->update($request, $id, $this->languageId);
 
             return redirect()
-                ->route('admin.attribute.index');
+                ->route('admin.attribute.index')
+                ->with('success', 'Cập nhật thuộc tính thành công!');
         } catch (\Throwable $e) {
             return redirect()
-                ->back()
-                ->withInput();
+                ->route('admin.attribute.edit', ['id' => $id])
+                ->with('error', 'Cập nhật thuộc tính thất bại!');
         }
     }
 

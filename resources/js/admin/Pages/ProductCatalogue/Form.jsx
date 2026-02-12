@@ -195,13 +195,6 @@ export default function FormCatalogue() {
 
             onSuccess: () => {
                 setErrors({});
-
-                emit("toast.product.catalogue.success", {
-                    action: isEdit ? "update" : "create",
-                    message: isEdit
-                        ? "Cập nhật nhóm sản phẩm thành công!"
-                        : "Thêm mới nhóm sản phẩm thành công!",
-                });
             },
 
             onError: (errors) => {

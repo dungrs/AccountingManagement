@@ -31,31 +31,13 @@ import ProductTable from "@/admin/components/pages/product/ProductTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
-import { useEventBus } from "@/EventBus";
 
 // 🔥 Import custom hook
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
+import useFlashToast from "@/admin/hooks/useFlashToast";
 
 export default function Home() {
-    const { on } = useEventBus();
-
-    useEffect(() => {
-        const offSuccess = on(
-            "toast.product.success",
-            (payload) => {
-                toast.success(payload.message);
-            }
-        );
-
-        const offError = on("toast.product.error", (payload) => {
-            toast.error(payload.message);
-        });
-
-        return () => {
-            offSuccess();
-            offError();
-        };
-    }, []);
+    useFlashToast();
 
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);

@@ -59,7 +59,7 @@ class SupplierController extends Controller
     public function edit($id)
     {
         $this->authorize('modules', 'supplier.update');
-        
+
         $supplier = $this->supplierService->getSupplier($id);
         $provinces = $this->provinceRepository->all();
         $banks = $this->bankRepository->findByCondition([
@@ -77,12 +77,9 @@ class SupplierController extends Controller
     {
         try {
             $this->supplierService->create($request);
-            return redirect()
-                ->route('admin.supplier.index');
+            return redirect()->route('admin.supplier.index')->with('success', 'Thêm mới nhà cung cấp thành công!');
         } catch (\Throwable $e) {
-            return redirect()
-                ->back()
-                ->withInput();
+            return redirect()->route('admin.supplier.create')->with('error', 'Thêm mới nhà cung cấp thất bại!');
         }
     }
 
@@ -90,12 +87,9 @@ class SupplierController extends Controller
     {
         try {
             $this->supplierService->update($request, $id);
-            return redirect()
-                ->route('admin.supplier.index');
+            return redirect()->route('admin.supplier.index')->with('success', 'Cập nhật nhà cung cấp thành công!');
         } catch (\Throwable $e) {
-            return redirect()
-                ->back()
-                ->withInput();
+            return redirect()->route('admin.supplier.edit', ['id' => $id])->with('error', 'Cập nhật nhà cung cấp thất bại!');
         }
     }
 
