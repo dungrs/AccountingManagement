@@ -18,7 +18,7 @@ class ProductVariant extends Model
         'code',
         'quantity',
         'sku',
-        'price',
+        'base_price',
         'barcode',
         'file_name',
         'file_url',
@@ -29,18 +29,37 @@ class ProductVariant extends Model
 
     protected $table = 'product_variants';
 
-    public function products() {
+    public function products()
+    {
         return $this->belongsTo(Product::class, 'product_id', 'id');
     }
 
-    public function languages() {
-        return $this->belongsToMany(Language::class, 'product_variant_languages', 'product_variant_id','language_id')
-                    ->withPivot('name')
-                    ->withTimestamps();
+    public function languages()
+    {
+        return $this->belongsToMany(Language::class, 'product_variant_languages', 'product_variant_id', 'language_id')
+            ->withPivot('name')
+            ->withTimestamps();
     }
 
-    public function attributes() {
+    public function attributes()
+    {
         return $this->belongsToMany(Attribute::class, 'product_variant_attributes', 'product_variant_id', 'attribute_id')
-                    ->withTimestamps();
+            ->withTimestamps();
+    }
+
+    // 1 Variant có nhiều giá trong nhiều bảng giá
+    public function priceListItems()
+    {
+        return $this->hasMany(PriceListItem::class);
+    }
+
+    // Lấy tất cả bảng giá chứa variant này
+    public function priceLists()
+    {
+        return $this->belongsToMany(
+            PriceList::class,
+            'price_list_items'
+        )->withPivot('sale_price', 'output_tax_id', 'publish')
+            ->withTimestamps();
     }
 }

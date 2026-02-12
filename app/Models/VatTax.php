@@ -8,7 +8,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Model;
 
 class VatTax extends Model
-{   
+{
     use HasFactory, Notifiable, QueryScopes;
     protected $table = 'vat_taxes';
     protected $fillable = [
@@ -19,4 +19,10 @@ class VatTax extends Model
         'description',
         'publish',
     ];
+
+    // Thuế đầu ra được dùng trong bảng giá
+    public function priceListItems()
+    {
+        return $this->hasMany(PriceListItem::class, 'output_tax_id');
+    }
 }

@@ -31,7 +31,7 @@ class ProductRepository extends BaseRepository implements ProductRepositoryInter
                 'pl.canonical',
                 'pv.sku',
                 'pv.uuid',
-                'pv.price',
+                'pv.base_price',
                 'pv.id as product_variant_id',
                 'pv.album',
                 'pvl.name as variant_name',

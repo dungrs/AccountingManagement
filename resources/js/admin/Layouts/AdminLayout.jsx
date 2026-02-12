@@ -239,7 +239,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Bảng Giá",
-                    url: route("admin.dashboard.index"),
+                    url: route("admin.price_list.index"),
                 },
             ],
         },

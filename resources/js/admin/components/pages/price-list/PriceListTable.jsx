@@ -1,0 +1,183 @@
+"use client";
+
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/admin/components/ui/table";
+import { Checkbox } from "@/admin/components/ui/checkbox";
+import { Button } from "@/admin/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/admin/components/ui/dropdown-menu";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
+import { router } from "@inertiajs/react";
+import { formatDate } from "@/admin/utils/helpers";
+
+export default function PriceListTable({
+    data = [],
+    loading = false,
+    selectedRows = [],
+    toggleAll,
+    toggleRow,
+    handleDeleteClick,
+    onToggleActive,
+}) {
+    return (
+        <div className="rounded-md border overflow-hidden">
+            <Table>
+                <TableHeader>
+                    <TableRow className="bg-muted/40">
+                        <TableHead className="w-12">
+                            <Checkbox
+                                checked={
+                                    selectedRows.length === data.length &&
+                                    data.length > 0
+                                }
+                                onCheckedChange={toggleAll}
+                            />
+                        </TableHead>
+
+                        <TableHead>Tên bảng giá</TableHead>
+                        <TableHead>Mô tả</TableHead>
+                        <TableHead>Ngày bắt đầu</TableHead>
+                        <TableHead>Ngày kết thúc</TableHead>
+                        <TableHead className="text-center">Trạng thái</TableHead>
+                        <TableHead className="text-right">Thao tác</TableHead>
+                    </TableRow>
+                </TableHeader>
+
+                <TableBody>
+                    {loading ? (
+                        <TableRow>
+                            <TableCell
+                                colSpan={7}
+                                className="text-center text-muted-foreground py-10"
+                            >
+                                Đang tải dữ liệu...
+                            </TableCell>
+                        </TableRow>
+                    ) : data.length > 0 ? (
+                        data.map((row) => (
+                            <TableRow
+                                key={row.id}
+                                className="hover:bg-muted/30 transition"
+                            >
+                                <TableCell>
+                                    <Checkbox
+                                        checked={selectedRows.includes(row.id)}
+                                        onCheckedChange={() => toggleRow(row.id)}
+                                    />
+                                </TableCell>
+
+                                {/* Tên bảng giá */}
+                                <TableCell className="font-medium">
+                                    {row.name}
+                                </TableCell>
+
+                                {/* Mô tả */}
+                                <TableCell className="max-w-[200px] truncate">
+                                    {row.description || "-"}
+                                </TableCell>
+
+                                {/* Ngày bắt đầu */}
+                                <TableCell>
+                                    {row.start_date
+                                        ? formatDate(row.start_date)
+                                        : "-"}
+                                </TableCell>
+
+                                {/* Ngày kết thúc */}
+                                <TableCell>
+                                    {row.end_date
+                                        ? formatDate(row.end_date)
+                                        : "Không giới hạn"}
+                                </TableCell>
+
+                                {/* Trạng thái publish */}
+                                <TableCell className="text-center">
+                                    <div className="flex justify-center">
+                                        <ChangeStatusSwitch
+                                            id={row.id}
+                                            checked={row.active}
+                                            field="publish"
+                                            model="PriceList"
+                                            modelParent=""
+                                            onSuccess={(res) => {
+                                                onToggleActive?.(
+                                                    row.id,
+                                                    res.checked,
+                                                );
+                                            }}
+                                        />
+                                    </div>
+                                </TableCell>
+
+                                {/* Thao tác */}
+                                <TableCell className="text-right">
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="rounded-md"
+                                            >
+                                                <MoreHorizontal className="h-4 w-4" />
+                                            </Button>
+                                        </DropdownMenuTrigger>
+
+                                        <DropdownMenuContent
+                                            align="end"
+                                            className="rounded-md"
+                                        >
+                                            <DropdownMenuItem
+                                                className="cursor-pointer"
+                                                onClick={() =>
+                                                    router.visit(
+                                                        route(
+                                                            "admin.price_list.edit",
+                                                            row.id,
+                                                        ),
+                                                    )
+                                                }
+                                            >
+                                                <Pencil className="mr-1 h-4 w-4 text-yellow-600" />
+                                                Chỉnh sửa
+                                            </DropdownMenuItem>
+
+                                            <DropdownMenuItem
+                                                className="cursor-pointer text-red-600"
+                                                onClick={() =>
+                                                    handleDeleteClick(row)
+                                                }
+                                            >
+                                                <Trash2 className="mr-1 h-4 w-4" />
+                                                Xóa
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </TableCell>
+                            </TableRow>
+                        ))
+                    ) : (
+                        <TableRow>
+                            <TableCell
+                                colSpan={7}
+                                className="text-center text-muted-foreground py-10"
+                            >
+                                Không tìm thấy dữ liệu phù hợp.
+                            </TableCell>
+                        </TableRow>
+                    )}
+                </TableBody>
+            </Table>
+        </div>
+    );
+}

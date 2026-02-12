@@ -387,7 +387,7 @@ class ProductService extends BaseService implements ProductServiceInterface
                     'code' => $productVariantId,
                     'quantity' => isset($payload['variant']['quantity'][$key]) ? parseValue($payload['variant']['quantity'][$key]) : 0,
                     'sku' => $val,
-                    'price' => isset($payload['variant']['price'][$key]) ? parseValue($payload['variant']['price'][$key]) : 0,
+                    'base_price' => isset($payload['variant']['price'][$key]) ? parseValue($payload['variant']['price'][$key]) : 0,
                     'barcode' => ($payload['variant']['barcode'][$key]) ?? '',
                     'file_name' => ($payload['variant']['file_name'][$key]) ?? '',
                     'file_url' => ($payload['variant']['file_url'][$key]) ?? '',

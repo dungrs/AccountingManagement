@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\Attribute\AttributeController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
 use App\Http\Controllers\Admin\Customer\CustomerController;
+use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\VatTaxController;
@@ -95,6 +96,7 @@ Route::middleware('auth')->group(function () {
         Route::post('delete', [CustomerController::class, 'delete'])->name('admin.customer.delete');
     });
 
+    // SUPPLIER
     Route::prefix('supplier')->group(function () {
         Route::get('index', [SupplierController::class, 'index'])->name('admin.supplier.index');
         Route::get('create', [SupplierController::class, 'create'])->name('admin.supplier.create');
@@ -166,6 +168,18 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [AccountingAccountController::class, 'store'])->name('admin.accounting_account.store');
         Route::post('update', [AccountingAccountController::class, 'update'])->name('admin.accounting_account.update');
         Route::post('delete', [AccountingAccountController::class, 'delete'])->name('admin.accounting_account.delete');
+    });
+
+    // PRICE LIST
+    Route::prefix('price-list')->group(function () {
+        Route::get('index', [PriceListController::class, 'index'])->name('admin.price_list.index');
+        Route::get('create', [PriceListController::class, 'create'])->name('admin.price_list.create');
+        Route::get('edit/{id}', [PriceListController::class, 'edit'])->name('admin.price_list.edit')->where(['id' => '[0-9]+']);
+
+        Route::post('filter', [PriceListController::class, 'filter'])->name('admin.price_list.filter');
+        Route::post('store', [PriceListController::class, 'store'])->name('admin.price_list.store');
+        Route::put('update/{id}', [PriceListController::class, 'update'])->name('admin.price_list.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [PriceListController::class, 'delete'])->name('admin.price_list.delete')->where(['id' => '[0-9]+']);
     });
 
     Route::post('/changeStatus/{id}', [Controller::class, 'changeStatus'])->name('admin.changeStatus');

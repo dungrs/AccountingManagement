@@ -27,7 +27,7 @@ import { MoreHorizontal, Plus, CheckCircle2, XCircle } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
-import SupplierTable from "@/admin/components/pages/supplier/SupplierTable";
+import PriceListTable from "@/admin/components/pages/price-list/PriceListTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
@@ -83,11 +83,12 @@ export default function Home() {
                 }
 
                 const res = await axios.post(
-                    route("admin.supplier.filter"),
+                    route("admin.price_list.filter"),
                     params,
                 );
 
                 const response = res.data;
+                console.log(res.data);
 
                 if (!response || !Array.isArray(response.data)) {
                     throw new Error("Dữ liệu trả về không hợp lệ");
@@ -96,13 +97,9 @@ export default function Home() {
                 const mappedData = response.data.map((item) => ({
                     id: item.id,
                     name: item.name ?? "-",
-                    tax_code: item.tax_code ?? "-",
-                    avatar: item.avatar ?? null,
-                    phone: item.phone ?? "-",
-                    email: item.email ?? "-",
+                    start_date: item.start_date ?? "-",
+                    end_date: item.end_date ?? null,
                     description: item.description ?? "-",
-                    address: item.address ?? "-",
-                    fax: item.fax ?? "-",
                     user_id: item.user_id ?? null,
                     publish: item.publish,
                     active: item.publish === 1,
@@ -153,7 +150,7 @@ export default function Home() {
 
         try {
             const res = await axios.post(
-                route("admin.supplier.delete", deletingRow.id),
+                route("admin.price_list.delete", deletingRow.id),
             );
 
             toast.success(res.data?.message || "Xóa thành công!");
@@ -206,21 +203,21 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "QL Nhà Cung Cấp",
+                    label: "QL Bảng Giá",
                 },
             ]}
         >
-            <Head title="Quản Lý Nhà Cung Cấp" />
+            <Head title="Quản Lý Bảng Giá" />
             <Card className="rounded-md shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <CardTitle className="text-2xl font-bold mb-1">
-                                Quản Lý Nhà Cung Cấp
+                                Quản Lý bảng giá
                             </CardTitle>
                             <CardDescription>
-                                Quản lý thông tin nhà cung cấp, bao gồm tên, mã
-                                số thuế, thông tin liên hệ.
+                                Quản lý danh sách bảng giá bán, thời gian áp
+                                dụng và trạng thái xuất bản.
                             </CardDescription>
                         </div>
 
@@ -228,11 +225,13 @@ export default function Home() {
                             <Button
                                 className="rounded-md"
                                 onClick={() =>
-                                    router.visit(route("admin.supplier.create"))
+                                    router.visit(
+                                        route("admin.price_list.create"),
+                                    )
                                 }
                             >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Thêm mới nhà cung cấp
+                                Thêm mới bảng giá
                             </Button>
 
                             <DropdownMenu>
@@ -256,7 +255,7 @@ export default function Home() {
                                         onClick={() =>
                                             bulkUpdateStatus(
                                                 true,
-                                                "Supplier",
+                                                "PriceList",
                                                 "",
                                             )
                                         }
@@ -271,7 +270,7 @@ export default function Home() {
                                         onClick={() =>
                                             bulkUpdateStatus(
                                                 false,
-                                                "Supplier",
+                                                "PriceList",
                                                 "",
                                             )
                                         }
@@ -289,7 +288,7 @@ export default function Home() {
                     <DataTableFilter
                         keyword={keyword}
                         setKeyword={setKeyword}
-                        placeholder="Tìm kiếm theo tên, mã số thuế, email..."
+                        placeholder="Tìm kiếm theo tên bảng giá hoặc mô tả..."
                     >
                         <Select
                             value={statusFilter}
@@ -311,7 +310,7 @@ export default function Home() {
                         </Select>
                     </DataTableFilter>
 
-                    <SupplierTable
+                    <PriceListTable
                         data={data}
                         loading={loading}
                         selectedRows={selectedRows}
@@ -346,8 +345,8 @@ export default function Home() {
 
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
-                title="Xóa nhà cung cấp"
-                description={`Bạn có chắc chắn muốn xóa nhà cung cấp "${deletingRow?.name}" không?`}
+                title="Xóa bảng giá"
+                description={`Bạn có chắc chắn muốn xóa bảng giá "${deletingRow?.name}" không?`}
                 onCancel={() => {
                     setOpenDeleteDialog(false);
                     setDeletingRow(null);

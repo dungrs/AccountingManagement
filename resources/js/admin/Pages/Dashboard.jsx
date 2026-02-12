@@ -1,185 +1,158 @@
+"use client";
+
 import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Head } from "@inertiajs/react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/admin/components/ui/card";
-import { 
-    Users, 
-    ShoppingCart, 
-    DollarSign, 
-    TrendingUp,
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/admin/components/ui/card";
+import { Button } from "@/admin/components/ui/button";
+import { Badge } from "@/admin/components/ui/badge";
+import { Separator } from "@/admin/components/ui/separator";
+import {
+    Users,
+    ShoppingCart,
+    DollarSign,
     Package,
-    Activity
+    Activity,
+    ArrowUpRight,
 } from "lucide-react";
 
 export default function Dashboard() {
-    // Dữ liệu mẫu
     const stats = [
-        {
-            title: "Tổng doanh thu",
-            value: "45,231,000 ₫",
-            change: "+20.1%",
-            icon: DollarSign,
-            color: "text-green-600",
-            bgColor: "bg-green-100"
-        },
-        {
-            title: "Người dùng",
-            value: "2,350",
-            change: "+15.3%",
-            icon: Users,
-            color: "text-blue-600",
-            bgColor: "bg-blue-100"
-        },
-        {
-            title: "Đơn hàng",
-            value: "1,234",
-            change: "+12.5%",
-            icon: ShoppingCart,
-            color: "text-purple-600",
-            bgColor: "bg-purple-100"
-        },
-        {
-            title: "Sản phẩm",
-            value: "573",
-            change: "+8.2%",
-            icon: Package,
-            color: "text-orange-600",
-            bgColor: "bg-orange-100"
-        }
+        { title: "Doanh thu tháng", value: "45.231.000 ₫", icon: DollarSign },
+        { title: "Đơn hàng", value: "1.234", icon: ShoppingCart },
+        { title: "Khách hàng", value: "2.350", icon: Users },
+        { title: "Sản phẩm", value: "573", icon: Package },
     ];
 
     const recentOrders = [
-        { id: "#ORD001", customer: "Nguyễn Văn A", amount: "1,250,000 ₫", status: "Hoàn thành" },
-        { id: "#ORD002", customer: "Trần Thị B", amount: "850,000 ₫", status: "Đang xử lý" },
-        { id: "#ORD003", customer: "Lê Văn C", amount: "2,100,000 ₫", status: "Hoàn thành" },
-        { id: "#ORD004", customer: "Phạm Thị D", amount: "650,000 ₫", status: "Chờ xác nhận" },
-        { id: "#ORD005", customer: "Hoàng Văn E", amount: "1,800,000 ₫", status: "Hoàn thành" }
+        { id: "#ORD001", customer: "Nguyễn Văn A", amount: "1.250.000 ₫", status: "Hoàn thành" },
+        { id: "#ORD002", customer: "Trần Thị B", amount: "850.000 ₫", status: "Đang xử lý" },
+        { id: "#ORD003", customer: "Lê Văn C", amount: "2.100.000 ₫", status: "Chờ xác nhận" },
+        { id: "#ORD004", customer: "Phạm Thị D", amount: "650.000 ₫", status: "Hoàn thành" },
     ];
 
-    const topProducts = [
-        { name: "Áo thun nam", sold: 156, revenue: "15,600,000 ₫" },
-        { name: "Quần jean nữ", sold: 142, revenue: "21,300,000 ₫" },
-        { name: "Giày sneaker", sold: 128, revenue: "19,200,000 ₫" },
-        { name: "Túi xách", sold: 95, revenue: "14,250,000 ₫" },
-        { name: "Đồng hồ", sold: 87, revenue: "26,100,000 ₫" }
+    const notifications = [
+        "Có 3 đơn hàng mới cần xử lý",
+        "2 sản phẩm sắp hết hàng",
+        "1 bảng giá sẽ hết hiệu lực trong 5 ngày",
     ];
 
     return (
         <AdminLayout
             breadcrumb={[
-                {
-                    label: "Dashboard",
-                    link: route("admin.dashboard.index"),
-                },
-                {
-                    label: "Bảng điều khiển",
-                },
+                { label: "Dashboard", link: route("admin.dashboard.index") },
+                { label: "Bảng điều khiển" },
             ]}
-        >   
-            <Head title="Trang thống kê" />
-            
+        >
+            <Head title="Dashboard" />
+
             <div className="space-y-6">
+
                 {/* Header */}
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">
-                        Bảng điều khiển
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Tổng quan về hoạt động kinh doanh của bạn
-                    </p>
+                <div className="flex items-center justify-between">
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">
+                            Bảng điều khiển
+                        </h1>
+                        <p className="text-muted-foreground">
+                            Tổng quan hoạt động hệ thống
+                        </p>
+                    </div>
+
+                    <Button variant="outline">
+                        <ArrowUpRight className="mr-2 h-4 w-4" />
+                        Xem báo cáo
+                    </Button>
                 </div>
 
-                {/* Stats Grid */}
+                {/* Stats */}
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                    {stats.map((stat, index) => (
+                    {stats.map((item, index) => (
                         <Card key={index}>
-                            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                            <CardHeader className="flex flex-row items-center justify-between pb-2">
                                 <CardTitle className="text-sm font-medium">
-                                    {stat.title}
+                                    {item.title}
                                 </CardTitle>
-                                <div className={`p-2 rounded-full ${stat.bgColor}`}>
-                                    <stat.icon className={`h-4 w-4 ${stat.color}`} />
-                                </div>
+                                <item.icon className="h-4 w-4 text-muted-foreground" />
                             </CardHeader>
                             <CardContent>
-                                <div className="text-2xl font-bold">{stat.value}</div>
-                                <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
-                                    <TrendingUp className="h-3 w-3 text-green-600" />
-                                    <span className="text-green-600">{stat.change}</span>
-                                    <span>so với tháng trước</span>
+                                <div className="text-2xl font-bold">
+                                    {item.value}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    Cập nhật realtime
                                 </p>
                             </CardContent>
                         </Card>
                     ))}
                 </div>
 
-                {/* Charts & Tables Row */}
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+                {/* Main Grid */}
+                <div className="grid gap-4 lg:grid-cols-3">
+
                     {/* Recent Orders */}
-                    <Card className="col-span-4">
+                    <Card className="lg:col-span-2">
                         <CardHeader>
                             <CardTitle>Đơn hàng gần đây</CardTitle>
                             <CardDescription>
-                                Có {recentOrders.length} đơn hàng mới trong tuần này
+                                Danh sách đơn hàng mới nhất
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {recentOrders.map((order, index) => (
-                                    <div key={index} className="flex items-center justify-between border-b pb-3 last:border-0 last:pb-0">
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium leading-none">
+
+                        <CardContent className="space-y-4">
+                            {recentOrders.map((order, index) => (
+                                <div key={index}>
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <p className="font-medium">
                                                 {order.customer}
                                             </p>
                                             <p className="text-sm text-muted-foreground">
                                                 {order.id}
                                             </p>
                                         </div>
-                                        <div className="text-right space-y-1">
-                                            <p className="text-sm font-medium">
+
+                                        <div className="text-right">
+                                            <p className="font-medium">
                                                 {order.amount}
                                             </p>
-                                            <span className={`text-xs px-2 py-1 rounded-full ${
-                                                order.status === "Hoàn thành" 
-                                                    ? "bg-green-100 text-green-700"
-                                                    : order.status === "Đang xử lý"
-                                                    ? "bg-blue-100 text-blue-700"
-                                                    : "bg-yellow-100 text-yellow-700"
-                                            }`}>
+                                            <Badge variant="secondary">
                                                 {order.status}
-                                            </span>
+                                            </Badge>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
+
+                                    {index !== recentOrders.length - 1 && (
+                                        <Separator className="mt-4" />
+                                    )}
+                                </div>
+                            ))}
                         </CardContent>
                     </Card>
 
-                    {/* Top Products */}
-                    <Card className="col-span-3">
+                    {/* Notifications */}
+                    <Card>
                         <CardHeader>
-                            <CardTitle>Sản phẩm bán chạy</CardTitle>
+                            <CardTitle>Thông báo hệ thống</CardTitle>
                             <CardDescription>
-                                Top 5 sản phẩm trong tháng này
+                                Cảnh báo & nhắc nhở
                             </CardDescription>
                         </CardHeader>
-                        <CardContent>
-                            <div className="space-y-4">
-                                {topProducts.map((product, index) => (
-                                    <div key={index} className="flex items-center justify-between">
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium leading-none">
-                                                {product.name}
-                                            </p>
-                                            <p className="text-sm text-muted-foreground">
-                                                {product.sold} đã bán
-                                            </p>
-                                        </div>
-                                        <div className="text-sm font-medium">
-                                            {product.revenue}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+
+                        <CardContent className="space-y-3">
+                            {notifications.map((note, index) => (
+                                <div
+                                    key={index}
+                                    className="text-sm text-muted-foreground"
+                                >
+                                    • {note}
+                                </div>
+                            ))}
                         </CardContent>
                     </Card>
                 </div>
@@ -188,29 +161,39 @@ export default function Dashboard() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2">
-                            <Activity className="h-5 w-5" />
+                            <Activity className="h-5 w-5 text-muted-foreground" />
                             Hoạt động hệ thống
                         </CardTitle>
+                        <CardDescription>
+                            Tình trạng vận hành hiện tại
+                        </CardDescription>
                     </CardHeader>
+
                     <CardContent>
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Người dùng trực tuyến
+                        <div className="grid gap-6 md:grid-cols-4">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Người dùng online
                                 </p>
                                 <p className="text-2xl font-bold">234</p>
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Đơn hàng chờ xử lý
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Đơn chờ xử lý
                                 </p>
                                 <p className="text-2xl font-bold">12</p>
                             </div>
-                            <div className="space-y-2">
-                                <p className="text-sm font-medium text-muted-foreground">
-                                    Sản phẩm sắp hết hàng
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Hóa đơn chưa thanh toán
                                 </p>
                                 <p className="text-2xl font-bold">8</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Bảng giá đang áp dụng
+                                </p>
+                                <p className="text-2xl font-bold">3</p>
                             </div>
                         </div>
                     </CardContent>
