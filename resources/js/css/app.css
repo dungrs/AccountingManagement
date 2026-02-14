@@ -40,7 +40,49 @@
     --sidebar-border: 220 13% 91%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
-  
+
+  .light-blue {
+    --background: 210 40% 98%;
+    /* Nền trắng xanh nhẹ */
+    --foreground: 215 50% 15%;
+    /* Chữ xanh đậm */
+    --card: 210 40% 100%;
+    --card-foreground: 215 50% 15%;
+    --popover: 210 40% 100%;
+    --popover-foreground: 215 50% 15%;
+    --primary: 210 100% 50%;
+    /* Xanh dương tươi sáng */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 30% 92%;
+    /* Xanh dương nhạt */
+    --secondary-foreground: 215 50% 25%;
+    --muted: 210 30% 92%;
+    --muted-foreground: 215 30% 40%;
+    --accent: 210 40% 90%;
+    /* Xanh nhạt hơn cho accent */
+    --accent-foreground: 215 50% 20%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 210 30% 85%;
+    /* Viền xanh nhạt */
+    --input: 210 30% 85%;
+    --ring: 210 100% 50%;
+    --chart-1: 210 80% 55%;
+    --chart-2: 190 70% 45%;
+    --chart-3: 220 65% 50%;
+    --chart-4: 200 75% 55%;
+    --chart-5: 230 70% 60%;
+    --radius: 0.5rem;
+    --sidebar-background: 210 40% 96%;
+    --sidebar-foreground: 215 50% 20%;
+    --sidebar-primary: 210 100% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 30% 90%;
+    --sidebar-accent-foreground: 215 50% 20%;
+    --sidebar-border: 210 30% 85%;
+    --sidebar-ring: 210 100% 50%;
+  }
+
   .dark {
     --background: 0 0% 3.9%;
     --foreground: 0 0% 98%;

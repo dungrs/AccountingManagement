@@ -159,6 +159,13 @@ class SupplierService extends BaseService implements SupplierServiceInterface
         return $supplier;
     }
 
+    public function getSupplierList()
+    {
+        return $this->supplierRepository->findByCondition([
+            ['publish', '=', 1]
+        ], true, [], [], ['id', 'name']);;
+    }
+
     private function paginateSelect()
     {
         return [

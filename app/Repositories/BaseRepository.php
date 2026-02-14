@@ -50,7 +50,6 @@ class BaseRepository implements BaseRepositoryInterface
             ->withPath(env('APP_URL') . ($extend['path'] ?? ''));
     }
 
-
     public function findByCondition(
         $condition,
         $flag = false,
@@ -144,6 +143,12 @@ class BaseRepository implements BaseRepositoryInterface
 
     public function create($payload = [])
     {
+        if (isset($payload[0]) && is_array($payload[0])) {
+            $this->model->insert($payload);
+            return true; 
+        }
+
+        // Nếu là 1 record
         $model = $this->model->create($payload);
         return $model->refresh();
     }
@@ -229,7 +234,8 @@ class BaseRepository implements BaseRepositoryInterface
         return $forceDelete ? $query->forceDelete() : $query->delete();
     }
 
-    public function findLastest() {
+    public function findLastest()
+    {
         return $this->model->orderBy('id', 'DESC')->first();
     }
 

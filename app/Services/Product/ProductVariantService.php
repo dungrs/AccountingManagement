@@ -60,7 +60,9 @@ class ProductVariantService extends BaseService implements ProductVariantService
     {
         $languageId = 1;
 
-        $condition = []; // không cần where thêm
+        $condition = [
+            ['product_variants.publish', '=', 1]
+        ]; // không cần where thêm
 
         $select = [
             'product_variants.id as product_variant_id',
@@ -106,5 +108,64 @@ class ProductVariantService extends BaseService implements ProductVariantService
             null,          // paginate
             $groupBy
         );
+    }
+
+    /**
+     * Tăng tồn kho khi nhập hàng
+     */
+    public function increaseStock($items)
+    {
+        foreach ($items as $item) {
+            $productVariant = $this->productVariantRepository->findById($item->product_variant_id);
+
+            $this->productVariantRepository->update($item->product_variant_id, [
+                'quantity' => $productVariant->quantity + $item->quantity
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Giảm tồn kho khi hủy phiếu nhập
+     */
+    public function decreaseStock($items)
+    {
+        foreach ($items as $item) {
+            $productVariant = $this->productVariantRepository->findById($item->product_variant_id);
+
+            $newQuantity = $productVariant->quantity - $item->quantity;
+
+            if ($newQuantity < 0) {
+                throw new \Exception("Số lượng tồn kho của sản phẩm {$productVariant->name} không đủ để trừ.");
+            }
+
+            $this->productVariantRepository->update($item->product_variant_id, [
+                'quantity' => $newQuantity
+            ]);
+        }
+
+        return true;
+    }
+
+    /**
+     * Kiểm tra tồn kho có đủ không
+     */
+    public function checkStockAvailability($items)
+    {
+        foreach ($items as $item) {
+            $productVariant = $this->productVariantRepository->findById($item->product_variant_id);
+
+            if ($productVariant->quantity < $item->quantity) {
+                return [
+                    'available' => false,
+                    'product'   => $productVariant->name,
+                    'required'  => $item->quantity,
+                    'current'   => $productVariant->quantity,
+                ];
+            }
+        }
+
+        return ['available' => true];
     }
 }

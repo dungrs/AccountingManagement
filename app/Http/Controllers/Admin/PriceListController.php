@@ -9,7 +9,6 @@ use App\Services\PriceListService;
 use App\Http\Controllers\Admin\Controller;
 use App\Http\Requests\PriceList\StorePriceListRequest;
 use App\Http\Requests\PriceList\UpdatePriceListRequest;
-use App\Repositories\Location\ProvinceRepository;
 use App\Repositories\VatTaxRepository;
 use App\Services\Product\ProductVariantService;
 use Inertia\Inertia;
@@ -17,18 +16,15 @@ use Inertia\Inertia;
 class PriceListController extends Controller
 {
     protected $priceListService;
-    protected $provinceRepository;
     protected $vatTaxRepository;
     protected $productVariantService;
 
     public function __construct(
         PriceListService $priceListService,
-        ProvinceRepository $provinceRepository,
         ProductVariantService $productVariantService,
         VatTaxRepository $vatTaxRepository,
     ) {
         $this->priceListService = $priceListService;
-        $this->provinceRepository = $provinceRepository;
         $this->productVariantService = $productVariantService;
         $this->vatTaxRepository = $vatTaxRepository;
     }

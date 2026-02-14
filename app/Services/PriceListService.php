@@ -96,7 +96,7 @@ class PriceListService extends BaseService implements PriceListServiceInterface
             $priceList = $this->priceListRepository->findById($id);
 
             if (!$priceList) {
-                throw new \Exception('Nhà cung cấp không tồn tại.');
+                throw new \Exception('Bảng giá không tồn tại.');
             }
 
             $priceList->delete();

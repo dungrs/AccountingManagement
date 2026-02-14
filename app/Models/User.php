@@ -72,4 +72,9 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Group::class, 'group_users');
     }
+
+    public function journalEntries()
+    {
+        return $this->hasMany(JournalEntry::class, 'created_by');
+    }
 }

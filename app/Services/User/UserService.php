@@ -142,6 +142,13 @@ class UserService extends BaseService implements UserServiceInterface
         });
     }
 
+    public function getUserList()
+    {
+        return $this->userRepository->findByCondition([
+            ['publish', '=', 1]
+        ], true, [], [], ['id', 'name']);
+    }
+
     private function payload()
     {
         return [

@@ -148,12 +148,13 @@ class AccountingAccountService extends BaseService implements AccountingAccountS
             [
                 [
                     'table' => 'accounting_account_languages as aal',
-                    'on' => [['aal.accounting_account_id', '=', 'accounting_accounts.id']]
+                    'on' => [['aal.accounting_account_id', 'accounting_accounts.id']]
                 ]
             ],
             ['accounting_accounts.lft' => 'ASC'],
             [
-                'accounting_accounts.*',
+                'accounting_accounts.id',
+                'accounting_accounts.account_code',
                 'aal.name',
                 'aal.description',
                 'aal.language_id',
