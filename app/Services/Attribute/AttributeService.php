@@ -332,7 +332,7 @@ class AttributeService extends BaseService implements AttributeServiceInterface
     }
 
     private function catalogue($request)
-    {   
+    {
         if ($request->input('catalogues') != null) {
             return array_unique(
                 array_merge(

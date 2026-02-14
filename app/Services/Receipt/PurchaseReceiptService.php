@@ -48,7 +48,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         ];
 
         $extend = [
-            'path' => '/purchase-receipt/index',
+            'path' => '/purchase/receipt/index',
             'fieldSearch' => ['code', 'u.name', 'supplier_name'],
         ];
 

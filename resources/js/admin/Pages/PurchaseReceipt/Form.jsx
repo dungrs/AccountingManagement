@@ -39,10 +39,6 @@ export default function PurchaseReceiptForm() {
         errors: serverErrors,
     } = usePage().props;
 
-    useEffect(() => {
-        console.log(system_languages);
-    }, []);
-
     const printRef = useRef(null);
     const { emit } = useEventBus();
     const isEdit = !!purchase_receipt;
@@ -108,8 +104,8 @@ export default function PurchaseReceiptForm() {
     // Submit handler
     const handleSubmit = (e) => {
         const submitRoute = isEdit
-            ? route("admin.purchase_receipt.update", purchase_receipt.id)
-            : route("admin.purchase_receipt.store");
+            ? route("admin.purchase.receipt.update", purchase_receipt.id)
+            : route("admin.purchase.receipt.store");
         const submitMethod = isEdit ? "put" : "post";
 
         baseHandleSubmit(e, submitRoute, submitMethod);
@@ -154,7 +150,7 @@ export default function PurchaseReceiptForm() {
                 { label: "Dashboard", link: route("admin.dashboard.index") },
                 {
                     label: "Phiếu nhập hàng",
-                    link: route("admin.purchase_receipt.index"),
+                    link: route("admin.purchase.receipt.index"),
                 },
                 {
                     label: isEdit
@@ -177,7 +173,7 @@ export default function PurchaseReceiptForm() {
                     <ReceiptHeader
                         isEdit={isEdit}
                         formData={formData}
-                        indexRoute={route("admin.purchase_receipt.index")}
+                        indexRoute={route("admin.purchase.receipt.index")}
                         type="purchase"
                     />
 

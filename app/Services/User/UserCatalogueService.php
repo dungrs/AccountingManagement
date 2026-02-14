@@ -63,7 +63,7 @@ class UserCatalogueService extends BaseService implements UserCatalogueServiceIn
             $flag = $this->updateUserCatalogue($request, $userCatalogueId);
 
             if (!$flag) {
-                throw new \Exception("Cập nhật nhóm thành viên thất bại.");
+                throw new \Exception("Cập nhật số lượng thất bại.");
             }
 
             return true;

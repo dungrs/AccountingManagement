@@ -71,7 +71,7 @@ export default function Home() {
                 }
 
                 const res = await axios.post(
-                    route("admin.purchase_receipt.filter"),
+                    route("admin.purchase.receipt.filter"),
                     params,
                 );
 
@@ -138,7 +138,7 @@ export default function Home() {
 
         try {
             const res = await axios.post(
-                route("admin.purchase_receipt.delete", deletingRow.id),
+                route("admin.purchase.receipt.delete", deletingRow.id),
             );
 
             toast.success(res.data?.message || "Xóa thành công!");
@@ -214,7 +214,7 @@ export default function Home() {
                                 className="rounded-md"
                                 onClick={() =>
                                     router.visit(
-                                        route("admin.purchase_receipt.create"),
+                                        route("admin.purchase.receipt.create"),
                                     )
                                 }
                             >

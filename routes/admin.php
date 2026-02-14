@@ -15,6 +15,7 @@ use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
 use App\Http\Controllers\Admin\Customer\CustomerController;
 use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
+use App\Http\Controllers\Admin\Product\ProductVariantController;
 use App\Http\Controllers\Admin\Receipt\PurchaseReceiptController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\SystemController;
@@ -51,6 +52,14 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [ProductCatalogueController::class, 'store'])->name('admin.product.catalogue.store');
         Route::put('update/{id}', [ProductCatalogueController::class, 'update'])->name('admin.product.catalogue.update')->where(['id' => '[0-9]+']);
         Route::post('delete/{id}', [ProductCatalogueController::class, 'delete'])->name('admin.product.catalogue.delete')->where(['id' => '[0-9]+']);
+    });
+
+    // PRODUCT VARIANT
+    Route::prefix('product/variant')->group(function () {
+        Route::get('index', [ProductVariantController::class, 'index'])->name('admin.product.variant.index');
+
+        Route::post('filter', [ProductVariantController::class, 'filter'])->name('admin.product.variant.filter');
+        Route::post('update', [ProductVariantController::class, 'update'])->name('admin.product.variant.update');
     });
 
     // ATTRIBUTE CATALOGUE
@@ -186,15 +195,15 @@ Route::middleware('auth')->group(function () {
     });
 
     // PURCHASE RECEIPT
-    Route::prefix('purchase-receipt')->group(function () {
-        Route::get('index', [PurchaseReceiptController::class, 'index'])->name('admin.purchase_receipt.index');
-        Route::get('create', [PurchaseReceiptController::class, 'create'])->name('admin.purchase_receipt.create');
-        Route::get('edit/{id}', [PurchaseReceiptController::class, 'edit'])->name('admin.purchase_receipt.edit')->where(['id' => '[0-9]+']);
+    Route::prefix('purchase/receipt')->group(function () {
+        Route::get('index', [PurchaseReceiptController::class, 'index'])->name('admin.purchase.receipt.index');
+        Route::get('create', [PurchaseReceiptController::class, 'create'])->name('admin.purchase.receipt.create');
+        Route::get('edit/{id}', [PurchaseReceiptController::class, 'edit'])->name('admin.purchase.receipt.edit')->where(['id' => '[0-9]+']);
 
-        Route::post('filter', [PurchaseReceiptController::class, 'filter'])->name('admin.purchase_receipt.filter');
-        Route::post('store', [PurchaseReceiptController::class, 'store'])->name('admin.purchase_receipt.store');
-        Route::put('update/{id}', [PurchaseReceiptController::class, 'update'])->name('admin.purchase_receipt.update')->where(['id' => '[0-9]+']);
-        Route::post('delete/{id}', [PurchaseReceiptController::class, 'delete'])->name('admin.purchase_receipt.delete')->where(['id' => '[0-9]+']);
+        Route::post('filter', [PurchaseReceiptController::class, 'filter'])->name('admin.purchase.receipt.filter');
+        Route::post('store', [PurchaseReceiptController::class, 'store'])->name('admin.purchase.receipt.store');
+        Route::put('update/{id}', [PurchaseReceiptController::class, 'update'])->name('admin.purchase.receipt.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [PurchaseReceiptController::class, 'delete'])->name('admin.purchase.receipt.delete')->where(['id' => '[0-9]+']);
     });
 
     // UNIT
@@ -205,7 +214,6 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [UnitController::class, 'store'])->name('admin.unit.store');
         Route::post('update', [UnitController::class, 'update'])->name('admin.unit.update');
         Route::post('delete', [UnitController::class, 'delete'])->name('admin.unit.delete');
-        Route::get('permission', [UnitController::class, 'permission'])->name('admin.unit.permission');
     });
 
     // SYSTEM

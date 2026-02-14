@@ -176,7 +176,7 @@ export default function PurchaseReceiptTable({
                                                     onClick={() =>
                                                         router.visit(
                                                             route(
-                                                                "admin.purchase_receipt.edit",
+                                                                "admin.purchase.receipt.edit",
                                                                 row.id,
                                                             ),
                                                         )

@@ -143,11 +143,15 @@ export default function AdminLayout({ children, breadcrumb }) {
             items: [
                 {
                     title: "Phiếu Nhập Kho",
-                    url: route("admin.purchase_receipt.index"),
+                    url: route("admin.purchase.receipt.index"),
                 },
                 {
                     title: "Phiếu Xuất Kho",
                     url: route("admin.dashboard.index"),
+                },
+                {
+                    title: "Kiểm Kê Kho",
+                    url: route("admin.product.variant.index"),
                 },
             ],
         },

@@ -20,6 +20,90 @@ class ProductVariantService extends BaseService implements ProductVariantService
         $this->productVariantRepository = $productVariantRepository;
     }
 
+    public function paginate($request)
+    {
+        $perpage = $request->input('perpage') ?? 10;
+        $page = $request->integer('page');
+
+        $publish = $request->has('publish')
+            ? (int) $request->input('publish')
+            : null;
+
+        $condition = [
+            'keyword' => addslashes($request->input('keyword')),
+            'where' => []
+        ];
+
+        if (!is_null($publish)) {
+            $condition['where'][] = ['users.publish', '=', $publish];
+        }
+
+        $join = [
+            [
+                'table' => 'products',
+                'on' => [
+                    ['products.id', 'product_variants.product_id'],
+                ],
+            ],
+            [
+                'table' => 'product_languages',
+                'on' => [
+                    ['product_languages.product_id', 'products.id'],
+                    ['product_languages.language_id', 1],
+                ],
+            ],
+            [
+                'table' => 'product_variant_languages',
+                'on' => [
+                    ['product_variant_languages.product_variant_id', 'product_variants.id'],
+                    ['product_variant_languages.language_id', 1],
+                ],
+            ],
+            [
+                'table' => 'units',
+                'on' => [
+                    ['units.id', 'product_variants.unit_id'],
+                ],
+            ],
+        ];
+
+        $extend['path'] = '/product/variant/index';
+        $extend['fieldSearch'] = [
+            'name',
+            'product_variants.barcode',
+            'product_variants.sku',
+        ];
+
+        $users = $this->productVariantRepository->paginate(
+            $this->paginateSelect(),
+            $condition,
+            $perpage,
+            $page,
+            $extend,
+            ['product_variants.id', 'DESC'],
+            $join,
+            []
+        );
+
+        return $users;
+    }
+
+    public function update($request)
+    {
+        return DB::transaction(function () use ($request) {
+
+            $productVariantId = $request->input('id');
+
+            $flag = $this->updateProductVariant($request, $productVariantId);
+
+            if (!$flag) {
+                throw new \Exception("Cập nhật nhóm thành viên thất bại.");
+            }
+
+            return true;
+        });
+    }
+
     public function getProductVariant($payload, $languageId, $attributeString)
     {
         $variants = $this->productVariantRepository->findByCondition(
@@ -55,6 +139,18 @@ class ProductVariantService extends BaseService implements ProductVariantService
             }
         }
     }
+
+    private function updateProductVariant($request, $id)
+    {
+        $payload = $request->only($this->payload());
+        return $this->productVariantRepository->update($id, $payload);
+    }
+
+    private function payload()
+    {
+        return ['barcode', 'sku', 'quantity'];
+    }
+
 
     public function getListProductVariant()
     {
@@ -167,5 +263,19 @@ class ProductVariantService extends BaseService implements ProductVariantService
         }
 
         return ['available' => true];
+    }
+
+    private function paginateSelect()
+    {
+        return [
+            'product_variants.id as product_variant_id',
+            DB::raw("CONCAT(product_languages.name, ' - ', product_variant_languages.name) as name"),
+            'product_variants.quantity',
+            'product_variants.publish',
+            'product_variants.quantity',
+            'units.name as unit_name',
+            'product_variants.sku',
+            'product_variants.barcode',
+        ];
     }
 }
