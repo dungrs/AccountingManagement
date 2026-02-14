@@ -254,8 +254,9 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             ['*'],
             [
                 'supplier',
-                'items.productVariant.products.languages', // Thêm relationship để lấy tên product
-                'items.productVariant.languages',          // Lấy tên variant
+                'items.productVariant.products.languages',
+                'items.productVariant.languages',
+                'items.productVariant.unit', // ✅ thêm unit
                 'journalEntries.details.account.languages',
                 'supplierDebts'
             ]
@@ -281,6 +282,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         |--------------------------------------------------------------------------
         */
         $purchaseReceipt->product_variants = $purchaseReceipt->items->map(function ($item) {
+
             // Lấy tên product
             $productName = $item->productVariant?->products?->languages->first()?->pivot->name ?? '';
 
@@ -293,15 +295,25 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 $fullName .= ($fullName ? ' - ' : '') . $variantName;
             }
 
+            // ✅ Lấy đơn vị tính
+            $unit = $item->productVariant?->unit;
+
             return [
                 'product_variant_id' => $item->product_variant_id,
                 'barcode'            => $item->productVariant?->barcode,
-                'name'               => $fullName, // Tên đã được ghép
+                'name'               => $fullName,
                 'sku'                => $item->productVariant?->sku,
                 'quantity'           => $item->quantity,
                 'price'              => $item->price,
                 'vat_amount'         => $item->vat_amount,
                 'subtotal'           => $item->subtotal,
+
+                // ✅ thêm thông tin đơn vị tính
+                'unit' => $unit ? [
+                    'id'        => $unit->id,
+                    'code' => $unit->unit_code ?? null,
+                    'name'      => $unit->name ?? null,
+                ] : null,
             ];
         });
 
@@ -329,10 +341,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         $purchaseReceipt->accounting = $accounting;
 
         /*
-        |--------------------------------------------------------------------------
-        | Format công nợ
-        |--------------------------------------------------------------------------
-        */
+    |--------------------------------------------------------------------------
+    | Format công nợ
+    |--------------------------------------------------------------------------
+    */
         $totalDebit = 0;
         $totalCredit = 0;
 
@@ -418,6 +430,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         return [
             'purchase_receipts.id',
             'purchase_receipts.code',
+            'purchase_receipts.note',
             'receipt_date',
             'u.id as user_id',
             'u.name as user_name',

@@ -177,6 +177,34 @@ export default function Permission() {
         );
     };
 
+    const isModuleCheckedByCatalogue = (catalogueId, module) => {
+        const modulePerms = groupedPermissions[module] || [];
+
+        return modulePerms.every((perm) =>
+            selectedPermissions[catalogueId]?.has(perm.id),
+        );
+    };
+
+    const toggleModuleByCatalogue = (catalogueId, module, checked) => {
+        const modulePerms = groupedPermissions[module] || [];
+
+        setSelectedPermissions((prev) => {
+            const newState = { ...prev };
+            const permSet = new Set(newState[catalogueId] || []);
+
+            modulePerms.forEach((perm) => {
+                if (checked) {
+                    permSet.add(perm.id);
+                } else {
+                    permSet.delete(perm.id);
+                }
+            });
+
+            newState[catalogueId] = permSet;
+            return newState;
+        });
+    };
+
     /* ===============================
      * SUBMIT HANDLER
      * =============================== */
@@ -354,11 +382,29 @@ export default function Permission() {
                                                 </div>
                                             </TableCell>
 
-                                            {userCatalogues.map((c) => (
+                                            {userCatalogues.map((catalogue) => (
                                                 <TableCell
-                                                    key={c.id}
-                                                    className="bg-muted/50"
-                                                />
+                                                    key={catalogue.id}
+                                                    className="bg-muted/50 text-center"
+                                                >
+                                                    <div className="flex justify-center">
+                                                        <Checkbox
+                                                            checked={isModuleCheckedByCatalogue(
+                                                                catalogue.id,
+                                                                module,
+                                                            )}
+                                                            onCheckedChange={(
+                                                                v,
+                                                            ) =>
+                                                                toggleModuleByCatalogue(
+                                                                    catalogue.id,
+                                                                    module,
+                                                                    v,
+                                                                )
+                                                            }
+                                                        />
+                                                    </div>
+                                                </TableCell>
                                             ))}
                                         </TableRow>
 

@@ -30,6 +30,7 @@ export default function Form() {
         catalogues,
         attribute, // Nhận attribute từ controller
         attributeCatalogues,
+        units,
         errors: serverErrors,
         flash,
     } = usePage().props;
@@ -310,6 +311,7 @@ export default function Form() {
                     <ProductVariantManager
                         ref={variantManagerRef}
                         attributeCatalogues={attributeCatalogues || []}
+                        units={units || null}
                         mainPrice={formData.price}
                         productData={
                             isEdit

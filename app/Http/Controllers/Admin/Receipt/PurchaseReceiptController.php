@@ -13,6 +13,7 @@ use App\Http\Requests\Receipt\StorePurchaseReceiptRequest;
 use App\Http\Requests\Receipt\UpdatePurchaseReceiptRequest;
 use App\Services\AccountingAccountService;
 use App\Services\SupplierService;
+use App\Services\SystemService;
 use App\Services\User\UserService;
 use Inertia\Inertia;
 
@@ -23,6 +24,7 @@ class PurchaseReceiptController extends Controller
     protected $productVariantService;
     protected $accountingAccountService;
     protected $userService;
+    protected $systemService;
     protected $supplierService;
 
     public function __construct(
@@ -31,6 +33,7 @@ class PurchaseReceiptController extends Controller
         VatTaxRepository $vatTaxRepository,
         AccountingAccountService $accountingAccountService,
         UserService $userService,
+        SystemService $systemService,
         SupplierService $supplierService
     ) {
         $this->purchaseReceiptService = $purchaseReceiptService;
@@ -38,6 +41,7 @@ class PurchaseReceiptController extends Controller
         $this->vatTaxRepository = $vatTaxRepository;
         $this->accountingAccountService = $accountingAccountService;
         $this->userService = $userService;
+        $this->systemService = $systemService;
         $this->supplierService = $supplierService;
     }
 
@@ -101,6 +105,13 @@ class PurchaseReceiptController extends Controller
             ],
             true
         );
+        // Lấy thông tin công ty lập phiếu
+        $systems = $this->systemService->getSystemDetails();
+        $system_languages = $systems
+            ->where('language_id', 1)
+            ->pluck('content', 'keyword')
+            ->toArray();
+
 
         return Inertia::render('PurchaseReceipt/Form', [
             'product_variants' => $productVariants,
@@ -108,12 +119,13 @@ class PurchaseReceiptController extends Controller
             'accounting_accounts' => $accountingAccount,
             'users' => $users,
             'purchase_receipt' => $purchaseReceipt,
-            'suppliers' => $suppliers
+            'suppliers' => $suppliers,
+            'system_languages' => $system_languages
         ]);
     }
 
     public function store(StorePurchaseReceiptRequest $request)
-    {   
+    {
         $this->purchaseReceiptService->create($request);
         try {
             return redirect()->route('admin.purchase_receipt.index')->with('success', 'Thêm mới phiếu nhập kho thành công!');

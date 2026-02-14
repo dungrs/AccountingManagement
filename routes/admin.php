@@ -17,6 +17,8 @@ use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
 use App\Http\Controllers\Admin\Receipt\PurchaseReceiptController;
 use App\Http\Controllers\Admin\SupplierController;
+use App\Http\Controllers\Admin\SystemController;
+use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\VatTaxController;
 use App\Http\Controllers\LocationController;
 use Illuminate\Support\Facades\Route;
@@ -183,7 +185,7 @@ Route::middleware('auth')->group(function () {
         Route::post('delete/{id}', [PriceListController::class, 'delete'])->name('admin.price_list.delete')->where(['id' => '[0-9]+']);
     });
 
-    // PRICE LIST
+    // PURCHASE RECEIPT
     Route::prefix('purchase-receipt')->group(function () {
         Route::get('index', [PurchaseReceiptController::class, 'index'])->name('admin.purchase_receipt.index');
         Route::get('create', [PurchaseReceiptController::class, 'create'])->name('admin.purchase_receipt.create');
@@ -193,6 +195,23 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [PurchaseReceiptController::class, 'store'])->name('admin.purchase_receipt.store');
         Route::put('update/{id}', [PurchaseReceiptController::class, 'update'])->name('admin.purchase_receipt.update')->where(['id' => '[0-9]+']);
         Route::post('delete/{id}', [PurchaseReceiptController::class, 'delete'])->name('admin.purchase_receipt.delete')->where(['id' => '[0-9]+']);
+    });
+
+    // UNIT
+    Route::prefix('unit')->group(function () {
+        Route::get('index', [UnitController::class, 'index'])->name('admin.unit.index');
+
+        Route::post('filter', [UnitController::class, 'filter'])->name('admin.unit.filter');
+        Route::post('store', [UnitController::class, 'store'])->name('admin.unit.store');
+        Route::post('update', [UnitController::class, 'update'])->name('admin.unit.update');
+        Route::post('delete', [UnitController::class, 'delete'])->name('admin.unit.delete');
+        Route::get('permission', [UnitController::class, 'permission'])->name('admin.unit.permission');
+    });
+
+    // SYSTEM
+    Route::prefix('system')->group(function () {
+        Route::get('index', [SystemController::class, 'index'])->name('admin.system.index');
+        Route::post('create', [SystemController::class, 'create'])->name('admin.system.create');
     });
 
     Route::post('/changeStatus/{id}', [Controller::class, 'changeStatus'])->name('admin.changeStatus');

@@ -47,6 +47,7 @@ export function useReceiptForm({
                     product_variant_id: pv.product_variant_id,
                     name: pv.name,
                     sku: pv.sku,
+                    unit: pv.unit,
                     quantity: pv.quantity || "",
                     price: pv.price || "",
                     vat_id: pv.vat_id || defaultVatTax?.id,

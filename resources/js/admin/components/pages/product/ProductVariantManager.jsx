@@ -37,13 +37,15 @@ import { Check, ChevronsUpDown, Trash2, Plus, X } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { useEventBus } from "@/EventBus";
 import AlbumUpload from "@/admin/components/shared/upload/AlbumUpload";
+import SelectCombobox from "@/admin/components/ui/select-combobox";
 import React from "react";
 
 const ProductVariantManager = forwardRef(
-    ({ attributeCatalogues = [], mainPrice = "", productData = null }, ref) => {
+    ({ attributeCatalogues = [], units = [], mainPrice = "", productData = null }, ref) => {
         const { emit } = useEventBus();
 
         const [productCode, setProductCode] = useState("");
+        const [selectedUnit, setSelectedUnit] = useState("");
         const [variantEnabled, setVariantEnabled] = useState(false);
         const [variantItems, setVariantItems] = useState([]);
         const [variantTable, setVariantTable] = useState([]);
@@ -51,11 +53,25 @@ const ProductVariantManager = forwardRef(
         const [editingData, setEditingData] = useState({});
         const [isInitialized, setIsInitialized] = useState(false);
 
+        // Convert units array to SelectCombobox format
+        const unitOptions = Array.isArray(units)
+            ? units.map((unit) => ({
+                  value: unit.id,
+                  label: unit.name,
+              }))
+            : [];
+
+        useEffect(() => {
+            console.log("Units received:", units);
+            console.log("Unit options:", unitOptions);
+        }, [units]);
+
         // Load dữ liệu khi edit
         useEffect(() => {
             if (productData && !isInitialized) {
                 console.log("ProductData received:", productData);
                 setProductCode(productData.code || "");
+                setSelectedUnit(productData.unit_id || "");
                 loadProductVariants();
                 setIsInitialized(true);
             }
@@ -100,12 +116,7 @@ const ProductVariantManager = forwardRef(
                     ? productData.product_variants
                     : [];
 
-                console.log("=== LOADING VARIANTS ===");
-                console.log("Attribute Data:", attributeData);
-                console.log("Variants Data:", variantsData);
-
                 if (Object.keys(attributeData).length === 0) {
-                    console.log("No attribute data found");
                     return;
                 }
 
@@ -120,7 +131,6 @@ const ProductVariantManager = forwardRef(
                     }),
                 );
 
-                console.log("Created items:", items);
                 setVariantItems(items);
 
                 // Load attributes cho từng item song song
@@ -134,8 +144,6 @@ const ProductVariantManager = forwardRef(
                 });
 
                 const loadedAttributes = await Promise.all(loadPromises);
-
-                console.log("Loaded all attributes:", loadedAttributes);
 
                 // Update tất cả items với attributes đã load
                 setVariantItems((prev) =>
@@ -151,7 +159,6 @@ const ProductVariantManager = forwardRef(
 
                 // Đợi state update rồi tạo table
                 setTimeout(() => {
-                    console.log("=== PREPARING VARIANT TABLE ===");
                     // Rebuild items với attributes đã load
                     const itemsWithAttributes = items.map((item) => {
                         const loaded = loadedAttributes.find(
@@ -162,7 +169,6 @@ const ProductVariantManager = forwardRef(
                             : item;
                     });
 
-                    console.log("Items with attributes:", itemsWithAttributes);
                     prepareProductVariantData(
                         itemsWithAttributes,
                         variantsData,
@@ -201,12 +207,6 @@ const ProductVariantManager = forwardRef(
                     const selectedAttributes = attributes.filter((attr) =>
                         normalizedIds.includes(parseInt(attr.value)),
                     );
-
-                    console.log(`Catalogue ${catalogueId}:`, {
-                        allAttributes: attributes,
-                        selectedIds: normalizedIds,
-                        selectedAttributes,
-                    });
 
                     return selectedAttributes;
                 }
@@ -284,8 +284,6 @@ const ProductVariantManager = forwardRef(
         };
 
         const handleAttributeChange = (itemId, selectedAttributes) => {
-            console.log("Attribute changed:", { itemId, selectedAttributes });
-
             const newItems = variantItems.map((item) =>
                 item.id === itemId
                     ? { ...item, attributes: selectedAttributes }
@@ -303,18 +301,11 @@ const ProductVariantManager = forwardRef(
             items = variantItems,
             existingVariants = null,
         ) => {
-            console.log("=== PREPARE PRODUCT VARIANT DATA ===");
-            console.log("Input items:", items);
-            console.log("Existing variants:", existingVariants);
-
             const validItems = items.filter(
                 (item) => item.catalogueId && item.attributes.length > 0,
             );
 
-            console.log("Valid items after filter:", validItems);
-
             if (validItems.length === 0) {
-                console.log("No valid items, clearing table");
                 setVariantTable([]);
                 return;
             }
@@ -332,11 +323,6 @@ const ProductVariantManager = forwardRef(
                 );
                 const optionText = catalogue?.name || "";
 
-                console.log(
-                    `Processing item with catalogue: ${optionText}`,
-                    item,
-                );
-
                 item.attributes.forEach((attribute) => {
                     let itemObj = {};
                     let itemVariantObj = {};
@@ -353,10 +339,6 @@ const ProductVariantManager = forwardRef(
                 variants.push(attrVariant);
             });
 
-            console.log("Before cartesian product:");
-            console.log("Attributes:", attributes);
-            console.log("Variants:", variants);
-
             // Cartesian product
             if (attributes.length > 0) {
                 attributes = attributes.reduce((a, b) =>
@@ -369,11 +351,6 @@ const ProductVariantManager = forwardRef(
                     a.flatMap((d) => b.map((e) => ({ ...d, ...e }))),
                 );
             }
-
-            console.log("After cartesian product:");
-            console.log("Attributes:", attributes);
-            console.log("Variants:", variants);
-            console.log("Attribute titles:", attributeTitle);
 
             createVariantTable(
                 attributes,
@@ -389,13 +366,7 @@ const ProductVariantManager = forwardRef(
             attributeTitle,
             existingVariants = null,
         ) => {
-            console.log("=== CREATE VARIANT TABLE ===");
-            console.log("Attributes:", attributes);
-            console.log("Variants:", variants);
-            console.log("Existing variants from DB:", existingVariants);
-
             if (!attributes.length || !variants.length) {
-                console.log("No attributes or variants, clearing table");
                 setVariantTable([]);
                 return;
             }
@@ -408,35 +379,25 @@ const ProductVariantManager = forwardRef(
                 const attributeIdString = variantValues.join(", ");
                 const variantKey = attributeIdString.replace(/, /g, "-");
 
-                console.log(`Creating variant ${index}:`, {
-                    attributeItem,
-                    variantItem,
-                    variantKey,
-                });
-
                 // Tìm existing variant trong table hiện tại
                 const existingVariant = variantTable.find(
                     (v) => v.variantKey === variantKey,
                 );
 
-                // Tìm variant từ database - SỬA LẠI PHẦN NÀY
+                // Tìm variant từ database
                 let dbVariant = null;
                 if (existingVariants && Array.isArray(existingVariants)) {
-                    // Cách 1: Tìm theo code (nếu code = variantKey)
+                    // Cách 1: Tìm theo code
                     dbVariant = existingVariants.find(
                         (v) => v.code === variantKey,
                     );
 
-                    // Cách 2: Nếu không tìm thấy, thử tìm theo index
+                    // Cách 2: Tìm theo index
                     if (!dbVariant && existingVariants[index]) {
                         dbVariant = existingVariants[index];
-                        console.log(
-                            `Found DB variant by index ${index}:`,
-                            dbVariant,
-                        );
                     }
 
-                    // Cách 3: Nếu vẫn không tìm thấy, thử parse attribute field (nếu có)
+                    // Cách 3: Tìm theo attribute
                     if (!dbVariant) {
                         dbVariant = existingVariants.find((v) => {
                             try {
@@ -447,21 +408,8 @@ const ProductVariantManager = forwardRef(
                                         ? JSON.parse(v.attribute)
                                         : v.attribute || {};
                                 const vKey = Object.values(vAttr).join("-");
-                                const match = vKey === variantKey;
-
-                                if (match) {
-                                    console.log(
-                                        `Found DB variant by attribute for ${variantKey}:`,
-                                        v,
-                                    );
-                                }
-
-                                return match;
+                                return vKey === variantKey;
                             } catch (e) {
-                                console.error(
-                                    "Error parsing variant attribute:",
-                                    e,
-                                );
                                 return false;
                             }
                         });
@@ -469,8 +417,6 @@ const ProductVariantManager = forwardRef(
                 }
 
                 const sourceVariant = existingVariant || dbVariant;
-
-                console.log(`Source variant for ${variantKey}:`, sourceVariant);
 
                 // Parse album
                 let albumArray = [];
@@ -495,14 +441,6 @@ const ProductVariantManager = forwardRef(
                         (albumArray.length > 0
                             ? albumArray[0]
                             : "/backend/images/no-image.jpg"),
-                    quantity:
-                        sourceVariant?.quantity !== undefined
-                            ? sourceVariant.quantity
-                            : "",
-                    price:
-                        sourceVariant?.price !== undefined
-                            ? sourceVariant.price
-                            : mainPrice,
                     sku: sourceVariant?.sku || `${productCode}-${variantKey}`,
                     barcode: sourceVariant?.barcode || "",
                     fileName:
@@ -512,16 +450,13 @@ const ProductVariantManager = forwardRef(
                     fileUrl:
                         sourceVariant?.fileUrl || sourceVariant?.file_url || "",
                     album: albumArray,
-                    // Lưu thêm ID để update sau này
+                    unit_id: sourceVariant?.unit_id || selectedUnit || "",
                     id: sourceVariant?.id || null,
                 };
-
-                console.log(`Created variant ${index}:`, variant);
 
                 return variant;
             });
 
-            console.log("Final variant table:", newTable);
             setVariantTable(newTable);
         };
 
@@ -561,13 +496,12 @@ const ProductVariantManager = forwardRef(
             }
 
             const variantData = {
-                quantity: [],
                 sku: [],
-                price: [],
                 barcode: [],
                 file_name: [],
                 file_url: [],
                 album: [],
+                unit_id: [],
             };
 
             const productVariantData = {
@@ -585,9 +519,7 @@ const ProductVariantManager = forwardRef(
             });
 
             variantTable.forEach((variant) => {
-                variantData.quantity.push(variant.quantity || "");
                 variantData.sku.push(variant.sku || "");
-                variantData.price.push(variant.price || "");
                 variantData.barcode.push(variant.barcode || "");
                 variantData.file_name.push(variant.fileName || "");
                 variantData.file_url.push(variant.fileUrl || "");
@@ -596,6 +528,7 @@ const ProductVariantManager = forwardRef(
                         ? variant.album.join(",")
                         : variant.album || "",
                 );
+                variantData.unit_id.push(variant.unit_id || "");
 
                 productVariantData.name.push(variant.attributeString);
                 productVariantData.id.push(variant.attributeIdString);
@@ -611,26 +544,45 @@ const ProductVariantManager = forwardRef(
         useImperativeHandle(ref, () => ({
             getVariantData: getVariantDataForSubmit,
             getProductCode: () => productCode,
+            getSelectedUnit: () => selectedUnit,
         }));
 
         return (
             <div className="space-y-6">
-                {/* Product Code Card */}
+                {/* Product Info Card */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>Mã sản phẩm</CardTitle>
+                        <CardTitle>Thông tin sản phẩm</CardTitle>
                         <CardDescription>
-                            Nhập mã sản phẩm để tự động tạo SKU cho biến thể
+                            Nhập mã sản phẩm và chọn đơn vị tính
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Input
-                            placeholder="VD: PROD-001"
-                            value={productCode}
-                            onChange={(e) =>
-                                setProductCode(e.target.value.toUpperCase())
-                            }
-                        />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="product-code">
+                                    Mã sản phẩm
+                                </Label>
+                                <Input
+                                    id="product-code"
+                                    placeholder="VD: PROD-001"
+                                    value={productCode}
+                                    onChange={(e) =>
+                                        setProductCode(e.target.value.toUpperCase())
+                                    }
+                                />
+                            </div>
+                            <div>
+                                <SelectCombobox
+                                    label="Đơn vị tính"
+                                    value={selectedUnit}
+                                    onChange={setSelectedUnit}
+                                    options={unitOptions}
+                                    placeholder="Chọn đơn vị tính"
+                                    searchPlaceholder="Tìm kiếm đơn vị..."
+                                />
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
 
@@ -718,72 +670,80 @@ const ProductVariantManager = forwardRef(
                                                             </TableHead>
                                                         );
                                                     })}
-                                                <TableHead>Số lượng</TableHead>
-                                                <TableHead>Giá tiền</TableHead>
                                                 <TableHead>SKU</TableHead>
+                                                <TableHead>Đơn vị tính</TableHead>
                                             </TableRow>
                                         </TableHeader>
 
                                         <TableBody>
-                                            {variantTable.map((variant) => (
-                                                <React.Fragment
-                                                    key={variant.variantKey}
-                                                >
-                                                    <TableRow
-                                                        onClick={() =>
-                                                            handleEditVariant(
-                                                                variant,
-                                                            )
-                                                        }
-                                                        className="cursor-pointer hover:bg-muted/50"
-                                                    >
-                                                        {variant.attributes.map(
-                                                            (attr, i) => (
-                                                                <TableCell
-                                                                    key={`${variant.variantKey}-${i}`}
-                                                                >
-                                                                    {attr}
-                                                                </TableCell>
-                                                            ),
-                                                        )}
-                                                        <TableCell>
-                                                            {variant.quantity ||
-                                                                "-"}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {variant.price}
-                                                        </TableCell>
-                                                        <TableCell>
-                                                            {variant.sku}
-                                                        </TableCell>
-                                                    </TableRow>
+                                            {variantTable.map((variant) => {
+                                                const unitName = unitOptions.find(
+                                                    (u) =>
+                                                        String(u.value) ===
+                                                        String(variant.unit_id),
+                                                )?.label || "-";
 
-                                                    {editingRow ===
-                                                        variant.variantKey && (
-                                                        <TableRow>
-                                                            <TableCell
-                                                                colSpan={999}
-                                                                className="p-0"
-                                                            >
-                                                                <VariantEditForm
-                                                                    data={
-                                                                        editingData
-                                                                    }
-                                                                    onChange={
-                                                                        setEditingData
-                                                                    }
-                                                                    onSave={
-                                                                        handleSaveEdit
-                                                                    }
-                                                                    onCancel={
-                                                                        handleCancelEdit
-                                                                    }
-                                                                />
+                                                return (
+                                                    <React.Fragment
+                                                        key={variant.variantKey}
+                                                    >
+                                                        <TableRow
+                                                            onClick={() =>
+                                                                handleEditVariant(
+                                                                    variant,
+                                                                )
+                                                            }
+                                                            className="cursor-pointer hover:bg-muted/50"
+                                                        >
+                                                            {variant.attributes.map(
+                                                                (attr, i) => (
+                                                                    <TableCell
+                                                                        key={`${variant.variantKey}-${i}`}
+                                                                    >
+                                                                        {attr}
+                                                                    </TableCell>
+                                                                ),
+                                                            )}
+                                                            <TableCell>
+                                                                {variant.sku}
+                                                            </TableCell>
+                                                            <TableCell className="font-medium">
+                                                                {unitName}
                                                             </TableCell>
                                                         </TableRow>
-                                                    )}
-                                                </React.Fragment>
-                                            ))}
+
+                                                        {editingRow ===
+                                                            variant.variantKey && (
+                                                            <TableRow>
+                                                                <TableCell
+                                                                    colSpan={
+                                                                        999
+                                                                    }
+                                                                    className="p-0"
+                                                                >
+                                                                    <VariantEditForm
+                                                                        data={
+                                                                            editingData
+                                                                        }
+                                                                        onChange={
+                                                                            setEditingData
+                                                                        }
+                                                                        onSave={
+                                                                            handleSaveEdit
+                                                                        }
+                                                                        onCancel={
+                                                                            handleCancelEdit
+                                                                        }
+                                                                        units={
+                                                                            unitOptions
+                                                                        }
+                                                                    />
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </React.Fragment>
+                                                );
+                                            })}
                                         </TableBody>
                                     </Table>
                                 </div>
@@ -845,7 +805,6 @@ function VariantItemRow({
                 );
             }
         } catch (error) {
-            console.error("Error loading attributes:", error);
             setAttributes([]);
             emit("toast:error", "Không thể tải danh sách thuộc tính!");
         } finally {
@@ -882,7 +841,7 @@ function VariantItemRow({
                         <Command>
                             <CommandInput
                                 className="border-0 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:ring-0 shadow-none"
-                                placeholder="Tìm kiếm nhóm..."
+                                placeholder="Tìm kiếm..."
                             />
                             <CommandList>
                                 <CommandEmpty>
@@ -1065,8 +1024,7 @@ function AttributeMultiSelect({
 }
 
 // ========== COMPONENT: VariantEditForm ==========
-function VariantEditForm({ data, onChange, onSave, onCancel }) {
-    const [quantityEnabled, setQuantityEnabled] = useState(!!data.quantity);
+function VariantEditForm({ data, onChange, onSave, onCancel, units = [] }) {
     const [fileEnabled, setFileEnabled] = useState(
         !!(data.fileName || data.fileUrl),
     );
@@ -1108,39 +1066,15 @@ function VariantEditForm({ data, onChange, onSave, onCancel }) {
                 description="Tải lên và quản lý hình ảnh cho biến thể này"
             />
 
-            {/* Stock Info */}
+            {/* Product Info */}
             <Card>
                 <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">
-                            Thông Tin Kho Hàng
-                        </CardTitle>
-                        <div className="flex items-center gap-2">
-                            <Label htmlFor="qty-toggle" className="text-sm">
-                                Quản lý kho
-                            </Label>
-                            <Switch
-                                id="qty-toggle"
-                                checked={quantityEnabled}
-                                onCheckedChange={setQuantityEnabled}
-                            />
-                        </div>
-                    </div>
+                    <CardTitle className="text-base">
+                        Thông Tin Cơ Bản
+                    </CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <div className="grid grid-cols-4 gap-3">
-                        <div className="space-y-2">
-                            <Label className="text-sm">Số lượng</Label>
-                            <Input
-                                type="number"
-                                value={data.quantity}
-                                onChange={(e) =>
-                                    handleChange("quantity", e.target.value)
-                                }
-                                disabled={!quantityEnabled}
-                                placeholder="0"
-                            />
-                        </div>
+                    <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-2">
                             <Label className="text-sm">SKU</Label>
                             <Input
@@ -1149,17 +1083,6 @@ function VariantEditForm({ data, onChange, onSave, onCancel }) {
                                     handleChange("sku", e.target.value)
                                 }
                                 placeholder="Mã SKU"
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-sm">Giá tiền</Label>
-                            <Input
-                                type="number"
-                                value={data.price}
-                                onChange={(e) =>
-                                    handleChange("price", e.target.value)
-                                }
-                                placeholder="0"
                             />
                         </div>
                         <div className="space-y-2">
@@ -1172,16 +1095,27 @@ function VariantEditForm({ data, onChange, onSave, onCancel }) {
                                 placeholder="Barcode"
                             />
                         </div>
+                        <div>
+                            <SelectCombobox
+                                label="Đơn vị tính"
+                                value={data.unit_id}
+                                onChange={(value) =>
+                                    handleChange("unit_id", value)
+                                }
+                                options={units}
+                                placeholder="Chọn đơn vị"
+                            />
+                        </div>
                     </div>
                 </CardContent>
             </Card>
 
-            {/* File Management */}
+            {/* Digital Product File Management */}
             <Card>
                 <CardHeader>
                     <div className="flex items-center justify-between">
                         <CardTitle className="text-base">
-                            Quản Lý File
+                            File Sản Phẩm Số
                         </CardTitle>
                         <div className="flex items-center gap-2">
                             <Label htmlFor="file-toggle" className="text-sm">

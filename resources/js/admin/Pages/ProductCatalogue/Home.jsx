@@ -292,7 +292,7 @@ export default function Home() {
                     <DataTableFilter
                         keyword={keyword}
                         setKeyword={setKeyword}
-                        placeholder="Tìm kiếm nhóm sản phẩm..."
+                        placeholder="Tìm kiếm..."
                     >
                         <Select
                             value={statusFilter}

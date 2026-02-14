@@ -23,22 +23,25 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/admin/components/ui/select";
-import { MoreHorizontal, Plus, CheckCircle2, XCircle } from "lucide-react";
+import {
+    MoreHorizontal,
+    Plus,
+    ShieldCheck,
+    CheckCircle2,
+    XCircle,
+} from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
+import UnitFormModal from "@/admin/components/pages/unit/UnitFormModal";
 import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
-import AttributeCatalogueTable from "@/admin/components/pages/attribute-catalogue/AttributeCatalogueTable";
+import UnitTable from "@/admin/components/pages/unit/UnitTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
-import { Head, router, usePage } from "@inertiajs/react";
+import { Head } from "@inertiajs/react";
 
-// 🔥 Import custom hook
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
-import useFlashToast from "@/admin/hooks/useFlashToast";
 
 export default function Home() {
-    useFlashToast();
-
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
     const [pageSize, setPageSize] = useState("10");
@@ -46,6 +49,9 @@ export default function Home() {
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [loading, setLoading] = useState(false);
+    const [openModal, setOpenModal] = useState(false);
+    const [modalMode, setModalMode] = useState("create");
+    const [editingRow, setEditingRow] = useState(null);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [deletingRow, setDeletingRow] = useState(null);
     const [paginationData, setPaginationData] = useState({
@@ -57,7 +63,6 @@ export default function Home() {
         to: 0,
     });
 
-    // 🔥 Sử dụng custom hook bulkUpdateStatus
     const bulkUpdateStatus = useBulkUpdateStatus(
         selectedRows,
         setData,
@@ -86,7 +91,7 @@ export default function Home() {
                 }
 
                 const res = await axios.post(
-                    route("admin.attribute.catalogue.filter"),
+                    route("admin.unit.filter"),
                     params,
                 );
 
@@ -98,12 +103,10 @@ export default function Home() {
 
                 const mappedData = response.data.map((item) => ({
                     id: item.id,
-                    name: item.name ?? "-",
-                    level: item.level ?? 0,
-                    publish: item.publish,
+                    name: item.name || "",
+                    code: item.code || "",
+                    description: item.description || "",
                     active: item.publish === 1,
-                    language_id: item.language_id,
-                    languages: item.languages || [],
                 }));
 
                 setData(mappedData);
@@ -141,6 +144,18 @@ export default function Home() {
         fetchData(1);
     }, [fetchData]);
 
+    const handleCreate = () => {
+        setModalMode("create");
+        setEditingRow(null);
+        setOpenModal(true);
+    };
+
+    const handleEdit = (row) => {
+        setModalMode("edit");
+        setEditingRow(row);
+        setOpenModal(true);
+    };
+
     const handleDeleteClick = (row) => {
         setDeletingRow(row);
         setOpenDeleteDialog(true);
@@ -150,9 +165,9 @@ export default function Home() {
         if (!deletingRow) return;
 
         try {
-            const res = await axios.post(
-                route("admin.attribute.catalogue.delete", deletingRow.id),
-            );
+            const res = await axios.post(route("admin.unit.delete"), {
+                id: deletingRow.id,
+            });
 
             toast.success(res.data?.message || "Xóa thành công!");
             setOpenDeleteDialog(false);
@@ -204,36 +219,32 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "QL Loại Thuộc Tinh",
+                    label: "QL Đơn Vị Tính",
                 },
             ]}
         >
-            <Head title="Quản Lý Loại Thuộc Tinh" />
+            <Head title="Quản Lý Đơn Vị Tính" />
             <Card className="rounded-md shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <CardTitle className="text-2xl font-bold mb-1">
-                                Quản Lý Loại Thuộc Tính
+                                Quản Lý Đơn Vị Tính
                             </CardTitle>
                             <CardDescription>
-                                Quản lý loại thuộc tính của từng thuộc tính.
+                                Quản lý các đơn vị tính được sử dụng cho sản
+                                phẩm, kho hàng và nghiệp vụ mua bán trong hệ
+                                thống.
                             </CardDescription>
                         </div>
 
                         <div className="flex items-center gap-2">
                             <Button
                                 className="rounded-md"
-                                onClick={() =>
-                                    router.visit(
-                                        route(
-                                            "admin.attribute.catalogue.create",
-                                        ),
-                                    )
-                                }
+                                onClick={handleCreate}
                             >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Thêm mới loại thuộc tính
+                                Thêm mới đơn vị tính
                             </Button>
 
                             <DropdownMenu>
@@ -256,11 +267,7 @@ export default function Home() {
                                         className="cursor-pointer"
                                         disabled={selectedRows.length === 0}
                                         onClick={() =>
-                                            bulkUpdateStatus(
-                                                true,
-                                                "AttributeCatalogue",
-                                                "Attribute",
-                                            )
+                                            bulkUpdateStatus(true, "Unit", "")
                                         }
                                     >
                                         <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
@@ -271,11 +278,7 @@ export default function Home() {
                                         className="cursor-pointer"
                                         disabled={selectedRows.length === 0}
                                         onClick={() =>
-                                            bulkUpdateStatus(
-                                                false,
-                                                "AttributeCatalogue",
-                                                "Attribute",
-                                            )
+                                            bulkUpdateStatus(false, "Unit", "")
                                         }
                                     >
                                         <XCircle className="mr-2 h-4 w-4 text-red-600" />
@@ -313,12 +316,13 @@ export default function Home() {
                         </Select>
                     </DataTableFilter>
 
-                    <AttributeCatalogueTable
+                    <UnitTable
                         data={data}
                         loading={loading}
                         selectedRows={selectedRows}
                         toggleAll={toggleAll}
                         toggleRow={toggleRow}
+                        handleEdit={handleEdit}
                         handleDeleteClick={handleDeleteClick}
                         onToggleActive={(id, newChecked) => {
                             setData((prev) =>
@@ -346,10 +350,18 @@ export default function Home() {
                 </CardContent>
             </Card>
 
+            <UnitFormModal
+                open={openModal}
+                mode={modalMode}
+                data={editingRow}
+                onClose={() => setOpenModal(false)}
+                onSuccess={() => fetchData(paginationData.current_page)}
+            />
+
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
-                title="Xóa loại thuộc tính"
-                description={`Bạn có chắc chắn muốn xóa loại thuộc tính "${deletingRow?.name}" không?`}
+                title="Xóa đơn vị tính"
+                description={`Bạn có chắc chắn muốn xóa "${deletingRow?.name}" không?`}
                 onCancel={() => {
                     setOpenDeleteDialog(false);
                     setDeletingRow(null);

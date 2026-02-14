@@ -62,4 +62,9 @@ class ProductVariant extends Model
         )->withPivot('sale_price', 'output_tax_id', 'publish')
             ->withTimestamps();
     }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
+    }
 }

@@ -70,7 +70,7 @@ export default function AdminLayout({ children, breadcrumb }) {
 
         // ===================== HỆ THỐNG =====================
         {
-            title: "Hệ Thống",
+            title: "Nhân Viên",
             icon: Settings2,
             items: [
                 {
@@ -84,10 +84,6 @@ export default function AdminLayout({ children, breadcrumb }) {
                 {
                     title: "Quyền",
                     url: route("admin.permission.index"),
-                },
-                {
-                    title: "Cấu Hình Hệ Thống",
-                    url: route("admin.dashboard.index"),
                 },
             ],
         },
@@ -112,6 +108,10 @@ export default function AdminLayout({ children, breadcrumb }) {
                 {
                     title: "Thuộc Tính",
                     url: route("admin.attribute.index"),
+                },
+                {
+                    title: "Đơn Vị Tính",
+                    url: route("admin.unit.index"),
                 },
             ],
         },
@@ -218,8 +218,8 @@ export default function AdminLayout({ children, breadcrumb }) {
             icon: Settings2,
             items: [
                 {
-                    title: "Thông Tin Công Ty",
-                    url: route("admin.dashboard.index"),
+                    title: "Cấu hình hệ thống",
+                    url: route("admin.system.index"),
                 },
                 {
                     title: "Ngân Hàng",

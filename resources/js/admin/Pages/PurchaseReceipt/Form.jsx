@@ -35,11 +35,12 @@ export default function PurchaseReceiptForm() {
         accounting_accounts,
         flash,
         users,
+        system_languages,
         errors: serverErrors,
     } = usePage().props;
 
     useEffect(() => {
-        console.log(purchase_receipt);
+        console.log(system_languages);
     }, []);
 
     const printRef = useRef(null);
@@ -181,7 +182,7 @@ export default function PurchaseReceiptForm() {
                     />
 
                     {/* Print Button - Only show if have products */}
-                    {isEdit && (
+                    {isEdit && purchase_receipt?.status !== "draft" && (
                         <div className="flex justify-end">
                             <Button
                                 type="button"
@@ -300,6 +301,7 @@ export default function PurchaseReceiptForm() {
                         receipt={formData}
                         totals={totals}
                         user={currentUser}
+                        system_languages={system_languages}
                     />
                 </div>
             </div>

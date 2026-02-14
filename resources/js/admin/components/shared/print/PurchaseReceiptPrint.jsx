@@ -3,9 +3,8 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
 const PurchaseReceiptPrint = forwardRef(
-    ({ receipt, totals, user }, ref) => {
+    ({ receipt, totals, user, system_languages }, ref) => {
         // Format date safely
-        console.log(receipt.product_variants)
         const formatDate = (dateString) => {
             if (!dateString) return "";
             try {
@@ -16,6 +15,30 @@ const PurchaseReceiptPrint = forwardRef(
                 return dateString;
             }
         };
+
+        // Format money with better handling
+        const formatMoney = (value) => {
+            if (value === null || value === undefined || value === "")
+                return "0";
+
+            const num = Number(value);
+            if (isNaN(num)) return "0";
+
+            return num.toLocaleString("vi-VN", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2,
+            });
+        };
+
+        const sys = system_languages || {};
+
+        const companyName = sys.homepage_company || "";
+        const officeAddress = sys.contact_office || "";
+        const branchAddress = sys.contact_address || "";
+        const hotline = sys.contact_hotline || "";
+        const phone = sys.contact_phone || "";
+        const email = sys.contact_email || "";
+        const website = sys.contact_website || "";
 
         // Format date with full text
         const formatDateFull = (dateString) => {
@@ -28,14 +51,27 @@ const PurchaseReceiptPrint = forwardRef(
             }
         };
 
-        // Convert number to Vietnamese text
+        // Convert number to Vietnamese text - Improved version
         const numberToVietnameseText = (num) => {
             if (!num || num === 0) return "Không đồng";
-            
+
             const units = ["", "nghìn", "triệu", "tỷ"];
-            const digits = ["không", "một", "hai", "ba", "bốn", "năm", "sáu", "bảy", "tám", "chín"];
-            
+            const digits = [
+                "không",
+                "một",
+                "hai",
+                "ba",
+                "bốn",
+                "năm",
+                "sáu",
+                "bảy",
+                "tám",
+                "chín",
+            ];
+
             const readGroup = (group) => {
+                if (group === 0) return "";
+                
                 let result = "";
                 const hundred = Math.floor(group / 100);
                 const ten = Math.floor((group % 100) / 10);
@@ -49,10 +85,12 @@ const PurchaseReceiptPrint = forwardRef(
                 if (ten > 1) {
                     result += digits[ten] + " mươi ";
                     if (unit === 1) result += "mốt ";
+                    else if (unit === 5) result += "lăm ";
                     else if (unit > 0) result += digits[unit] + " ";
                 } else if (ten === 1) {
                     result += "mười ";
-                    if (unit > 0) result += digits[unit] + " ";
+                    if (unit === 5) result += "lăm ";
+                    else if (unit > 0) result += digits[unit] + " ";
                 } else if (unit > 0) {
                     result += digits[unit] + " ";
                 }
@@ -69,13 +107,60 @@ const PurchaseReceiptPrint = forwardRef(
             while (n > 0) {
                 const group = n % 1000;
                 if (group > 0) {
-                    result = readGroup(group) + " " + units[unitIndex] + " " + result;
+                    const groupText = readGroup(group);
+                    result = groupText + " " + units[unitIndex] + " " + result;
                 }
                 n = Math.floor(n / 1000);
                 unitIndex++;
             }
 
-            return result.trim().charAt(0).toUpperCase() + result.trim().slice(1) + " đồng chẵn.";
+            result = result.trim();
+            return (
+                result.charAt(0).toUpperCase() +
+                result.slice(1) +
+                " đồng chẵn."
+            );
+        };
+
+        // Get unit name with fallback
+        const getUnitName = (item) => {
+            // Ưu tiên lấy từ unit object
+            if (item.unit?.name) return item.unit.name;
+            
+            // Fallback về unit_name nếu có
+            if (item.unit_name) return item.unit_name;
+            
+            // Default
+            return "Cái";
+        };
+
+        // Get product code with priority
+        const getProductCode = (item) => {
+            return item.sku || item.barcode || item.code || "";
+        };
+
+        // Calculate total quantity for all products
+        const getTotalQuantity = () => {
+            if (!receipt.product_variants || receipt.product_variants.length === 0) return 0;
+            return receipt.product_variants.reduce((sum, item) => {
+                const qty = parseFloat(item.quantity) || 0;
+                return sum + qty;
+            }, 0);
+        };
+
+        // Calculate amount before VAT for each item (Số lượng x Đơn giá)
+        const getAmountBeforeVAT = (item) => {
+            const quantity = parseFloat(item.quantity) || 0;
+            const price = parseFloat(item.price) || 0;
+            return quantity * price;
+        };
+
+        // Calculate total amount before VAT
+        const getTotalBeforeVAT = () => {
+            if (!receipt.product_variants || receipt.product_variants.length === 0) return 0;
+            return receipt.product_variants.reduce((sum, item) => {
+                return sum + getAmountBeforeVAT(item);
+            }, 0);
         };
 
         return (
@@ -95,14 +180,28 @@ const PurchaseReceiptPrint = forwardRef(
                 <div className="flex justify-between items-start mb-6">
                     <div style={{ width: "60%", fontSize: "12px" }}>
                         <p className="font-bold uppercase">
-                            CÔNG TY CỔ PHẦN ĐẦU TƯ VÀ CÔNG NGHỆ VIỆT HƯNG
+                            {companyName || "______________________________"}
                         </p>
-                        <p>
-                            Số 2, ngách 84/2 đường Trần Quang Diệu, Phường ô Chợ Dừa,
-                        </p>
-                        <p>Quận Đống đa, Thành phố Hà Nội, Việt Nam</p>
+
+                        {officeAddress && <p>{officeAddress}</p>}
+                        {branchAddress && <p>{branchAddress}</p>}
+
+                        {(phone || hotline) && (
+                            <p>
+                                {phone && `ĐT: ${phone}`}
+                                {phone && hotline ? " - " : ""}
+                                {hotline && `Hotline: ${hotline}`}
+                            </p>
+                        )}
+
+                        {email && <p>Email: {email}</p>}
+                        {website && <p>Website: {website}</p>}
                     </div>
-                    <div style={{ width: "35%", fontSize: "12px" }} className="text-right">
+
+                    <div
+                        style={{ width: "35%", fontSize: "12px" }}
+                        className="text-right"
+                    >
                         <p className="font-bold">Mẫu số: 01 - VT</p>
                         <p className="italic" style={{ fontSize: "11px" }}>
                             (Ban hành theo Thông tư số 133/2016/TT-BTC
@@ -121,11 +220,14 @@ const PurchaseReceiptPrint = forwardRef(
                     <p className="italic mb-1">
                         {formatDateFull(receipt.receipt_date || new Date())}
                     </p>
-                    <p className="mb-1">Số: {receipt.code}</p>
+                    <p className="mb-1">Số: {receipt.code || "___________"}</p>
                 </div>
 
                 {/* Accounting info */}
-                <div className="flex justify-end mb-4" style={{ fontSize: "12px" }}>
+                <div
+                    className="flex justify-end mb-4"
+                    style={{ fontSize: "12px" }}
+                >
                     <div className="text-right">
                         <p>Nợ: 156</p>
                         <p>Có: 331</p>
@@ -137,7 +239,9 @@ const PurchaseReceiptPrint = forwardRef(
                     <p className="mb-1">
                         - Họ và tên người giao:{" "}
                         <span className="uppercase font-semibold">
-                            {receipt.supplier_info?.name || "___________________________________"}
+                            {receipt.supplier_info?.name ||
+                                receipt.supplier_name ||
+                                "___________________________________"}
                         </span>
                     </p>
                     <p className="mb-1">
@@ -148,7 +252,9 @@ const PurchaseReceiptPrint = forwardRef(
                         ngày {formatDate(receipt.receipt_date || new Date())}{" "}
                         của{" "}
                         <span className="uppercase font-semibold">
-                            {receipt.supplier_info?.name || "___________________________________"}
+                            {receipt.supplier_info?.name ||
+                                receipt.supplier_name ||
+                                "___________________________________"}
                         </span>
                     </p>
                     <p>
@@ -157,7 +263,9 @@ const PurchaseReceiptPrint = forwardRef(
                             {receipt.warehouse_name || "Kho NVL"}
                         </span>
                         <span className="ml-20">
-                            Địa điểm: {receipt.warehouse_location || "___________________"}
+                            Địa điểm:{" "}
+                            {receipt.warehouse_location ||
+                                "___________________"}
                         </span>
                     </p>
                 </div>
@@ -276,25 +384,25 @@ const PurchaseReceiptPrint = forwardRef(
                                         {index + 1}
                                     </td>
                                     <td className="border border-black p-1">
-                                        {item.name || ""}
+                                        {item.name || item.product_name || ""}
                                     </td>
                                     <td className="border border-black p-1 text-center">
-                                        {item.sku || item.barcode || ""}
+                                        {getProductCode(item)}
                                     </td>
                                     <td className="border border-black p-1 text-center">
-                                        {item.unit || "Cái"}
+                                        {getUnitName(item)}
                                     </td>
                                     <td className="border border-black p-1 text-right">
-                                        {(item.quantity || 0)}
+                                        {formatMoney(item.quantity || 0)}
                                     </td>
                                     <td className="border border-black p-1 text-right">
                                         {/* Thực nhập để trống */}
                                     </td>
                                     <td className="border border-black p-1 text-right">
-                                        {(item.price || 0).toLocaleString("vi-VN")}
+                                        {formatMoney(item.price || 0)}
                                     </td>
                                     <td className="border border-black p-1 text-right">
-                                        {(item.subtotal || 0).toLocaleString("vi-VN")}
+                                        {formatMoney(getAmountBeforeVAT(item))}
                                     </td>
                                 </tr>
                             ))
@@ -315,11 +423,13 @@ const PurchaseReceiptPrint = forwardRef(
                             >
                                 Cộng
                             </td>
-                            <td className="border border-black p-1"></td>
+                            <td className="border border-black p-1 text-right font-bold">
+                                {formatMoney(getTotalQuantity())}
+                            </td>
                             <td className="border border-black p-1"></td>
                             <td className="border border-black p-1"></td>
                             <td className="border border-black p-1 text-right font-bold">
-                                {(totals.grandTotal || 0).toLocaleString("vi-VN")}
+                                {formatMoney(getTotalBeforeVAT())}
                             </td>
                         </tr>
                     </tbody>
@@ -330,7 +440,7 @@ const PurchaseReceiptPrint = forwardRef(
                     <p>
                         - Tổng số tiền (Viết bằng chữ):{" "}
                         <span className="italic font-semibold">
-                            {numberToVietnameseText(totals.grandTotal || 0)}
+                            {numberToVietnameseText(getTotalBeforeVAT())}
                         </span>
                     </p>
                     <p>
@@ -367,13 +477,15 @@ const PurchaseReceiptPrint = forwardRef(
                     </div>
                     <div>
                         <p className="font-bold mb-1">Kế toán trưởng</p>
-                        <p className="italic text-xs">(Hoặc bộ phận có nhu cầu nhập)</p>
+                        <p className="italic text-xs">
+                            (Hoặc bộ phận có nhu cầu nhập)
+                        </p>
                         <p className="italic text-xs mb-12">(Ký, họ tên)</p>
                     </div>
                 </div>
             </div>
         );
-    }
+    },
 );
 
 PurchaseReceiptPrint.displayName = "PurchaseReceiptPrint";

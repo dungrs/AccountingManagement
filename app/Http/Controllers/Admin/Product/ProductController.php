@@ -11,21 +11,25 @@ use App\Http\Controllers\Admin\Controller;
 use App\Http\Requests\Product\StoreProductRequest;
 use App\Http\Requests\Product\UpdateProductRequest;
 use App\Services\Attribute\AttributeCatalogueService;
+use App\Services\UnitService;
 use Inertia\Inertia;
 
 class ProductController extends Controller
 {
     protected $attributeCatalogueService;
     protected $productService;
+    protected $unitService;
     protected $nestedSet;
     protected $languageId;
 
     public function __construct(
         AttributeCatalogueService $attributeCatalogueService,
-        ProductService $productService
+        ProductService $productService,
+        UnitService $unitService
     ) {
         $this->productService = $productService;
         $this->attributeCatalogueService = $attributeCatalogueService;
+        $this->unitService = $unitService;
         $this->middleware(function ($request, $next) {
             $this->languageId = 1; // Tạm thời lấy bằng 1 
             $this->initialize();
@@ -56,9 +60,11 @@ class ProductController extends Controller
         $this->authorize('modules', 'product.create');
         $dropdown = $this->nestedSet->Dropdown();
         $attributeCatalogues = $this->attributeCatalogueService->getAttributeCatalogueLanguages();
+        $units = $this->unitService->getUnitList();
         return Inertia::render('Product/Form', [
             'dropdown' => $dropdown,
-            'attributeCatalogues' => $attributeCatalogues
+            'attributeCatalogues' => $attributeCatalogues,
+            'units' => $units,
         ]);
     }
 
@@ -69,6 +75,9 @@ class ProductController extends Controller
 
         // Dropdown danh mục
         $dropdown = $this->nestedSet->Dropdown();
+
+        // Lấy đơn vị tính
+        $units = $this->unitService->getUnitList();
 
         // Lấy product + load sẵn quan hệ cần dùng
         $product = $this->productService
@@ -100,6 +109,7 @@ class ProductController extends Controller
             'catalogues'          => $catalogues,
             'attribute'          => $attributes,
             'attributeCatalogues' => $attributeCatalogues,
+            'units' => $units,
         ]);
     }
 
