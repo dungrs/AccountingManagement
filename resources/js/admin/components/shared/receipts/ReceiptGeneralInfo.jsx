@@ -3,13 +3,6 @@ import { Label } from "@/admin/components/ui/label";
 import { Textarea } from "@/admin/components/ui/textarea";
 import { Button } from "@/admin/components/ui/button";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/admin/components/ui/select";
-import {
     Popover,
     PopoverContent,
     PopoverTrigger,
@@ -26,9 +19,11 @@ import { CalendarIcon, Info } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import SelectCombobox from "../../ui/select-combobox";
 
 export default function ReceiptGeneralInfo({
     formData,
+    setFormData, // Thêm setFormData
     errors,
     receiptDate,
     setReceiptDate,
@@ -39,8 +34,58 @@ export default function ReceiptGeneralInfo({
     type = "purchase",
     suppliers = [],
     customers = [],
-    users = [], // 👈 thêm dòng này
+    users = [],
+    isEdit = false, // Thêm prop isEdit
 }) {
+    // Format options cho supplier/customer
+    const partnerOptions = (type === "purchase" ? suppliers : customers)?.map(
+        (item) => ({
+            value: String(item.id),
+            label: item.name,
+        })
+    ) || [];
+
+    // Format options cho user
+    const userOptions = users?.map((user) => ({
+        value: String(user.id),
+        label: user.name,
+    })) || [];
+
+    // Format options cho status - dựa vào mode (create/edit)
+    const getStatusOptions = () => {
+        // Nếu là edit mode, chỉ hiển thị "Đã xác nhận" và "Đã hủy"
+        if (isEdit) {
+            return [
+                { value: "confirmed", label: "Đã xác nhận" },
+                { value: "cancelled", label: "Đã hủy" },
+            ];
+        }
+        
+        // Nếu là create mode, hiển thị "Nháp" và "Đã xác nhận"
+        return [
+            { value: "draft", label: "Nháp" },
+            { value: "confirmed", label: "Đã xác nhận" },
+        ];
+    };
+
+    // Xử lý thay đổi partner
+    const handlePartnerChange = (value) => {
+        const fieldName = type === "purchase" ? "supplier_id" : "customer_id";
+        handleChange(fieldName, parseInt(value));
+        
+        // Cập nhật thêm partner_info nếu cần
+        const selectedPartner = (type === "purchase" ? suppliers : customers)?.find(
+            (p) => String(p.id) === value
+        );
+        
+        if (selectedPartner) {
+            setFormData?.(prev => ({
+                ...prev,
+                partner_info: selectedPartner,
+            }));
+        }
+    };
+
     return (
         <Card>
             <CardHeader>
@@ -57,6 +102,7 @@ export default function ReceiptGeneralInfo({
                         Các trường có dấu (*) là bắt buộc nhập
                     </p>
                 </div>
+
                 <div className="grid grid-cols-2 gap-4">
                     {/* Ngày nhập/xuất */}
                     <div className="space-y-2">
@@ -116,144 +162,46 @@ export default function ReceiptGeneralInfo({
                         )}
                     </div>
 
-                    {/* Nhà cung cấp hoặc Khách hàng */}
-                    <div className="space-y-2">
-                        <Label>
-                            {type === "purchase"
-                                ? "Nhà cung cấp"
-                                : "Khách hàng"}{" "}
-                            <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                            value={String(
-                                type === "purchase"
-                                    ? formData.supplier_id
-                                    : formData.customer_id,
-                            )}
-                            onValueChange={(value) =>
-                                handleChange(
-                                    type === "purchase"
-                                        ? "supplier_id"
-                                        : "customer_id",
-                                    parseInt(value),
-                                )
-                            }
-                        >
-                            <SelectTrigger
-                                className={cn(
-                                    errors[
-                                        type === "purchase"
-                                            ? "supplier_id"
-                                            : "customer_id"
-                                    ] && "border-red-500",
-                                )}
-                            >
-                                <SelectValue
-                                    placeholder={`Chọn ${type === "purchase" ? "nhà cung cấp" : "khách hàng"}`}
-                                />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {(type === "purchase"
-                                    ? suppliers
-                                    : customers
-                                )?.map((item) => (
-                                    <SelectItem
-                                        key={item.id}
-                                        value={String(item.id)}
-                                    >
-                                        {item.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors[
-                            type === "purchase" ? "supplier_id" : "customer_id"
-                        ] && (
-                            <p className="text-xs text-red-500">
-                                {
-                                    errors[
-                                        type === "purchase"
-                                            ? "supplier_id"
-                                            : "customer_id"
-                                    ]
-                                }
-                            </p>
+                    {/* Nhà cung cấp hoặc Khách hàng - Sử dụng SelectCombobox */}
+                    <SelectCombobox
+                        label={type === "purchase" ? "Nhà cung cấp" : "Khách hàng"}
+                        value={String(
+                            type === "purchase"
+                                ? formData.supplier_id || ""
+                                : formData.customer_id || ""
                         )}
-                    </div>
+                        onChange={handlePartnerChange}
+                        options={partnerOptions}
+                        placeholder={`Chọn ${type === "purchase" ? "nhà cung cấp" : "khách hàng"}`}
+                        searchPlaceholder={`Tìm ${type === "purchase" ? "nhà cung cấp" : "khách hàng"}...`}
+                        error={errors[type === "purchase" ? "supplier_id" : "customer_id"]}
+                        required
+                    />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                    {/* User phụ trách */}
-                    <div className="space-y-2">
-                        <Label>
-                            Người phụ trách{" "}
-                            <span className="text-red-500">*</span>
-                        </Label>
-                        <Select
-                            value={
-                                formData.user_id ? String(formData.user_id) : ""
-                            }
-                            onValueChange={(value) =>
-                                handleChange("user_id", parseInt(value))
-                            }
-                        >
-                            <SelectTrigger
-                                className={cn(
-                                    errors.user_id && "border-red-500",
-                                )}
-                            >
-                                <SelectValue placeholder="Chọn người phụ trách" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {users?.map((user) => (
-                                    <SelectItem
-                                        key={user.id}
-                                        value={String(user.id)}
-                                    >
-                                        {user.name}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {errors.user_id && (
-                            <p className="text-xs text-red-500">
-                                {errors.user_id}
-                            </p>
-                        )}
-                    </div>
+                    {/* User phụ trách - Sử dụng SelectCombobox */}
+                    <SelectCombobox
+                        label="Người phụ trách"
+                        value={formData.user_id ? String(formData.user_id) : ""}
+                        onChange={(value) => handleChange("user_id", parseInt(value))}
+                        options={userOptions}
+                        placeholder="Chọn người phụ trách"
+                        searchPlaceholder="Tìm người phụ trách..."
+                        error={errors.user_id}
+                        required
+                    />
 
-                    {/* Tình trạng */}
-                    <div className="space-y-2">
-                        <Label>Trạng thái</Label>
-                        <Select
-                            value={formData.status || "draft"}
-                            onValueChange={(value) =>
-                                handleChange("status", value)
-                            }
-                        >
-                            <SelectTrigger
-                                className={cn(
-                                    errors.status && "border-red-500",
-                                )}
-                            >
-                                <SelectValue placeholder="Chọn trạng thái" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="draft">Nháp</SelectItem>
-                                <SelectItem value="confirmed">
-                                    Đã xác nhận
-                                </SelectItem>
-                                <SelectItem value="cancelled">
-                                    Đã huỷ
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
-                        {errors.status && (
-                            <p className="text-xs text-red-500">
-                                {errors.status}
-                            </p>
-                        )}
-                    </div>
+                    {/* Trạng thái - Sử dụng SelectCombobox với options động */}
+                    <SelectCombobox
+                        label="Trạng thái"
+                        value={formData.status || (isEdit ? "confirmed" : "draft")}
+                        onChange={(value) => handleChange("status", value)}
+                        options={getStatusOptions()}
+                        placeholder="Chọn trạng thái"
+                        searchPlaceholder="Tìm trạng thái..."
+                        error={errors.status}
+                    />
                 </div>
 
                 {/* Ghi chú */}
@@ -261,7 +209,7 @@ export default function ReceiptGeneralInfo({
                     <Label htmlFor="note">Ghi chú</Label>
                     <Textarea
                         id="note"
-                        value={formData.note}
+                        value={formData.note || ""}
                         onChange={(e) => handleChange("note", e.target.value)}
                         placeholder={`Nhập ghi chú cho phiếu ${type === "purchase" ? "nhập" : "xuất"}`}
                         rows={3}

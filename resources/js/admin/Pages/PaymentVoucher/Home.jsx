@@ -21,7 +21,7 @@ import { Plus } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
-import PurchaseReceiptTable from "@/admin/components/pages/purchase-receipt/PurchaseReceiptTable";
+import PaymentVoucherTable from "@/admin/components/pages/payment-voucher/PaymentVoucherTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
@@ -36,6 +36,7 @@ export default function Home() {
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [paymentMethodFilter, setPaymentMethodFilter] = useState("all");
     const [loading, setLoading] = useState(false);
     const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
     const [deletingRow, setDeletingRow] = useState(null);
@@ -70,8 +71,12 @@ export default function Home() {
                     params.status = statusFilter;
                 }
 
+                if (paymentMethodFilter !== "all") {
+                    params.payment_method = paymentMethodFilter;
+                }
+
                 const res = await axios.post(
-                    route("admin.receipt.purchase.filter"),
+                    route("admin.voucher.payment.filter"),
                     params,
                 );
 
@@ -81,17 +86,22 @@ export default function Home() {
                     throw new Error("Dữ liệu trả về không hợp lệ");
                 }
 
-                // Mapping dữ liệu theo schema thực tế
+                // Mapping dữ liệu theo schema của bảng payment_vouchers
                 const mappedData = response.data.map((item) => ({
                     id: item.id,
                     code: item.code ?? "-",
-                    receipt_date: item.receipt_date ?? "-",
+                    voucher_date: item.voucher_date ?? "-",
+                    supplier_id: item.supplier_id,
                     supplier_name: item.supplier_name ?? "-",
-                    grand_total: item.grand_total ?? 0,
-                    status: item.status ?? "draft",
-                    user_name: item.user_name ?? "-",
+                    amount: item.amount ?? 0,
+                    payment_method: item.payment_method ?? "cash",
                     note: item.note ?? "",
+                    status: item.status ?? "draft",
+                    created_at: item.created_at,
+                    updated_at: item.updated_at,
                 }));
+
+                console.log("Dữ liệu mapped:", mappedData);
 
                 setData(mappedData);
                 setPaginationData({
@@ -121,7 +131,7 @@ export default function Home() {
                 setLoading(false);
             }
         },
-        [pageSize, debouncedKeyword, statusFilter],
+        [pageSize, debouncedKeyword, statusFilter, paymentMethodFilter],
     );
 
     useEffect(() => {
@@ -138,7 +148,7 @@ export default function Home() {
 
         try {
             const res = await axios.post(
-                route("admin.receipt.purchase.delete", deletingRow.id),
+                route("admin.voucher.payment.delete", deletingRow.id),
             );
 
             toast.success(res.data?.message || "Xóa thành công!");
@@ -191,21 +201,20 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "Quản Lý Phiếu Nhập Kho",
+                    label: "Quản Lý Phiếu Chi",
                 },
             ]}
         >
-            <Head title="Quản Lý Phiếu Nhập Kho" />
+            <Head title="Quản Lý Phiếu Chi" />
             <Card className="rounded-md shadow-sm">
                 <CardHeader className="pb-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <CardTitle className="text-2xl font-bold mb-1">
-                                Quản Lý Phiếu Nhập Kho
+                                Quản Lý Phiếu Chi
                             </CardTitle>
                             <CardDescription>
-                                Quản lý danh sách phiếu nhập kho, nhà cung cấp,
-                                ngày nhập và trạng thái.
+                                Quản lý danh sách phiếu chi, nhà cung cấp, ngày chi và trạng thái.
                             </CardDescription>
                         </div>
 
@@ -214,12 +223,12 @@ export default function Home() {
                                 className="rounded-md"
                                 onClick={() =>
                                     router.visit(
-                                        route("admin.receipt.purchase.create"),
+                                        route("admin.voucher.payment.create"),
                                     )
                                 }
                             >
                                 <Plus className="mr-2 h-4 w-4" />
-                                Thêm mới phiếu nhập kho
+                                Thêm mới phiếu chi
                             </Button>
                         </div>
                     </div>
@@ -229,30 +238,50 @@ export default function Home() {
                     <DataTableFilter
                         keyword={keyword}
                         setKeyword={setKeyword}
-                        placeholder="Tìm kiếm theo mã phiếu hoặc nhà cung cấp..."
+                        placeholder="Tìm kiếm theo mã phiếu, nhà cung cấp hoặc ghi chú..."
                     >
-                        <Select
-                            value={statusFilter}
-                            onValueChange={setStatusFilter}
-                        >
-                            <SelectTrigger className="w-full sm:w-[200px] rounded-md">
-                                <SelectValue placeholder="Trạng thái" />
-                            </SelectTrigger>
+                        <div className="flex items-center gap-2">
+                            {/* Status Filter */}
+                            <Select
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                            >
+                                <SelectTrigger className="w-full sm:w-[180px] rounded-md">
+                                    <SelectValue placeholder="Trạng thái" />
+                                </SelectTrigger>
 
-                            <SelectContent>
-                                <SelectItem value="all">Tất cả</SelectItem>
-                                <SelectItem value="draft">Nháp</SelectItem>
-                                <SelectItem value="confirmed">
-                                    Đã xác nhận
-                                </SelectItem>
-                                <SelectItem value="cancelled">
-                                    Đã hủy
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả trạng thái</SelectItem>
+                                    <SelectItem value="draft">Nháp</SelectItem>
+                                    <SelectItem value="confirmed">
+                                        Đã xác nhận
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            {/* Payment Method Filter */}
+                            <Select
+                                value={paymentMethodFilter}
+                                onValueChange={setPaymentMethodFilter}
+                            >
+                                <SelectTrigger className="w-full sm:w-[180px] rounded-md">
+                                    <SelectValue placeholder="Phương thức" />
+                                </SelectTrigger>
+
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả phương thức</SelectItem>
+                                    <SelectItem value="cash">
+                                        Tiền mặt
+                                    </SelectItem>
+                                    <SelectItem value="bank">
+                                        Chuyển khoản
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </DataTableFilter>
 
-                    <PurchaseReceiptTable
+                    <PaymentVoucherTable
                         data={data}
                         loading={loading}
                         selectedRows={selectedRows}
@@ -278,8 +307,8 @@ export default function Home() {
 
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
-                title="Xóa phiếu nhập kho"
-                description={`Bạn có chắc chắn muốn xóa phiếu nhập kho "${deletingRow?.code}" không?`}
+                title="Xóa phiếu chi"
+                description={`Bạn có chắc chắn muốn xóa phiếu chi "${deletingRow?.code}" không?`}
                 onCancel={() => {
                     setOpenDeleteDialog(false);
                     setDeletingRow(null);

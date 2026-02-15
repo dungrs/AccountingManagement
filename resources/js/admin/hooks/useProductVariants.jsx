@@ -39,6 +39,53 @@ export function useProductVariants({
         return { vatAmount, subtotal };
     };
 
+    // Thêm vào useProductVariants.js (nếu chưa có)
+    const calculateVatAndSubtotal = (quantity, price, vatRate) => {
+        const qty = parseFloat(quantity) || 0;
+        const pr = parseFloat(price) || 0;
+        const subtotal = qty * pr;
+        const vatAmount = subtotal * (parseFloat(vatRate) / 100);
+
+        return {
+            subtotal,
+            vatAmount,
+        };
+    };
+
+    // Sử dụng trong handleUpdateAddingRow
+    const handleUpdateAddingRow = (rowId, field, value) => {
+        setAddingRows((prev) => {
+            const updated = prev.map((row) => {
+                if (row.id === rowId) {
+                    const updatedRow = { ...row, [field]: value };
+
+                    // Tính toán lại VAT và subtotal khi thay đổi quantity, price hoặc vat_id
+                    if (
+                        field === "quantity" ||
+                        field === "price" ||
+                        field === "vat_id"
+                    ) {
+                        const vatTax = getVatTaxById(updatedRow.vat_id);
+                        const vatRate = vatTax?.rate || 0;
+
+                        const { subtotal, vatAmount } = calculateVatAndSubtotal(
+                            updatedRow.quantity,
+                            updatedRow.price,
+                            vatRate,
+                        );
+
+                        updatedRow.subtotal = subtotal;
+                        updatedRow.vat_amount = vatAmount;
+                    }
+
+                    return updatedRow;
+                }
+                return row;
+            });
+            return updated;
+        });
+    };
+
     // Lấy danh sách product_variant_id đã được sử dụng
     const getUsedVariantIds = () => {
         const savedIds = formData.product_variants.map(
@@ -96,34 +143,6 @@ export function useProductVariants({
     // Hủy một dòng đang thêm
     const handleCancelAddRow = (rowId) => {
         setAddingRows(addingRows.filter((row) => row.id !== rowId));
-    };
-
-    // Update data của một dòng đang thêm
-    const handleUpdateAddingRow = (rowId, field, value) => {
-        setAddingRows(
-            addingRows.map((row) => {
-                if (row.id === rowId) {
-                    const updatedRow = { ...row, [field]: value };
-
-                    if (
-                        field === "quantity" ||
-                        field === "price" ||
-                        field === "vat_id"
-                    ) {
-                        const { vatAmount, subtotal } = calculateAmounts(
-                            field === "quantity" ? value : updatedRow.quantity,
-                            field === "price" ? value : updatedRow.price,
-                            field === "vat_id" ? value : updatedRow.vat_id,
-                        );
-                        updatedRow.vat_amount = vatAmount;
-                        updatedRow.subtotal = subtotal;
-                    }
-
-                    return updatedRow;
-                }
-                return row;
-            }),
-        );
     };
 
     // Lưu một dòng vào danh sách chính

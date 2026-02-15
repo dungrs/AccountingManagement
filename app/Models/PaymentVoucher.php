@@ -11,10 +11,12 @@ class PaymentVoucher extends Model
 
     protected $fillable = [
         'code',
-        'payment_date',
+        'voucher_date',
         'supplier_id',
+        'user_id',
         'amount',
         'payment_method',
+        'supplier_bank_account_id',
         'note',
         'status',
     ];
@@ -26,8 +28,23 @@ class PaymentVoucher extends Model
         return $this->belongsTo(Supplier::class);
     }
 
-    public function journalEntry()
+    public function journalEntries()
     {
-        return $this->morphOne(JournalEntry::class, 'reference');
+        return $this->morphMany(JournalEntry::class, 'reference');
+    }
+
+    public function supplierDebts()
+    {
+        return $this->morphMany(SupplierDebt::class, 'reference');
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function supplierBankAccount()
+    {
+        return $this->belongsTo(SupplierBankAccount::class);
     }
 }

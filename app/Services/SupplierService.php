@@ -161,9 +161,25 @@ class SupplierService extends BaseService implements SupplierServiceInterface
 
     public function getSupplierList()
     {
-        return $this->supplierRepository->findByCondition([
+        $suppliers = $this->supplierRepository->findByCondition([
             ['publish', '=', 1]
-        ], true, [], [], ['id', 'name']);;
+        ], true, [], [], ['id', 'name', 'supplier_code', 'tax_code', 'phone', 'email', 'address'], ['banks']);
+
+        foreach ($suppliers as $supplier) {
+            // Format supplier info giống như trong getPaymentVoucherDetail
+            $supplier->banks = $supplier->banks?->map(function ($bank) {
+                return [
+                    'id'             => $bank->id,
+                    'bank_code'      => $bank->bank_code,
+                    'name'           => $bank->name,
+                    'short_name'     => $bank->short_name,
+                    'swift_code'     => $bank->swift_code,
+                    'account_number' => $bank->pivot?->account_number, // 👈 lấy từ pivot giống như trên
+                ];
+            })->values()->toArray() ?? [];
+        }
+
+        return $suppliers;
     }
 
     private function paginateSelect()

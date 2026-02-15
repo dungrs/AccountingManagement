@@ -1,13 +1,5 @@
 // Utility functions for receipt forms
 
-export const formatCurrency = (value) => {
-    if (!value) return "-";
-    return new Intl.NumberFormat("vi-VN", {
-        style: "currency",
-        currency: "VND",
-    }).format(value);
-};
-
 export const calculateTotals = (productVariants) => {
     const totalAmount = productVariants.reduce(
         (sum, item) =>

@@ -8,6 +8,7 @@ use App\Repositories\Journal\JournalEntryRepository;
 use App\Services\BaseService;
 use App\Services\Interfaces\JournalEntryServiceInterface;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class JournalEntryService extends BaseService implements JournalEntryServiceInterface
 {
@@ -26,129 +27,128 @@ class JournalEntryService extends BaseService implements JournalEntryServiceInte
     }
 
     /**
-     * Tạo định khoản cho phiếu nhập kho
-     * Nợ 156 (Hàng hóa) / Có 331 (Phải trả NCC)
+     * Tạo định khoản từ request data
      */
-    public function createPurchaseReceiptJournal($receipt)
+    public function createFromRequest($referenceType, $referenceId, array $journalEntries, $entryDate = null)
     {
-        // Tạo journal entry
-        $journalEntry = $this->journalEntryRepository->create([
-            'code'           => $this->generateJournalEntryCode(),
-            'reference_type' => 'purchase_receipt',
-            'reference_id'   => $receipt->id,
-            'entry_date'     => $receipt->receipt_date ?? now(),
-            'created_by'     => Auth::id(),
-        ]);
+        return DB::transaction(function () use ($referenceType, $referenceId, $journalEntries, $entryDate) {
+            
+            // Kiểm tra cân bằng debit và credit
+            $totalDebit = 0;
+            $totalCredit = 0;
+            
+            foreach ($journalEntries as $entry) {
+                $totalDebit += $entry['debit'] ?? 0;
+                $totalCredit += $entry['credit'] ?? 0;
+            }
 
-        // Lấy tài khoản kế toán
-        $account156 = $this->accountingAccountRepository->findByCondition(
-            [['account_code', '=', '156']],
-            false
-        );
-        
-        $account331 = $this->accountingAccountRepository->findByCondition(
-            [['account_code', '=', '331']],
-            false
-        );
+            if (abs($totalDebit - $totalCredit) > 0.01) { // Cho phép sai số nhỏ
+                throw new \Exception('Tổng debit và credit không cân bằng.');
+            }
 
-        if (!$account156 || !$account331) {
-            throw new \Exception('Tài khoản kế toán 156 hoặc 331 không tồn tại.');
-        }
+            // Tạo journal entry
+            $journalEntry = $this->journalEntryRepository->create([
+                'code'           => $this->generateJournalEntryCode(),
+                'reference_type' => $referenceType,
+                'reference_id'   => $referenceId,
+                'entry_date'     => $entryDate ?? now(),
+                'created_by'     => Auth::id(),
+                // Không cần status nữa
+            ]);
 
-        // Nợ 156 - Hàng hóa
-        $this->journalEntryDetailRepository->create([
-            'journal_entry_id' => $journalEntry->id,
-            'account_id'       => $account156->id,
-            'debit'            => $receipt->grand_total,
-            'credit'           => 0,
-        ]);
+            // Tạo chi tiết định khoản
+            foreach ($journalEntries as $entry) {
+                // Tìm account_id từ account_code
+                $account = $this->accountingAccountRepository->findByCondition(
+                    [['account_code', '=', $entry['account_code']]],
+                    false
+                );
 
-        // Có 331 - Phải trả NCC
-        $this->journalEntryDetailRepository->create([
-            'journal_entry_id' => $journalEntry->id,
-            'account_id'       => $account331->id,
-            'debit'            => 0,
-            'credit'           => $receipt->grand_total,
-        ]);
+                if (!$account) {
+                    throw new \Exception("Tài khoản {$entry['account_code']} không tồn tại.");
+                }
 
-        return $journalEntry;
+                $this->journalEntryDetailRepository->create([
+                    'journal_entry_id' => $journalEntry->id,
+                    'account_id'       => $account->id,
+                    'debit'            => $entry['debit'] ?? 0,
+                    'credit'           => $entry['credit'] ?? 0,
+                ]);
+            }
+
+            return $journalEntry;
+        });
     }
 
     /**
-     * Tạo định khoản cho phiếu chi
-     * Nợ 331 (Phải trả NCC) / Có 111/112 (Tiền mặt/Ngân hàng)
+     * Xác nhận định khoản - KHÔNG CẦN THIẾT VÌ ĐÃ TẠO TRỰC TIẾP
      */
-    public function createPaymentVoucherJournal($paymentVoucher)
+    public function confirmJournalByReference($referenceType, $referenceId)
     {
-        // Tạo journal entry
-        $journalEntry = $this->journalEntryRepository->create([
-            'code'           => $this->generateJournalEntryCode(),
-            'reference_type' => 'payment_voucher',
-            'reference_id'   => $paymentVoucher->id,
-            'entry_date'     => $paymentVoucher->payment_date ?? now(),
-            'created_by'     => Auth::id(),
-        ]);
-
-        // Lấy tài khoản kế toán
-        $account331 = $this->accountingAccountRepository->findByCondition(
-            [['account_code', '=', '331']],
-            false
-        );
-
-        // Xác định tài khoản tiền (111: tiền mặt, 112: ngân hàng)
-        $cashAccountCode = $paymentVoucher->payment_method === 'cash' ? '111' : '112';
-        $cashAccount = $this->accountingAccountRepository->findByCondition(
-            [['account_code', '=', $cashAccountCode]],
-            false
-        );
-
-        if (!$account331 || !$cashAccount) {
-            throw new \Exception("Tài khoản kế toán 331 hoặc {$cashAccountCode} không tồn tại.");
-        }
-
-        // Nợ 331 - Phải trả NCC
-        $this->journalEntryDetailRepository->create([
-            'journal_entry_id' => $journalEntry->id,
-            'account_id'       => $account331->id,
-            'debit'            => $paymentVoucher->amount,
-            'credit'           => 0,
-        ]);
-
-        // Có 111/112 - Tiền mặt/Ngân hàng
-        $this->journalEntryDetailRepository->create([
-            'journal_entry_id' => $journalEntry->id,
-            'account_id'       => $cashAccount->id,
-            'debit'            => 0,
-            'credit'           => $paymentVoucher->amount,
-        ]);
-
-        return $journalEntry;
+        // Không cần làm gì vì journal entries đã được tạo từ đầu
+        return true;
     }
 
     /**
-     * Xóa định khoản theo reference
+     * Xóa định khoản theo reference (chỉ xóa nếu chưa được sử dụng)
      */
     public function deleteJournalByReference($referenceType, $referenceId)
+    {
+        return DB::transaction(function () use ($referenceType, $referenceId) {
+            $journalEntries = $this->journalEntryRepository->findByCondition(
+                [
+                    ['reference_type', '=', $referenceType],
+                    ['reference_id', '=', $referenceId]
+                ],
+                true
+            );
+
+            foreach ($journalEntries as $journalEntry) {
+                // Xóa chi tiết định khoản
+                $this->journalEntryDetailRepository->deleteByCondition([
+                    ['journal_entry_id', '=', $journalEntry->id]
+                ]);
+                
+                // Xóa định khoản
+                $this->journalEntryRepository->delete($journalEntry->id);
+            }
+
+            return true;
+        });
+    }
+
+    /**
+     * Lấy định khoản theo reference
+     */
+    public function getJournalByReference($referenceType, $referenceId)
     {
         $journalEntries = $this->journalEntryRepository->findByCondition(
             [
                 ['reference_type', '=', $referenceType],
                 ['reference_id', '=', $referenceId]
             ],
-            true // get all
+            true,
+            [],
+            ['id', 'DESC'],
+            ['*'],
+            ['details.account']
         );
 
-        foreach ($journalEntries as $journalEntry) {
-            // Xóa chi tiết định khoản
-            $this->journalEntryDetailRepository->deleteByCondition([
-                ['journal_entry_id', '=', $journalEntry->id]
-            ]);
-            
-            // Xóa định khoản
-            $this->journalEntryRepository->delete($journalEntry->id);
-        }
-
-        return true;
+        return $journalEntries->map(function ($journal) {
+            return [
+                'id' => $journal->id,
+                'code' => $journal->code,
+                'entry_date' => $journal->entry_date,
+                'details' => $journal->details->map(function ($detail) {
+                    return [
+                        'account_code' => $detail->account?->account_code,
+                        'account_name' => $detail->account?->name,
+                        'debit' => $detail->debit,
+                        'credit' => $detail->credit,
+                    ];
+                })
+            ];
+        });
     }
 
     /**
@@ -159,7 +159,7 @@ class JournalEntryService extends BaseService implements JournalEntryServiceInte
     {
         $latest = $this->journalEntryRepository->findLastest();
 
-        if (!$latest) {
+        if (!$latest || !$latest->code) {
             return 'JE_001';
         }
 

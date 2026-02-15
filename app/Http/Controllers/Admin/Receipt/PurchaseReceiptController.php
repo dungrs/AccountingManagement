@@ -47,13 +47,13 @@ class PurchaseReceiptController extends Controller
 
     public function index()
     {
-        $this->authorize('modules', 'purchase.receipt.index');
+        $this->authorize('modules', 'receipt.purchase.index');
         return Inertia::render('PurchaseReceipt/Home');
     }
 
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'purchase.receipt.index');
+        $this->authorize('modules', 'receipt.purchase.index');
 
         $purchaseReceipts = $this->purchaseReceiptService->paginate($request);
         return response()->json($purchaseReceipts);
@@ -61,7 +61,7 @@ class PurchaseReceiptController extends Controller
 
     public function create()
     {
-        $this->authorize('modules', 'purchase.receipt.create');
+        $this->authorize('modules', 'receipt.purchase.create');
         $users = $this->userService->getUserList();
         $suppliers = $this->supplierService->getSupplierList();
         $vatTaxes = $this->vatTaxRepository->findByCondition([
@@ -79,7 +79,7 @@ class PurchaseReceiptController extends Controller
         return Inertia::render('PurchaseReceipt/Form', [
             'product_variants' => $productVariants,
             'vat_taxes' => $vatTaxes,
-            'accounting_account' => $accountingAccount,
+            'accounting_accounts' => $accountingAccount,
             'users' => $users,
             'suppliers' => $suppliers
         ]);
@@ -87,7 +87,7 @@ class PurchaseReceiptController extends Controller
 
     public function edit($id)
     {
-        $this->authorize('modules', 'purchase.receipt.update');
+        $this->authorize('modules', 'receipt.purchase.update');
         $purchaseReceipt = $this->purchaseReceiptService->getPurchaseReceiptDetail($id);
         $users = $this->userService->getUserList();
         // Phiếu nhập kho chi tiết
@@ -105,6 +105,7 @@ class PurchaseReceiptController extends Controller
             ],
             true
         );
+
         // Lấy thông tin công ty lập phiếu
         $systems = $this->systemService->getSystemDetails();
         $system_languages = $systems
@@ -125,12 +126,12 @@ class PurchaseReceiptController extends Controller
     }
 
     public function store(StorePurchaseReceiptRequest $request)
-    {
+    {   
         $this->purchaseReceiptService->create($request);
         try {
-            return redirect()->route('admin.purchase.receipt.index')->with('success', 'Thêm mới phiếu nhập kho thành công!');
+            return redirect()->route('admin.receipt.purchase.index')->with('success', 'Thêm mới phiếu nhập kho thành công!');
         } catch (\Throwable $e) {
-            return redirect()->route('admin.purchase.receipt.create')->with('error', 'Thêm mới phiếu nhập kho thất bại!');
+            return redirect()->route('admin.receipt.purchase.create')->with('error', 'Thêm mới phiếu nhập kho thất bại!');
         }
     }
 
@@ -138,15 +139,15 @@ class PurchaseReceiptController extends Controller
     {
         try {
             $this->purchaseReceiptService->update($request, $id);
-            return redirect()->route('admin.purchase.receipt.index')->with('success', 'Cập nhật phiếu nhập kho thành công!');
+            return redirect()->route('admin.receipt.purchase.index')->with('success', 'Cập nhật phiếu nhập kho thành công!');
         } catch (\Throwable $e) {
-            return redirect()->route('admin.purchase.receipt.edit', ['id' => $id])->with('error', 'Cập nhật phiếu nhập kho thất bại!');
+            return redirect()->route('admin.receipt.purchase.edit', ['id' => $id])->with('error', 'Cập nhật phiếu nhập kho thất bại!');
         }
     }
 
     public function delete($id)
     {
-        $this->authorize('modules', 'purchase.receipt.destroy');
+        $this->authorize('modules', 'receipt.purchase.destroy');
         try {
             $this->purchaseReceiptService->delete($id);
 

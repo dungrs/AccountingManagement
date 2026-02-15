@@ -37,13 +37,11 @@ class PurchaseReceipt extends Model
 
     public function journalEntries()
     {
-        return $this->hasMany(JournalEntry::class, 'reference_id')
-            ->where('reference_type', 'purchase_receipt');
+        return $this->morphMany(JournalEntry::class, 'reference');
     }
 
     public function supplierDebts()
     {
-        return $this->hasMany(SupplierDebt::class, 'reference_id')
-            ->where('reference_type', 'purchase_receipt');
+        return $this->morphMany(SupplierDebt::class, 'reference');
     }
 }

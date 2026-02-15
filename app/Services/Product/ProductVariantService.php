@@ -35,7 +35,7 @@ class ProductVariantService extends BaseService implements ProductVariantService
         ];
 
         if (!is_null($publish)) {
-            $condition['where'][] = ['users.publish', '=', $publish];
+            $condition['where'][] = ['product_variants.publish', '=', $publish];
         }
 
         $join = [
@@ -74,7 +74,7 @@ class ProductVariantService extends BaseService implements ProductVariantService
             'product_variants.sku',
         ];
 
-        $users = $this->productVariantRepository->paginate(
+        $productVariants = $this->productVariantRepository->paginate(
             $this->paginateSelect(),
             $condition,
             $perpage,
@@ -85,7 +85,7 @@ class ProductVariantService extends BaseService implements ProductVariantService
             []
         );
 
-        return $users;
+        return $productVariants;
     }
 
     public function update($request)

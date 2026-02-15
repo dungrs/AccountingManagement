@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Inertia\Inertia;
 
 class AppServiceProvider extends ServiceProvider
@@ -22,5 +23,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+        Relation::morphMap([
+            'payment_voucher' => 'App\Models\PaymentVoucher',
+            'purchase_receipt' => 'App\Models\PurchaseReceipt',
+            // Thêm các model khác nếu cần
+        ]);
     }
 }

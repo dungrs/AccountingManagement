@@ -143,7 +143,7 @@ export default function AdminLayout({ children, breadcrumb }) {
             items: [
                 {
                     title: "Phiếu Nhập Kho",
-                    url: route("admin.purchase.receipt.index"),
+                    url: route("admin.receipt.purchase.index"),
                 },
                 {
                     title: "Phiếu Xuất Kho",
@@ -167,7 +167,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Phiếu Chi",
-                    url: route("admin.dashboard.index"),
+                    url: route("admin.voucher.payment.index"),
                 },
                 {
                     title: "Sổ Quỹ",

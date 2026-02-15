@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
-import { Head, usePage } from "@inertiajs/react";
+import { Head, usePage, router } from "@inertiajs/react";
 import { useEventBus } from "@/EventBus";
 import { useReactToPrint } from "react-to-print";
 
@@ -19,11 +19,10 @@ import { Button } from "@/admin/components/ui/button";
 import PurchaseReceiptPrint from "@/admin/components/shared/print/PurchaseReceiptPrint";
 
 // Utils
-import {
-    formatCurrency,
-    calculateTotals,
-    getVariantInfo,
-} from "@/admin/utils/receiptUtils";
+import { calculateTotals, getVariantInfo } from "@/admin/utils/receiptUtils";
+
+import { formatCurrency, formatNumber } from "@/admin/utils/helpers";
+
 import { Save, Printer } from "lucide-react";
 
 export default function PurchaseReceiptForm() {
@@ -38,6 +37,10 @@ export default function PurchaseReceiptForm() {
         system_languages,
         errors: serverErrors,
     } = usePage().props;
+
+    useEffect(() => {
+        console.log(accounting_accounts)
+    }, [])
 
     const printRef = useRef(null);
     const { emit } = useEventBus();
@@ -104,14 +107,14 @@ export default function PurchaseReceiptForm() {
     // Submit handler
     const handleSubmit = (e) => {
         const submitRoute = isEdit
-            ? route("admin.purchase.receipt.update", purchase_receipt.id)
-            : route("admin.purchase.receipt.store");
+            ? route("admin.receipt.purchase.update", purchase_receipt.id)
+            : route("admin.receipt.purchase.store");
         const submitMethod = isEdit ? "put" : "post";
 
         baseHandleSubmit(e, submitRoute, submitMethod);
     };
 
-    // Handle print - Updated for react-to-print v3
+    // Handle print
     const handlePrint = useReactToPrint({
         contentRef: printRef,
         documentTitle: `Phieu-nhap-kho-${formData.code || "Moi"}`,
@@ -134,7 +137,7 @@ export default function PurchaseReceiptForm() {
     });
 
     // Calculate totals
-    const totals = calculateTotals(formData.product_variants);
+    const totals = calculateTotals(formData.product_variants || []);
 
     // Get current supplier
     const currentSupplier = suppliers?.find(
@@ -150,7 +153,7 @@ export default function PurchaseReceiptForm() {
                 { label: "Dashboard", link: route("admin.dashboard.index") },
                 {
                     label: "Phiếu nhập hàng",
-                    link: route("admin.purchase.receipt.index"),
+                    link: route("admin.receipt.purchase.index"),
                 },
                 {
                     label: isEdit
@@ -173,7 +176,7 @@ export default function PurchaseReceiptForm() {
                     <ReceiptHeader
                         isEdit={isEdit}
                         formData={formData}
-                        indexRoute={route("admin.purchase.receipt.index")}
+                        indexRoute={route("admin.receipt.purchase.index")}
                         type="purchase"
                     />
 
@@ -207,6 +210,7 @@ export default function PurchaseReceiptForm() {
                         type="purchase"
                         suppliers={suppliers}
                         users={users}
+                        isEdit={isEdit}
                     />
 
                     {/* Danh sách sản phẩm với Summary */}
@@ -251,6 +255,7 @@ export default function PurchaseReceiptForm() {
                     />
 
                     {/* Hạch toán và Công nợ */}
+                    {/* Hạch toán và Công nợ */}
                     <AccountingTabs
                         formData={formData}
                         accountingAccounts={accounting_accounts || []}
@@ -259,6 +264,7 @@ export default function PurchaseReceiptForm() {
                         formatCurrency={formatCurrency}
                         createdBy={purchase_receipt?.created_by || ""}
                         receiptDate={formData.receipt_date}
+                        addingRows={addingRows} // Thêm dòng này
                     />
 
                     {/* Nút lưu/cập nhật ở cuối form */}
@@ -273,10 +279,6 @@ export default function PurchaseReceiptForm() {
                         </Button>
                         <Button
                             type="submit"
-                            disabled={
-                                isSubmitting ||
-                                formData.product_variants?.length === 0
-                            }
                             size="lg"
                             className="min-w-[200px]"
                         >

@@ -48,7 +48,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         ];
 
         $extend = [
-            'path' => '/purchase/receipt/index',
+            'path' => '/receipt/purchase/index',
             'fieldSearch' => ['code', 'u.name', 'supplier_name'],
         ];
 
@@ -77,26 +77,39 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     public function create($request)
     {
         return DB::transaction(function () use ($request) {
-
-            $items = $request->input('product_variants', []);
-
-            $calculation = $this->calculateTotals($items);
-
             $payload = $request->only($this->payload());
             $payload['user_id'] = $request->input('user_id');
-            $payload['created_by'] = Auth::id();
+            $payload['created_by'] = $request->input('user_id');
+
+            // Tính toán từ product_variants
+            $items = $request->input('product_variants', []);
+            $calculation = $this->calculateTotals($items);
+
             $payload['total_amount'] = $calculation['total_amount'];
             $payload['vat_amount']   = $calculation['vat_amount'];
             $payload['grand_total']  = $calculation['grand_total'];
 
+            // Tạo mã nếu không có code từ request
             if (empty($payload['code'])) {
                 $payload['code'] = $this->generatePurchaseReceiptCode();
             }
 
             $receipt = $this->purchaseReceiptRepository->create($payload);
 
+            // Lưu items
             $this->syncPurchaseReceiptItems($receipt, $calculation['items']);
 
+            // SỬA: Tạo journal entries cho cả draft và confirmed
+            if ($request->has('journal_entries')) {
+                $this->journalEntryService->createFromRequest(
+                    'purchase_receipt',
+                    $receipt->id,
+                    $request->input('journal_entries'),
+                    $receipt->receipt_date
+                );
+            }
+
+            // SỬA: Xử lý khi xác nhận - chỉ tạo công nợ và tăng tồn kho
             if ($payload['status'] === 'confirmed') {
                 $this->handleConfirm($receipt);
             }
@@ -129,10 +142,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             $newStatus = $request->input('status');
 
             /*
-        |--------------------------------------------------------------------------
-        | Nếu đang CONFIRMED
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | Nếu đang CONFIRMED
+            |--------------------------------------------------------------------------
+            */
             if ($receipt->status === 'confirmed') {
 
                 // Chỉ cho phép hủy
@@ -146,26 +159,44 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             }
 
             /*
-        |--------------------------------------------------------------------------
-        | Nếu đang DRAFT
-        |--------------------------------------------------------------------------
-        */
+            |--------------------------------------------------------------------------
+            | Nếu đang DRAFT
+            |--------------------------------------------------------------------------
+            */
             if ($receipt->status === 'draft') {
 
                 $items = $request->input('product_variants', []);
                 $calculation = $this->calculateTotals($items);
 
                 $payload = $request->only($this->payload());
-                $payload['user_id'] = Auth::id();
+                $payload['user_id'] = $request->input('user_id');
                 $payload['total_amount'] = $calculation['total_amount'];
                 $payload['vat_amount']   = $calculation['vat_amount'];
                 $payload['grand_total']  = $calculation['grand_total'];
 
+                // Không cho phép sửa code khi update
+                unset($payload['code']);
+
                 $this->purchaseReceiptRepository->update($id, $payload);
 
+                // Cập nhật items
                 $this->syncPurchaseReceiptItems($receipt, $calculation['items']);
 
-                // Nếu từ draft → confirmed
+                // SỬA: Cập nhật journal entries
+                if ($request->has('journal_entries')) {
+                    // Xóa journal entries cũ
+                    $this->journalEntryService->deleteJournalByReference('purchase_receipt', $receipt->id);
+
+                    // Tạo mới
+                    $this->journalEntryService->createFromRequest(
+                        'purchase_receipt',
+                        $receipt->id,
+                        $request->input('journal_entries'),
+                        $receipt->receipt_date
+                    );
+                }
+
+                // SỬA: Nếu từ draft → confirmed
                 if ($newStatus === 'confirmed') {
                     $receipt = $this->purchaseReceiptRepository->findById($id);
                     $this->handleConfirm($receipt);
@@ -188,6 +219,17 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 throw new \Exception('Phiếu nhập không tồn tại.');
             }
 
+            // SỬA: Xóa journal entries (cho cả draft và confirmed)
+            $this->journalEntryService->deleteJournalByReference('purchase_receipt', $purchaseReceipt->id);
+
+            // SỬA: Xóa công nợ và giảm tồn kho nếu đã confirmed
+            if ($purchaseReceipt->status === 'confirmed') {
+                $this->supplierDebtService->deleteDebtByReference('purchase_receipt', $purchaseReceipt->id);
+
+                // Giảm tồn kho khi xóa phiếu đã confirmed
+                $this->productVariantService->decreaseStock($purchaseReceipt->items);
+            }
+
             $purchaseReceipt->delete();
 
             return true;
@@ -196,25 +238,25 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
 
     private function handleConfirm($receipt)
     {
-        // 1️⃣ Tăng tồn kho
+        // 1️⃣ Tăng tồn kho (chỉ thực hiện nếu chưa tăng)
         $this->productVariantService->increaseStock($receipt->items);
 
         // 2️⃣ Tạo công nợ
         $this->supplierDebtService->createDebtForPurchaseReceipt($receipt);
 
-        // 3️⃣ Tạo định khoản
-        $this->journalEntryService->createPurchaseReceiptJournal($receipt);
+        // 3️⃣ Xác nhận journal entries (nếu cần)
+        $this->journalEntryService->confirmJournalByReference('purchase_receipt', $receipt->id);
     }
 
     private function handleCancel($receipt)
     {
-        // 1️⃣ Trừ tồn kho
+        // 1️⃣ Trừ tồn kho (nếu đã tăng)
         $this->productVariantService->decreaseStock($receipt->items);
 
         // 2️⃣ Xoá công nợ
         $this->supplierDebtService->deleteDebtByReference('purchase_receipt', $receipt->id);
 
-        // 3️⃣ Xoá định khoản
+        // 3️⃣ Xoá định khoản (nếu cần xóa, hoặc có thể giữ lại tùy logic)
         $this->journalEntryService->deleteJournalByReference('purchase_receipt', $receipt->id);
     }
 
@@ -256,8 +298,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 'supplier',
                 'items.productVariant.products.languages',
                 'items.productVariant.languages',
-                'items.productVariant.unit', // ✅ thêm unit
-                'journalEntries.details.account.languages',
+                'items.productVariant.unit',
+                'journalEntries' => function ($query) {
+                    $query->with(['details.account.languages']);
+                },
                 'supplierDebts'
             ]
         );
@@ -266,6 +310,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             return null;
         }
 
+        // Lấy ngôn ngữ hiện tại
+        $currentLanguageId = session('currentLanguage', 1);
+
+        // Format thông tin supplier
         $purchaseReceipt->supplier_info = [
             'id'            => $purchaseReceipt->supplier?->id,
             'supplier_code' => $purchaseReceipt->supplier?->supplier_code,
@@ -281,85 +329,114 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         | Format sản phẩm
         |--------------------------------------------------------------------------
         */
-        $purchaseReceipt->product_variants = $purchaseReceipt->items->map(function ($item) {
+        $purchaseReceipt->product_variants = $purchaseReceipt->items->isNotEmpty()
+            ? $purchaseReceipt->items->map(function ($item) use ($currentLanguageId) {
+                // Lấy tên product theo ngôn ngữ
+                $productName = '';
+                if ($item->productVariant && $item->productVariant->product) {
+                    $productTranslation = $item->productVariant->product->languages
+                        ->firstWhere('id', $currentLanguageId);
+                    $productName = $productTranslation?->pivot?->name ?? '';
+                }
 
-            // Lấy tên product
-            $productName = $item->productVariant?->products?->languages->first()?->pivot->name ?? '';
+                // Lấy tên variant theo ngôn ngữ
+                $variantName = '';
+                if ($item->productVariant) {
+                    $variantTranslation = $item->productVariant->languages
+                        ->firstWhere('id', $currentLanguageId);
+                    $variantName = $variantTranslation?->pivot?->name ?? '';
+                }
 
-            // Lấy tên variant
-            $variantName = $item->productVariant?->languages->first()?->pivot->name ?? '';
+                // Ghép tên theo format: "Product Name - Variant Name"
+                $fullName = trim($productName);
+                if ($variantName) {
+                    $fullName .= ($fullName ? ' - ' : '') . $variantName;
+                }
 
-            // Ghép tên theo format: "Product Name - Variant Name"
-            $fullName = trim($productName);
-            if ($variantName) {
-                $fullName .= ($fullName ? ' - ' : '') . $variantName;
-            }
+                // Nếu không có tên thì dùng SKU hoặc barcode
+                if (empty($fullName)) {
+                    $fullName = $item->productVariant?->sku ?? $item->productVariant?->barcode ?? 'N/A';
+                }
 
-            // ✅ Lấy đơn vị tính
-            $unit = $item->productVariant?->unit;
+                // Lấy đơn vị tính
+                $unit = $item->productVariant?->unit;
 
-            return [
-                'product_variant_id' => $item->product_variant_id,
-                'barcode'            => $item->productVariant?->barcode,
-                'name'               => $fullName,
-                'sku'                => $item->productVariant?->sku,
-                'quantity'           => $item->quantity,
-                'price'              => $item->price,
-                'vat_amount'         => $item->vat_amount,
-                'subtotal'           => $item->subtotal,
-
-                // ✅ thêm thông tin đơn vị tính
-                'unit' => $unit ? [
-                    'id'        => $unit->id,
-                    'code' => $unit->unit_code ?? null,
-                    'name'      => $unit->name ?? null,
-                ] : null,
-            ];
-        });
+                return [
+                    'product_variant_id' => $item->product_variant_id,
+                    'barcode'            => $item->productVariant?->barcode,
+                    'name'               => $fullName,
+                    'sku'                => $item->productVariant?->sku,
+                    'quantity'           => $item->quantity,
+                    'price'              => $item->price,
+                    'vat_amount'         => $item->vat_amount,
+                    'subtotal'           => $item->subtotal,
+                    'unit' => $unit ? [
+                        'id'        => $unit->id,
+                        'code'      => $unit->unit_code ?? $unit->code ?? null,
+                        'name'      => $unit->name ?? null,
+                    ] : null,
+                ];
+            })->values()->toArray()
+            : [];
 
         /*
         |--------------------------------------------------------------------------
-        | Format định khoản (gom Nợ/Có)
+        | Format journal entries
         |--------------------------------------------------------------------------
         */
-        $accounting = [];
-
-        foreach ($purchaseReceipt->journalEntries as $journal) {
-            foreach ($journal->details as $detail) {
-                $accountName = optional($detail->account->languages->first())->pivot->name ?? null;
-
-                $accounting[] = [
-                    'account_id'   => $detail->account?->id,
-                    'account_code' => $detail->account?->account_code,
-                    'account_name' => $accountName,
-                    'debit'        => $detail->debit ?? 0,
-                    'credit'       => $detail->credit ?? 0,
+        $purchaseReceipt->journal_entries = $purchaseReceipt->journalEntries->isNotEmpty()
+            ? $purchaseReceipt->journalEntries->map(function ($journal) {
+                return [
+                    'id'          => $journal->id,
+                    'code'        => $journal->code,
+                    'entry_date'  => $journal->entry_date,
+                    'note'        => $journal->note,
+                    'created_by'  => $journal->created_by,
+                    'details'     => $journal->details->map(function ($detail) {
+                        return [
+                            'account_code' => $detail->account?->account_code,
+                            'debit'        => $detail->debit,
+                            'credit'       => $detail->credit,
+                        ];
+                    })->values()->toArray()
                 ];
-            }
-        }
-
-        $purchaseReceipt->accounting = $accounting;
+            })->values()->toArray()
+            : [];
 
         /*
-    |--------------------------------------------------------------------------
-    | Format công nợ
-    |--------------------------------------------------------------------------
-    */
+        |--------------------------------------------------------------------------
+        | Format công nợ
+        |--------------------------------------------------------------------------
+        */
         $totalDebit = 0;
         $totalCredit = 0;
 
-        foreach ($purchaseReceipt->supplierDebts as $debt) {
-            $totalDebit += $debt->debit ?? 0;
-            $totalCredit += $debt->credit ?? 0;
+        if ($purchaseReceipt->supplierDebts->isNotEmpty()) {
+            foreach ($purchaseReceipt->supplierDebts as $debt) {
+                $totalDebit += $debt->debit ?? 0;
+                $totalCredit += $debt->credit ?? 0;
+            }
         }
 
         $purchaseReceipt->debt = [
             'total_debit'  => $totalDebit,
             'total_credit' => $totalCredit,
             'balance'      => $totalDebit - $totalCredit,
+            'details'      => $purchaseReceipt->supplierDebts->isNotEmpty()
+                ? $purchaseReceipt->supplierDebts->map(function ($debt) {
+                    return [
+                        'id'               => $debt->id,
+                        'transaction_date' => $debt->transaction_date,
+                        'debit'            => $debt->debit,
+                        'credit'           => $debt->credit,
+                        'reference_type'   => $debt->reference_type,
+                        'reference_id'     => $debt->reference_id,
+                    ];
+                })->values()->toArray()
+                : []
         ];
 
-        // Cleanup
+        // Cleanup - xóa các relation không cần thiết khỏi response
         unset($purchaseReceipt->items);
         unset($purchaseReceipt->journalEntries);
         unset($purchaseReceipt->supplierDebts);
@@ -375,7 +452,6 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         $formattedItems = [];
 
         foreach ($items as $item) {
-
             $subtotal = $item['quantity'] * $item['price'];
 
             // Lấy rate từ VatTaxRepository
@@ -406,23 +482,29 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     }
 
     /**
-     * Tự động generate mã phiếu nhập kho
-     * Format: PNK_001, PNK_002, ...
+     * Tự động generate mã phiếu nhập kho duy nhất
+     * Format: PNK_YYYYMMDD_HHMMSS (dựa trên thời gian hiện tại)
      */
     private function generatePurchaseReceiptCode()
     {
-        $latest = $this->purchaseReceiptRepository->findLastest();
+        do {
+            // Tạo mã dựa trên thời gian: PNK_YYYYMMDD_HHMMSS
+            $code = 'PNK_' . now()->format('Ymd_His');
 
-        if (!$latest) {
-            return 'PNK_001';
-        }
+            // Kiểm tra xem mã đã tồn tại chưa
+            $exists = $this->purchaseReceiptRepository->findByCondition(
+                [['code', '=', $code]],
+                false
+            );
 
-        $latestCode = $latest->code;
-        preg_match('/(\d+)/', $latestCode, $matches);
+            // Nếu đã tồn tại, chờ 1 giây để tạo mã mới
+            if ($exists) {
+                sleep(1);
+                now()->refresh();
+            }
+        } while ($exists);
 
-        $number = isset($matches[1]) ? (int)$matches[1] + 1 : 1;
-
-        return 'PNK_' . str_pad($number, 3, '0', STR_PAD_LEFT);
+        return $code;
     }
 
     private function paginateSelect()
@@ -446,6 +528,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             'code',
             'receipt_date',
             'supplier_id',
+            'user_id',
             'total_amount',
             'vat_amount',
             'grand_total',

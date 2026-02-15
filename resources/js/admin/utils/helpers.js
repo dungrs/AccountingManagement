@@ -24,3 +24,16 @@ export const formatDate = (dateString) => {
 
     return date.toLocaleDateString("vi-VN");
 };
+
+export const formatCurrency = (value) => {
+    if (!value) return "-";
+    return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+    }).format(value);
+};
+
+export const formatNumber = (value) => {
+    if (!value && value !== 0) return "-";
+    return new Intl.NumberFormat("vi-VN").format(value);
+};

@@ -30,15 +30,31 @@ const getStatusBadge = (status) => {
             label: "Đã xác nhận",
             className: "bg-green-100 text-green-800",
         },
-        cancelled: {
-            label: "Đã hủy",
-            className: "bg-red-100 text-red-800",
-        },
     };
 
     return (
         statusMap[status] || {
             label: status,
+            className: "bg-gray-100 text-gray-800",
+        }
+    );
+};
+
+const getPaymentMethodBadge = (method) => {
+    const methodMap = {
+        cash: {
+            label: "Tiền mặt",
+            className: "bg-blue-100 text-blue-800",
+        },
+        bank: {
+            label: "Chuyển khoản",
+            className: "bg-purple-100 text-purple-800",
+        },
+    };
+
+    return (
+        methodMap[method] || {
+            label: method,
             className: "bg-gray-100 text-gray-800",
         }
     );
@@ -51,7 +67,7 @@ const formatCurrency = (amount) => {
     });
 };
 
-export default function PurchaseReceiptTable({
+export default function PaymentVoucherTable({
     data = [],
     loading = false,
     selectedRows = [],
@@ -75,13 +91,15 @@ export default function PurchaseReceiptTable({
                         </TableHead>
 
                         <TableHead>Mã phiếu</TableHead>
-                        <TableHead>Ngày nhập</TableHead>
+                        <TableHead>Ngày chi</TableHead>
                         <TableHead>Nhà cung cấp</TableHead>
-                        <TableHead className="text-right">Tổng tiền</TableHead>
+                        <TableHead className="text-right">Số tiền</TableHead>
+                        <TableHead className="text-center">
+                            Phương thức
+                        </TableHead>
                         <TableHead className="text-center">
                             Trạng thái
                         </TableHead>
-                        <TableHead>Người tạo</TableHead>
                         <TableHead>Ghi chú</TableHead>
                         <TableHead className="text-right">Thao tác</TableHead>
                     </TableRow>
@@ -100,6 +118,7 @@ export default function PurchaseReceiptTable({
                     ) : data.length > 0 ? (
                         data.map((row) => {
                             const statusBadge = getStatusBadge(row.status);
+                            const methodBadge = getPaymentMethodBadge(row.payment_method);
                             return (
                                 <TableRow
                                     key={row.id}
@@ -121,19 +140,30 @@ export default function PurchaseReceiptTable({
                                         {row.code}
                                     </TableCell>
 
-                                    {/* Ngày nhập */}
+                                    {/* Ngày chi */}
                                     <TableCell>
-                                        {row.receipt_date
-                                            ? formatDate(row.receipt_date)
+                                        {row.voucher_date
+                                            ? formatDate(row.voucher_date)
                                             : "-"}
                                     </TableCell>
 
                                     {/* Nhà cung cấp */}
-                                    <TableCell>{row.supplier_name}</TableCell>
+                                    <TableCell className="font-medium">
+                                        {row.supplier_name}
+                                    </TableCell>
 
-                                    {/* Tổng tiền */}
+                                    {/* Số tiền */}
                                     <TableCell className="text-right font-medium">
-                                        {formatCurrency(row.grand_total)}
+                                        {formatCurrency(row.amount)}
+                                    </TableCell>
+
+                                    {/* Phương thức thanh toán */}
+                                    <TableCell className="text-center">
+                                        <span
+                                            className={`px-3 py-1 text-xs font-medium rounded-full ${methodBadge.className}`}
+                                        >
+                                            {methodBadge.label}
+                                        </span>
                                     </TableCell>
 
                                     {/* Trạng thái */}
@@ -145,13 +175,9 @@ export default function PurchaseReceiptTable({
                                         </span>
                                     </TableCell>
 
-                                    {/* Người tạo */}
-                                    <TableCell className="text-sm">
-                                        {row.user_name}
-                                    </TableCell>
-
-                                    <TableCell className="text-sm">
-                                        {row.note ?? '-'}
+                                    {/* Ghi chú */}
+                                    <TableCell className="text-sm max-w-[200px] truncate">
+                                        {row.note || "-"}
                                     </TableCell>
 
                                     {/* Thao tác */}
@@ -176,7 +202,7 @@ export default function PurchaseReceiptTable({
                                                     onClick={() =>
                                                         router.visit(
                                                             route(
-                                                                "admin.receipt.purchase.edit",
+                                                                "admin.voucher.payment.edit",
                                                                 row.id,
                                                             ),
                                                         )

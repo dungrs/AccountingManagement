@@ -5,6 +5,7 @@ namespace App\Services\Debt;
 use App\Repositories\Debt\SupplierDebtRepository;
 use App\Services\BaseService;
 use App\Services\Interfaces\Debt\SupplierDebtServiceInterface;
+use Illuminate\Support\Facades\DB;
 
 class SupplierDebtService extends BaseService implements SupplierDebtServiceInterface
 {
@@ -20,14 +21,17 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
      */
     public function createDebtForPurchaseReceipt($receipt)
     {
-        return $this->supplierDebtRepository->create([
-            'supplier_id'      => $receipt->supplier_id,
-            'reference_type'   => 'purchase_receipt',
-            'reference_id'     => $receipt->id,
-            'debit'            => $receipt->grand_total,
-            'credit'           => 0,
-            'transaction_date' => now(),
-        ]);
+        return DB::transaction(function () use ($receipt) {
+            // Tạo mới bản ghi công nợ
+            return $this->supplierDebtRepository->create([
+                'supplier_id'      => $receipt->supplier_id,
+                'reference_type'   => 'purchase_receipt',
+                'reference_id'     => $receipt->id,
+                'debit'            => $receipt->grand_total,
+                'credit'           => 0,
+                'transaction_date' => $receipt->receipt_date ?? now(),
+            ]);
+        });
     }
 
     /**
@@ -35,14 +39,17 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
      */
     public function createDebtForPaymentVoucher($paymentVoucher)
     {
-        return $this->supplierDebtRepository->create([
-            'supplier_id'      => $paymentVoucher->supplier_id,
-            'reference_type'   => 'payment_voucher',
-            'reference_id'     => $paymentVoucher->id,
-            'debit'            => 0,
-            'credit'           => $paymentVoucher->amount,
-            'transaction_date' => now(),
-        ]);
+        return DB::transaction(function () use ($paymentVoucher) {
+            // Tạo mới bản ghi công nợ
+            return $this->supplierDebtRepository->create([
+                'supplier_id'      => $paymentVoucher->supplier_id,
+                'reference_type'   => 'payment_voucher',
+                'reference_id'     => $paymentVoucher->id,
+                'debit'            => 0,
+                'credit'           => $paymentVoucher->amount,
+                'transaction_date' => $paymentVoucher->voucher_date ?? now(),
+            ]);
+        });
     }
 
     /**
@@ -57,13 +64,13 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
     }
 
     /**
-     * Lấy tổng công nợ của nhà cung cấp
+     * Lấy tổng công nợ hiện tại của nhà cung cấp
      */
     public function getSupplierDebtBalance($supplierId)
     {
         $debts = $this->supplierDebtRepository->findByCondition(
             [['supplier_id', '=', $supplierId]],
-            true // get all
+            true
         );
 
         $totalDebit = 0;
@@ -79,5 +86,32 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
             'total_credit' => $totalCredit,
             'balance'      => $totalDebit - $totalCredit,
         ];
+    }
+
+    /**
+     * Lấy tổng công nợ theo nhiều nhà cung cấp
+     */
+    public function getMultipleSupplierDebtBalance(array $supplierIds)
+    {
+        $result = [];
+
+        foreach ($supplierIds as $supplierId) {
+            $result[$supplierId] = $this->getSupplierDebtBalance($supplierId);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Lấy lịch sử công nợ của nhà cung cấp
+     */
+    public function getSupplierDebtHistory($supplierId, $limit = 50)
+    {
+        return $this->supplierDebtRepository->findByCondition(
+            [['supplier_id', '=', $supplierId]],
+            true,
+            ['transaction_date' => 'DESC', 'id' => 'DESC'],
+            ['*'],
+        );
     }
 }
