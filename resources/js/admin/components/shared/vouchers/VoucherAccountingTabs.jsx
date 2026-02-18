@@ -1,9 +1,26 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { Card } from "@/admin/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/admin/components/ui/card";
+
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/admin/components/ui/table";
+
 import { Button } from "@/admin/components/ui/button";
 import { Input } from "@/admin/components/ui/input";
+import { Badge } from "@/admin/components/ui/badge";
 import { Plus, Trash2 } from "lucide-react";
 import SelectCombobox from "../../ui/select-combobox";
+import { useRef, useState, useMemo, useEffect } from "react";
 
 export default function VoucherAccountingTabs({
     formData,
@@ -14,7 +31,10 @@ export default function VoucherAccountingTabs({
 }) {
     // State cho danh sách bút toán có thể chỉnh sửa
     const [entries, setEntries] = useState([]);
-    const [isInitialized, setIsInitialized] = useState(false);
+    const isInitialized = useRef(false);
+    const prevPaymentMethod = useRef(formData.payment_method);
+    const prevAmount = useRef(formData.amount);
+    const isUpdatingFromServer = useRef(false);
 
     // Tìm tài khoản theo mã
     const findAccount = (code) =>
@@ -44,10 +64,9 @@ export default function VoucherAccountingTabs({
         const cashAccountCode = getDefaultCashAccount();
 
         if (type === "payment") {
-            // Phiếu chi: Nợ (thường là 331) / Có (111/112)
             return [
                 {
-                    id: `temp_${Date.now()}_1`,
+                    id: `default_1_${Date.now()}`,
                     account_code: "331",
                     account_name:
                         findAccount("331")?.name || "Phải trả nhà cung cấp",
@@ -55,7 +74,7 @@ export default function VoucherAccountingTabs({
                     credit: 0,
                 },
                 {
-                    id: `temp_${Date.now()}_2`,
+                    id: `default_2_${Date.now()}`,
                     account_code: cashAccountCode,
                     account_name:
                         findAccount(cashAccountCode)?.name ||
@@ -67,10 +86,9 @@ export default function VoucherAccountingTabs({
                 },
             ];
         } else {
-            // Phiếu thu: Nợ (111/112) / Có (thường là 131)
             return [
                 {
-                    id: `temp_${Date.now()}_1`,
+                    id: `default_1_${Date.now()}`,
                     account_code: cashAccountCode,
                     account_name:
                         findAccount(cashAccountCode)?.name ||
@@ -81,7 +99,7 @@ export default function VoucherAccountingTabs({
                     credit: 0,
                 },
                 {
-                    id: `temp_${Date.now()}_2`,
+                    id: `default_2_${Date.now()}`,
                     account_code: "131",
                     account_name:
                         findAccount("131")?.name || "Phải thu khách hàng",
@@ -94,37 +112,24 @@ export default function VoucherAccountingTabs({
 
     // Khởi tạo entries từ dữ liệu server hoặc tạo mới
     useEffect(() => {
-        console.log("=== INIT ENTRIES ===");
-        console.log("isInitialized:", isInitialized);
-        console.log("formData.journal_entries:", formData.journal_entries);
-        console.log("formData.amount:", formData.amount);
-        console.log("formData.payment_method:", formData.payment_method);
-        console.log("accountingAccounts length:", accountingAccounts.length);
+        if (isInitialized.current) return;
+
+        isUpdatingFromServer.current = true;
 
         // Nếu đang edit và có journal_entries từ server
         if (formData.journal_entries && formData.journal_entries.length > 0) {
-            // Kiểm tra xem có details trong journal_entries[0] không
             const firstEntry = formData.journal_entries[0];
             let serverEntries = [];
 
-            console.log("firstEntry:", firstEntry);
-
             if (firstEntry?.details && Array.isArray(firstEntry.details)) {
-                // Trường hợp có cấu trúc journal_entries[0].details
                 serverEntries = firstEntry.details;
-                console.log("Using firstEntry.details");
             } else if (Array.isArray(formData.journal_entries)) {
-                // Trường hợp journal_entries là array trực tiếp
                 serverEntries = formData.journal_entries;
-                console.log("Using formData.journal_entries directly");
             }
-
-            console.log("serverEntries:", serverEntries);
 
             if (serverEntries.length > 0) {
                 const mappedEntries = serverEntries.map((detail, index) => {
                     const account = findAccount(detail.account_code);
-                    console.log(`Mapping entry ${index}:`, detail, "Found account:", account);
                     return {
                         id: detail.id || `server_${index}_${Date.now()}`,
                         account_code: detail.account_code,
@@ -133,29 +138,32 @@ export default function VoucherAccountingTabs({
                         credit: parseFloat(detail.credit) || 0,
                     };
                 });
-                
-                console.log("✅ Loaded entries from server:", mappedEntries);
+
                 setEntries(mappedEntries);
-                setIsInitialized(true);
+                isInitialized.current = true;
+                isUpdatingFromServer.current = false;
                 return;
             }
         }
 
-        // Chỉ tạo entries mặc định nếu chưa được khởi tạo
-        if (!isInitialized) {
-            // LUÔN LUÔN tạo entries mặc định ngay từ đầu
-            // Nếu có số tiền thì tạo với số tiền đó, nếu không thì tạo với 0
-            const defaultEntries = generateDefaultEntries();
-            console.log("✅ Created default entries:", defaultEntries);
-            setEntries(defaultEntries);
-            setIsInitialized(true);
-        }
-    }, [formData.journal_entries, formData.amount, isInitialized]);
+        // Tạo entries mặc định nếu không có dữ liệu từ server
+        const defaultEntries = generateDefaultEntries();
+        setEntries(defaultEntries);
+        isInitialized.current = true;
+        isUpdatingFromServer.current = false;
+
+        // Cập nhật refs
+        prevPaymentMethod.current = formData.payment_method;
+        prevAmount.current = formData.amount;
+    }, []); // Chỉ chạy 1 lần khi mount
 
     // Cập nhật entries khi payment_method thay đổi
     useEffect(() => {
-        if (!isInitialized) return;
+        if (!isInitialized.current || isUpdatingFromServer.current) return;
         if (entries.length === 0) return;
+
+        // Chỉ cập nhật nếu payment_method thực sự thay đổi
+        if (prevPaymentMethod.current === formData.payment_method) return;
 
         const amount = parseFloat(formData.amount) || 0;
         if (amount <= 0) return;
@@ -164,64 +172,93 @@ export default function VoucherAccountingTabs({
         const cashAccount = findAccount(cashAccountCode);
 
         setEntries((prev) => {
-            return prev.map((entry, index) => {
+            return prev.map((entry) => {
                 // Tìm dòng có tài khoản tiền (111 hoặc 112)
-                const isCashAccount = entry.account_code === "111" || entry.account_code === "112";
-                
+                const isCashAccount =
+                    entry.account_code === "111" ||
+                    entry.account_code === "112";
+
                 if (isCashAccount) {
                     // Cập nhật tài khoản tiền theo payment_method
                     return {
                         ...entry,
                         account_code: cashAccountCode,
-                        account_name: cashAccount?.name || (cashAccountCode === "112" ? "Tiền gửi ngân hàng" : "Tiền mặt"),
+                        account_name:
+                            cashAccount?.name ||
+                            (cashAccountCode === "112"
+                                ? "Tiền gửi ngân hàng"
+                                : "Tiền mặt"),
                     };
                 }
-                
+
                 return entry;
             });
         });
-    }, [formData.payment_method]);
+
+        // Cập nhật ref
+        prevPaymentMethod.current = formData.payment_method;
+    }, [formData.payment_method, entries.length]);
 
     // Cập nhật số tiền trong entries khi amount thay đổi
     useEffect(() => {
-        if (!isInitialized) return;
+        if (!isInitialized.current || isUpdatingFromServer.current) return;
         if (entries.length === 0) return;
 
+        // Chỉ cập nhật nếu amount thực sự thay đổi
+        if (prevAmount.current === formData.amount) return;
+
         const amount = parseFloat(formData.amount) || 0;
-        if (amount <= 0) return;
 
-        setEntries((prev) => {
-            // Tính tỷ lệ thay đổi
-            const oldTotal = prev.reduce((sum, e) => sum + (e.debit || 0), 0);
-            const ratio = oldTotal > 0 ? amount / oldTotal : 1;
+        // Tính tổng debit hiện tại
+        const currentTotalDebit = entries.reduce(
+            (sum, e) => sum + (e.debit || 0),
+            0,
+        );
 
-            return prev.map((entry) => {
-                if (type === "payment") {
-                    // Phiếu chi: dòng đầu là nợ, dòng cuối là có
-                    if (entry.debit > 0) {
-                        return { ...entry, debit: entry.debit * ratio };
-                    } else if (entry.credit > 0) {
-                        return { ...entry, credit: entry.credit * ratio };
+        // Nếu tổng debit hiện tại khác với amount, cập nhật lại
+        if (Math.abs(currentTotalDebit - amount) > 0.01) {
+            setEntries((prev) => {
+                return prev.map((entry) => {
+                    if (type === "payment") {
+                        if (entry.account_code === "331") {
+                            return { ...entry, debit: amount };
+                        } else if (
+                            entry.account_code === "111" ||
+                            entry.account_code === "112"
+                        ) {
+                            return { ...entry, credit: amount };
+                        }
+                    } else {
+                        if (
+                            entry.account_code === "111" ||
+                            entry.account_code === "112"
+                        ) {
+                            return { ...entry, debit: amount };
+                        } else if (entry.account_code === "131") {
+                            return { ...entry, credit: amount };
+                        }
                     }
-                } else {
-                    // Phiếu thu: dòng đầu là nợ, dòng cuối là có
-                    if (entry.debit > 0) {
-                        return { ...entry, debit: entry.debit * ratio };
-                    } else if (entry.credit > 0) {
-                        return { ...entry, credit: entry.credit * ratio };
-                    }
-                }
-                return entry;
+                    return entry;
+                });
             });
-        });
-    }, [formData.amount]);
+        }
+
+        // Cập nhật ref
+        prevAmount.current = formData.amount;
+    }, [formData.amount, entries.length, type]);
 
     // Thông báo khi entries thay đổi
     useEffect(() => {
-        if (onJournalEntriesChange && isInitialized) {
-            onJournalEntriesChange(entries);
+        if (onJournalEntriesChange && isInitialized.current) {
+            // ✅ Gửi entries với định dạng phù hợp
+            const formattedEntries = entries.map((entry) => ({
+                account_code: entry.account_code,
+                debit: parseFloat(entry.debit) || 0,
+                credit: parseFloat(entry.credit) || 0,
+            }));
+            onJournalEntriesChange(formattedEntries);
         }
-    }, [entries]);
+    }, [entries]); // ✅ Chỉ phụ thuộc vào entries
 
     // Xử lý thay đổi tài khoản
     const handleAccountChange = (index, accountCode) => {
@@ -274,75 +311,55 @@ export default function VoucherAccountingTabs({
     const isBalanced = Math.abs(totalDebit - totalCredit) < 0.0001;
 
     return (
-        <Card className="p-6 mt-6">
+        <Card className="shadow-sm">
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
                 <div>
-                    <h3 className="text-lg font-medium text-gray-900">
-                        Hạch toán kế toán
-                    </h3>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <CardTitle className="mb-2">Hạch toán kế toán</CardTitle>
+                    <CardDescription>
                         Nhập các bút toán cho phiếu{" "}
                         {type === "payment" ? "chi" : "thu"}
-                    </p>
+                    </CardDescription>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <span
-                        className={`text-sm px-3 py-1 rounded-full ${
-                            isBalanced
-                                ? "bg-green-100 text-green-700"
-                                : "bg-red-100 text-red-700"
-                        }`}
-                    >
+                    <Badge variant={isBalanced ? "default" : "destructive"}>
                         {isBalanced ? "✓ Cân bằng" : "✗ Mất cân bằng"}
-                    </span>
+                    </Badge>
+
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={handleAddEntry}
-                        className="gap-1"
                     >
-                        <Plus className="w-4 h-4" />
+                        <Plus className="w-4 h-4 mr-1" />
                         Thêm dòng
                     </Button>
                 </div>
-            </div>
+            </CardHeader>
 
-            {/* Bảng bút toán - Luôn hiển thị */}
-            <div className="space-y-4">
-                {/* Bảng bút toán */}
-                <div className="overflow-x-auto border border-gray-200 rounded-lg">
-                    <table className="w-full">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="text-left py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-2/5">
+            <CardContent className="space-y-6">
+                {/* Table */}
+                <div className="rounded-md border">
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead className="w-[40%]">
                                     Tài khoản{" "}
                                     <span className="text-red-500">*</span>
-                                </th>
-                                <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                                    Nợ
-                                </th>
-                                <th className="text-right py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-1/5">
-                                    Có
-                                </th>
-                                <th className="text-center py-3 px-4 text-xs font-medium text-gray-500 uppercase tracking-wider w-16">
-                                    <span className="sr-only">
-                                        Thao tác
-                                    </span>
-                                </th>
-                            </tr>
-                        </thead>
+                                </TableHead>
+                                <TableHead className="text-right">Nợ</TableHead>
+                                <TableHead className="text-right">Có</TableHead>
+                                <TableHead className="w-[60px]" />
+                            </TableRow>
+                        </TableHeader>
 
-                        <tbody className="divide-y divide-gray-200">
+                        <TableBody>
                             {entries.map((entry, index) => (
-                                <tr
-                                    key={entry.id}
-                                    className="hover:bg-gray-50"
-                                >
-                                    {/* Tài khoản - Sử dụng SelectCombobox */}
-                                    <td className="py-2 px-4">
+                                <TableRow key={entry.id}>
+                                    {/* Account */}
+                                    <TableCell>
                                         <SelectCombobox
                                             value={entry.account_code}
                                             onChange={(value) =>
@@ -355,10 +372,10 @@ export default function VoucherAccountingTabs({
                                             placeholder="-- Chọn tài khoản --"
                                             searchPlaceholder="Tìm tài khoản..."
                                         />
-                                    </td>
+                                    </TableCell>
 
-                                    {/* Số tiền Nợ */}
-                                    <td className="py-2 px-4">
+                                    {/* Debit */}
+                                    <TableCell>
                                         <Input
                                             type="number"
                                             value={entry.debit || ""}
@@ -369,15 +386,15 @@ export default function VoucherAccountingTabs({
                                                     e.target.value,
                                                 )
                                             }
+                                            className="text-right"
                                             placeholder="0"
-                                            className="w-full text-right"
                                             step="1000"
                                             min="0"
                                         />
-                                    </td>
+                                    </TableCell>
 
-                                    {/* Số tiền Có */}
-                                    <td className="py-2 px-4">
+                                    {/* Credit */}
+                                    <TableCell>
                                         <Input
                                             type="number"
                                             value={entry.credit || ""}
@@ -388,71 +405,64 @@ export default function VoucherAccountingTabs({
                                                     e.target.value,
                                                 )
                                             }
+                                            className="text-right"
                                             placeholder="0"
-                                            className="w-full text-right"
                                             step="1000"
                                             min="0"
                                         />
-                                    </td>
+                                    </TableCell>
 
-                                    {/* Nút xóa */}
-                                    <td className="py-2 px-4 text-center">
+                                    {/* Delete */}
+                                    <TableCell className="text-center">
                                         {entries.length > 1 && (
                                             <Button
                                                 type="button"
                                                 variant="ghost"
-                                                size="sm"
+                                                size="icon"
                                                 onClick={() =>
                                                     handleRemoveEntry(index)
                                                 }
-                                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
                                             >
-                                                <Trash2 className="w-4 h-4" />
+                                                <Trash2 className="w-4 h-4 text-red-500" />
                                             </Button>
                                         )}
-                                    </td>
-                                </tr>
+                                    </TableCell>
+                                </TableRow>
                             ))}
 
-                            {/* Dòng tổng cộng */}
-                            <tr className="bg-gray-50 font-semibold border-t-2 border-gray-200">
-                                <td className="py-3 px-4 text-sm text-gray-900">
-                                    Tổng cộng
-                                </td>
-                                <td className="py-3 px-4 text-sm text-gray-900 text-right">
+                            {/* Total row */}
+                            <TableRow className="bg-muted/50 font-medium">
+                                <TableCell>Tổng cộng</TableCell>
+                                <TableCell className="text-right">
                                     {formatCurrency(totalDebit)}
-                                </td>
-                                <td className="py-3 px-4 text-sm text-gray-900 text-right">
+                                </TableCell>
+                                <TableCell className="text-right">
                                     {formatCurrency(totalCredit)}
-                                </td>
-                                <td></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </TableCell>
+                                <TableCell />
+                            </TableRow>
+                        </TableBody>
+                    </Table>
                 </div>
 
-                {/* Hiển thị thông báo mất cân bằng */}
+                {/* Unbalanced Warning */}
                 {!isBalanced && (
-                    <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                        <p className="text-sm text-red-600">
-                            ⚠️ Tổng Nợ và tổng Có không cân bằng. Vui lòng
-                            kiểm tra lại!
-                        </p>
+                    <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                        ⚠️ Tổng Nợ và tổng Có không cân bằng. Vui lòng kiểm tra
+                        lại!
                     </div>
                 )}
 
-                {/* Hiển thị ghi chú bút toán từ form */}
+                {/* Journal Note */}
                 {formData.journal_note && (
-                    <div className="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <p className="text-xs text-gray-500 mb-1">
-                            📝 Ghi chú bút toán:
+                    <div className="rounded-md border bg-muted/40 p-3">
+                        <p className="text-xs text-muted-foreground mb-1">
+                            📝 Ghi chú bút toán
                         </p>
-                        <p className="text-sm text-gray-700">
-                            {formData.journal_note}
-                        </p>
+                        <p className="text-sm">{formData.journal_note}</p>
                     </div>
                 )}
-            </div>
+            </CardContent>
         </Card>
     );
 }

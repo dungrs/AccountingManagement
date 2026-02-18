@@ -105,16 +105,16 @@ class PaymentVoucherController extends Controller
 
     public function store(StorePaymentVoucherRequest $request)
     {   
-        $this->paymentVoucherService->create($request);
         try {
+            $this->paymentVoucherService->create($request);
             return redirect()->route('admin.voucher.payment.index')->with('success', 'Thêm mới phiếu nhập kho thành công!');
         } catch (\Throwable $e) {
             return redirect()->route('admin.voucher.payment.create')->with('error', 'Thêm mới phiếu nhập kho thất bại!');
         }
     }
 
-    public function update(Request $request, $id)
-    {   
+    public function update(UpdatePaymentVoucherRequest $request, $id)
+    {      
         try {
             $this->paymentVoucherService->update($request, $id);
             return redirect()->route('admin.voucher.payment.index')->with('success', 'Cập nhật phiếu nhập kho thành công!');

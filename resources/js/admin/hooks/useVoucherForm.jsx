@@ -1,20 +1,15 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { router } from "@inertiajs/react";
 import { useEventBus } from "@/EventBus";
 import { format } from "date-fns";
 
-export function useVoucherForm({ 
-    voucher, 
-    isEdit = false,
-    type = "payment" // "payment" | "receipt"
-}) {
+export function useVoucherForm({ voucher, isEdit = false, type = "payment" }) {
     const { emit } = useEventBus();
-    
+
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
 
-    // Khởi tạo formData
     const [formData, setFormData] = useState({
         code: "",
         voucher_date: "",
@@ -28,7 +23,7 @@ export function useVoucherForm({
         bank_account_id: null,
         bank_code: null,
         partner_info: null,
-        journal_entries: [], // Giữ để người dùng có thể chỉnh sửa
+        journal_entries: [],
     });
 
     const [voucherDate, setVoucherDate] = useState(null);
@@ -40,7 +35,7 @@ export function useVoucherForm({
             let partnerId = "";
             let partnerCode = "";
             let partnerInfo = null;
-            
+
             if (type === "payment") {
                 partnerId = voucher.supplier_id || "";
                 partnerCode = voucher.supplier_code || "";
@@ -51,28 +46,30 @@ export function useVoucherForm({
                 partnerInfo = voucher.customer_info || null;
             }
 
-            let bankCode = null;
-            if (voucher.bank_account_id && partnerInfo?.banks) {
-                const selectedBank = partnerInfo.banks.find(
-                    bank => bank.id === voucher.bank_account_id
-                );
-                bankCode = selectedBank?.bank_code || selectedBank?.short_name || null;
+            let journalEntries = [];
+            if (voucher.journal_entries && voucher.journal_entries.length > 0) {
+                const firstEntry = voucher.journal_entries[0];
+                if (firstEntry?.details && Array.isArray(firstEntry.details)) {
+                    journalEntries = firstEntry.details.map((detail) => ({
+                        account_code: detail.account_code,
+                        debit: parseFloat(detail.debit) || 0,
+                        credit: parseFloat(detail.credit) || 0,
+                    }));
+                }
             }
 
             setFormData({
                 code: voucher.code || "",
                 user_id: voucher.user_id || "",
-                voucher_date: voucher.voucher_date || voucher.receipt_date || "",
+                voucher_date:
+                    voucher.voucher_date || voucher.receipt_date || "",
                 note: voucher.note || "",
                 status: voucher.status || "draft",
                 partner_id: partnerId,
-                partner_code: partnerCode,
                 amount: voucher.amount || "",
                 payment_method: voucher.payment_method || "cash",
-                bank_account_id: voucher.bank_account_id || null,
-                bank_code: bankCode,
                 partner_info: partnerInfo,
-                journal_entries: voucher.journal_entries || [],
+                journal_entries: journalEntries,
             });
 
             const dateStr = voucher.voucher_date || voucher.receipt_date;
@@ -94,80 +91,70 @@ export function useVoucherForm({
         }
     }, [voucherDate]);
 
-    // Cập nhật journal entries khi amount hoặc payment_method thay đổi
-    useEffect(() => {
-        if (!isEdit && formData.amount) {
-            updateDefaultJournalEntries();
-        }
-    }, [formData.amount, formData.payment_method, type, isEdit]);
-
-    const updateDefaultJournalEntries = () => {
-        const amount = parseFloat(formData.amount) || 0;
-        if (amount <= 0) return;
-
-        const cashAccount = formData.payment_method === 'bank' ? '112' : '111';
-        
-        let defaultEntries = [];
-        if (type === "payment") {
-            // Phiếu chi: Nợ 331 / Có (111 hoặc 112)
-            defaultEntries = [
-                { account_code: "331", debit: amount, credit: 0 },
-                { account_code: cashAccount, debit: 0, credit: amount },
-            ];
-        } else {
-            // Phiếu thu: Nợ (111 hoặc 112) / Có 131
-            defaultEntries = [
-                { account_code: cashAccount, debit: amount, credit: 0 },
-                { account_code: "131", debit: 0, credit: amount },
-            ];
-        }
-
-        setFormData(prev => ({
-            ...prev,
-            journal_entries: defaultEntries
-        }));
-    };
-
     const handleChange = (field, value) => {
         setFormData((prev) => ({ ...prev, [field]: value }));
         setErrors((prev) => ({ ...prev, [field]: null }));
-        
-        // Cập nhật bank_code khi thay đổi bank_account_id
-        if (field === "bank_account_id" && value && formData.partner_info?.banks) {
+
+        if (
+            field === "bank_account_id" &&
+            value &&
+            formData.partner_info?.banks
+        ) {
             const selectedBank = formData.partner_info.banks.find(
-                bank => bank.id === parseInt(value)
+                (bank) => bank.id === parseInt(value),
             );
             if (selectedBank) {
                 setFormData((prev) => ({
                     ...prev,
-                    bank_code: selectedBank.bank_code || selectedBank.short_name || null
+                    bank_code:
+                        selectedBank.bank_code ||
+                        selectedBank.short_name ||
+                        null,
                 }));
             }
         }
-        
+
         if (field === "bank_account_id" && !value) {
             setFormData((prev) => ({
                 ...prev,
-                bank_code: null
+                bank_code: null,
             }));
         }
     };
 
-    const handleJournalEntriesChange = (newEntries) => {
-        setFormData(prev => ({
-            ...prev,
-            journal_entries: newEntries
-        }));
-    };
+    // ✅ Sử dụng useCallback và so sánh để tránh loop
+    const handleJournalEntriesChange = useCallback((newEntries) => {
+        setFormData((prev) => {
+            // So sánh xem có thay đổi thực sự không
+            const isDifferent =
+                JSON.stringify(prev.journal_entries) !==
+                JSON.stringify(newEntries);
+
+            if (!isDifferent) {
+                return prev; // Không update nếu giống nhau
+            }
+
+            return {
+                ...prev,
+                journal_entries: newEntries,
+            };
+        });
+    }, []);
 
     const handleSubmit = (e, submitRoute, submitMethod = "post") => {
         e.preventDefault();
         if (isSubmitting) return;
 
         // Validate cân đối kế toán
-        const totalDebit = formData.journal_entries.reduce((sum, entry) => sum + (parseFloat(entry.debit) || 0), 0);
-        const totalCredit = formData.journal_entries.reduce((sum, entry) => sum + (parseFloat(entry.credit) || 0), 0);
-        
+        const totalDebit = formData.journal_entries.reduce(
+            (sum, entry) => sum + (parseFloat(entry.debit) || 0),
+            0,
+        );
+        const totalCredit = formData.journal_entries.reduce(
+            (sum, entry) => sum + (parseFloat(entry.credit) || 0),
+            0,
+        );
+
         if (Math.abs(totalDebit - totalCredit) > 0.01) {
             emit("toast:error", "Tổng nợ và tổng có phải bằng nhau!");
             return;
@@ -176,7 +163,6 @@ export function useVoucherForm({
         setErrors({});
         setIsSubmitting(true);
 
-        // Chuẩn bị data submit
         const submitData = {
             code: formData.code,
             voucher_date: formData.voucher_date,
@@ -185,21 +171,20 @@ export function useVoucherForm({
             user_id: formData.user_id,
             amount: formData.amount,
             payment_method: formData.payment_method,
-            bank_account_id: formData.bank_account_id,
-            bank_code: formData.bank_code,
-            journal_entries: formData.journal_entries,
+            journal_entries: formData.journal_entries.map((entry) => ({
+                account_code: entry.account_code,
+                debit: parseFloat(entry.debit) || 0,
+                credit: parseFloat(entry.credit) || 0,
+            })),
         };
 
-        // Thêm partner_id và partner_code theo type
         if (type === "payment") {
             submitData.supplier_id = formData.partner_id;
-            submitData.supplier_code = formData.partner_code;
         } else {
             submitData.customer_id = formData.partner_id;
-            submitData.customer_code = formData.partner_code;
         }
 
-        console.log("Submit data:", submitData);
+        console.log("Submitting data:", submitData);
 
         router[submitMethod](submitRoute, submitData, {
             preserveScroll: true,

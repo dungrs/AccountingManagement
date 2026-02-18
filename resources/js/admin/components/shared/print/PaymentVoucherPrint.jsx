@@ -207,27 +207,35 @@ const PaymentVoucherPrint = forwardRef(
                     fontFamily: "Times New Roman, serif",
                     fontSize: "14px",
                     lineHeight: "1.5",
+                    color: "#000000",
                 }}
             >
                 {/* Header */}
                 <div className="flex justify-between items-start mb-4">
                     <div style={{ width: "60%", fontSize: "13px" }}>
-                        <p className="font-bold uppercase text-base mb-1">
+                        <p
+                            className="font-bold uppercase text-base mb-1"
+                            style={{ color: "#000000" }}
+                        >
                             {companyName}
                         </p>
-                        <p style={{ fontSize: "12px" }}>{officeAddress}</p>
+                        <p style={{ fontSize: "12px", color: "#000000" }}>
+                            {officeAddress}
+                        </p>
                         {(phone || hotline) && (
-                            <p style={{ fontSize: "12px" }}>
+                            <p style={{ fontSize: "12px", color: "#000000" }}>
                                 {phone && `ĐT: ${phone}`}
                                 {phone && hotline ? " - " : ""}
                                 {hotline && `Hotline: ${hotline}`}
                             </p>
                         )}
                         {email && (
-                            <p style={{ fontSize: "12px" }}>Email: {email}</p>
+                            <p style={{ fontSize: "12px", color: "#000000" }}>
+                                Email: {email}
+                            </p>
                         )}
                         {website && (
-                            <p style={{ fontSize: "12px" }}>
+                            <p style={{ fontSize: "12px", color: "#000000" }}>
                                 Website: {website}
                             </p>
                         )}
@@ -237,11 +245,19 @@ const PaymentVoucherPrint = forwardRef(
                         style={{ width: "35%", fontSize: "12px" }}
                         className="text-right"
                     >
-                        <p className="font-bold">Mẫu số: 02 - TT</p>
-                        <p className="italic" style={{ fontSize: "11px" }}>
+                        <p className="font-bold" style={{ color: "#000000" }}>
+                            Mẫu số: 02 - TT
+                        </p>
+                        <p
+                            className="italic"
+                            style={{ fontSize: "11px", color: "#000000" }}
+                        >
                             (Ban hành kèm theo Thông tư số 88/2021/TT-BTC
                         </p>
-                        <p className="italic" style={{ fontSize: "11px" }}>
+                        <p
+                            className="italic"
+                            style={{ fontSize: "11px", color: "#000000" }}
+                        >
                             Ngày 11/10/2021 của Bộ Tài chính)
                         </p>
                     </div>
@@ -249,17 +265,23 @@ const PaymentVoucherPrint = forwardRef(
 
                 {/* Title */}
                 <div className="text-center mb-6">
-                    <h1 className="text-2xl font-bold uppercase mb-2">
+                    <h1
+                        className="text-2xl font-bold uppercase mb-2"
+                        style={{ color: "#000000" }}
+                    >
                         PHIẾU CHI
                     </h1>
-                    <p className="text-base mb-1">
+                    <p className="text-base mb-1" style={{ color: "#000000" }}>
                         {formatDateFull(voucher?.voucher_date || new Date())}
                     </p>
                     <div className="flex justify-center items-center gap-8 mt-1">
-                        <p className="text-base">
+                        <p className="text-base" style={{ color: "#000000" }}>
                             Quyển số: .........................
                         </p>
-                        <p className="text-base font-semibold">
+                        <p
+                            className="text-base font-semibold"
+                            style={{ color: "#000000" }}
+                        >
                             Số: {voucher?.code || "PC00001"}
                         </p>
                     </div>
@@ -267,32 +289,45 @@ const PaymentVoucherPrint = forwardRef(
 
                 {/* Content */}
                 <div className="mb-8" style={{ fontSize: "14px" }}>
-                    <p className="mb-3">
+                    <p className="mb-3" style={{ color: "#000000" }}>
                         Họ tên người nhận tiền:{" "}
-                        <span className="font-semibold">
+                        <span
+                            className="font-semibold"
+                            style={{ color: "#000000" }}
+                        >
                             {getReceiverInfo()}
                         </span>
                     </p>
-                    <p className="mb-3">Địa chỉ: {partner?.address || ""}</p>
-                    <p className="mb-3">Lý do nộp: {getReason()}</p>
-                    <p className="mb-3">
+                    <p className="mb-3" style={{ color: "#000000" }}>
+                        Địa chỉ: {partner?.address || ""}
+                    </p>
+                    <p className="mb-3" style={{ color: "#000000" }}>
+                        Lý do nộp: {getReason()}
+                    </p>
+                    <p className="mb-3" style={{ color: "#000000" }}>
                         Số tiền:{" "}
-                        <span className="font-semibold">
+                        <span
+                            className="font-semibold"
+                            style={{ color: "#000000" }}
+                        >
                             {formatMoney(getAmount())} VND
                         </span>{" "}
                         Viết bằng chữ:{" "}
-                        <span className="italic font-semibold">
+                        <span
+                            className="italic font-semibold"
+                            style={{ color: "#000000" }}
+                        >
                             {numberToVietnameseText(getAmount())}
                         </span>
                     </p>
-                    <p className="mb-3">
+                    <p className="mb-3" style={{ color: "#000000" }}>
                         Kèm theo: ................................. chứng từ gốc
                     </p>
                 </div>
 
                 {/* Date on the right side */}
-                <div className="text-right mb-16" style={{ fontSize: "14px" }}>
-                    <p className="italic">
+                <div className="text-right mb-8" style={{ fontSize: "14px" }}>
+                    <p className="italic" style={{ color: "#000000" }}>
                         {formatDateFull(voucher?.voucher_date || new Date())}
                     </p>
                 </div>
@@ -300,21 +335,62 @@ const PaymentVoucherPrint = forwardRef(
                 {/* Signatures - 3 columns */}
                 <div className="grid grid-cols-3 gap-8 text-center">
                     <div>
-                        <p className="font-bold mb-2">Người lập biểu</p>
-                        <p className="italic text-xs mb-16">(Ký, họ tên)</p>
-                        <p className="mt-8 font-semibold">
+                        <p
+                            className="font-bold mb-2"
+                            style={{ color: "#000000" }}
+                        >
+                            Người lập biểu
+                        </p>
+                        <p
+                            className="italic text-xs mb-16"
+                            style={{ color: "#000000" }}
+                        >
+                            (Ký, họ tên)
+                        </p>
+                        <p
+                            className="text-sm mt-2"
+                            style={{ color: "#000000" }}
+                        >
                             {getCreatedByName()}
                         </p>
                     </div>
                     <div>
-                        <p className="font-bold mb-2">Thủ quỹ</p>
-                        <p className="italic text-xs mb-16">(Ký, họ tên)</p>
-                        <p className="mt-8 font-semibold">{getCashierName()}</p>
+                        <p
+                            className="font-bold mb-2"
+                            style={{ color: "#000000" }}
+                        >
+                            Thủ quỹ
+                        </p>
+                        <p
+                            className="italic text-xs mb-16"
+                            style={{ color: "#000000" }}
+                        >
+                            (Ký, họ tên)
+                        </p>
+                        <p
+                            className="text-sm mt-2"
+                            style={{ color: "#000000" }}
+                        >
+                            {getCashierName()}
+                        </p>
                     </div>
                     <div>
-                        <p className="font-bold mb-2">Người nhận tiền</p>
-                        <p className="italic text-xs mb-16">(Ký, họ tên)</p>
-                        <p className="mt-8 font-semibold">
+                        <p
+                            className="font-bold mb-2"
+                            style={{ color: "#000000" }}
+                        >
+                            Người nhận tiền
+                        </p>
+                        <p
+                            className="italic text-xs mb-16"
+                            style={{ color: "#000000" }}
+                        >
+                            (Ký, họ tên)
+                        </p>
+                        <p
+                            className="text-sm mt-2"
+                            style={{ color: "#000000" }}
+                        >
                             {getReceiverName()}
                         </p>
                     </div>
@@ -323,9 +399,9 @@ const PaymentVoucherPrint = forwardRef(
                 {/* Footer note */}
                 <div
                     className="mt-16 text-center italic"
-                    style={{ fontSize: "13px" }}
+                    style={{ fontSize: "13px", color: "#000000" }}
                 >
-                    <p>
+                    <p style={{ color: "#000000" }}>
                         Đã nhận đủ số tiền (Viết bằng chữ):{" "}
                         {numberToVietnameseText(getAmount())}
                     </p>

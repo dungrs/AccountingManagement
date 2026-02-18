@@ -51,20 +51,11 @@ export default function ReceiptGeneralInfo({
         label: user.name,
     })) || [];
 
-    // Format options cho status - dựa vào mode (create/edit)
     const getStatusOptions = () => {
-        // Nếu là edit mode, chỉ hiển thị "Đã xác nhận" và "Đã hủy"
-        if (isEdit) {
-            return [
-                { value: "confirmed", label: "Đã xác nhận" },
-                { value: "cancelled", label: "Đã hủy" },
-            ];
-        }
-        
-        // Nếu là create mode, hiển thị "Nháp" và "Đã xác nhận"
         return [
             { value: "draft", label: "Nháp" },
             { value: "confirmed", label: "Đã xác nhận" },
+            { value: "cancelled", label: "Đã hủy" },
         ];
     };
 

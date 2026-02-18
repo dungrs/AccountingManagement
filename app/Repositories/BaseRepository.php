@@ -29,17 +29,50 @@ class BaseRepository implements BaseRepositoryInterface
     ) {
         $query = $this->model->select($column);
 
-        $query = $query
-            ->keyword($condition['keyword'] ?? null, $extend['fieldSearch'] ?? [])
-            ->publish($condition['publish'] ?? null)
-            ->customWhere($condition['where'] ?? null)
-            ->customWhereIn($condition['whereIn'] ?? null)
-            ->customWhereRaw($rawQuery['whereRaw'] ?? null)
-            ->relation($relations ?? null)
-            ->relationCount($relations ?? null)
-            ->customJoin($join ?? null)
-            ->extendCustomGroupBy($extend['groupBy'] ?? null)
-            ->extendCustomOrderBy($orderBy ?? ['id', 'DESC']);
+        // Xử lý keyword search
+        if (!empty($condition['keyword'])) {
+            $query->keyword($condition['keyword'], $extend['fieldSearch'] ?? []);
+        }
+
+        // Xử lý publish
+        if (isset($condition['publish'])) {
+            $query->publish($condition['publish']);
+        }
+
+        // Xử lý where conditions
+        if (!empty($condition['where'])) {
+            $query->customWhere($condition['where']);
+        }
+
+        // Xử lý whereIn conditions
+        if (!empty($condition['whereIn'])) {
+            $query->customWhereIn($condition['whereIn']);
+        }
+
+        // Xử lý raw query
+        if (!empty($rawQuery['whereRaw'])) {
+            $query->customWhereRaw($rawQuery['whereRaw']);
+        }
+
+        // Xử lý relations - chỉ với, không withCount
+        if (!empty($relations)) {
+            $query->with($relations);
+        }
+
+        // Xử lý joins
+        if (!empty($join)) {
+            $query->customJoin($join);
+        }
+
+        // Xử lý group by
+        if (!empty($extend['groupBy'])) {
+            $query->extendCustomGroupBy($extend['groupBy']);
+        }
+
+        // Xử lý order by
+        if (!empty($orderBy)) {
+            $query->extendCustomOrderBy($orderBy);
+        }
 
         // 👉 DEBUG SQL (bật khi cần)
         // dd($query->toSql());
@@ -115,7 +148,7 @@ class BaseRepository implements BaseRepositoryInterface
 
         return ($flag == false) ? $query->first() : $query->get();
     }
-
+    
     public function findById(int $modelId, array $column = ['*'], array $relation = [])
     {
         return $this->model->select($column)->with($relation)->findOrFail($modelId);
@@ -145,7 +178,7 @@ class BaseRepository implements BaseRepositoryInterface
     {
         if (isset($payload[0]) && is_array($payload[0])) {
             $this->model->insert($payload);
-            return true; 
+            return true;
         }
 
         // Nếu là 1 record

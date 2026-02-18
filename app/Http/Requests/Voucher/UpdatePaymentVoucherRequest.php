@@ -32,8 +32,6 @@ class UpdatePaymentVoucherRequest extends FormRequest
 
             'amount'           => ['sometimes', 'numeric', 'min:0'],
             'payment_method'   => ['sometimes', 'in:cash,bank'],
-
-            'supplier_code'    => ['nullable', 'string', 'max:50'],
         ];
     }
 

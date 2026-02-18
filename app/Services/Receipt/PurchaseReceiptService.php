@@ -99,7 +99,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             // Lưu items
             $this->syncPurchaseReceiptItems($receipt, $calculation['items']);
 
-            // SỬA: Tạo journal entries cho cả draft và confirmed
+            // Tạo journal entries cho cả draft và confirmed
             if ($request->has('journal_entries')) {
                 $this->journalEntryService->createFromRequest(
                     'purchase_receipt',
@@ -109,7 +109,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 );
             }
 
-            // SỬA: Xử lý khi xác nhận - chỉ tạo công nợ và tăng tồn kho
+            // Xử lý khi xác nhận - chỉ tạo công nợ và tăng tồn kho
             if ($payload['status'] === 'confirmed') {
                 $this->handleConfirm($receipt);
             }
@@ -182,13 +182,9 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 // Cập nhật items
                 $this->syncPurchaseReceiptItems($receipt, $calculation['items']);
 
-                // SỬA: Cập nhật journal entries
+                // Cập nhật journal entries - SỬ DỤNG PHƯƠNG THỨC MỚI
                 if ($request->has('journal_entries')) {
-                    // Xóa journal entries cũ
-                    $this->journalEntryService->deleteJournalByReference('purchase_receipt', $receipt->id);
-
-                    // Tạo mới
-                    $this->journalEntryService->createFromRequest(
+                    $this->journalEntryService->updateJournalByReference(
                         'purchase_receipt',
                         $receipt->id,
                         $request->input('journal_entries'),
@@ -196,7 +192,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                     );
                 }
 
-                // SỬA: Nếu từ draft → confirmed
+                // Nếu từ draft → confirmed
                 if ($newStatus === 'confirmed') {
                     $receipt = $this->purchaseReceiptRepository->findById($id);
                     $this->handleConfirm($receipt);
@@ -219,10 +215,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 throw new \Exception('Phiếu nhập không tồn tại.');
             }
 
-            // SỬA: Xóa journal entries (cho cả draft và confirmed)
+            // Xóa journal entries (cho cả draft và confirmed)
             $this->journalEntryService->deleteJournalByReference('purchase_receipt', $purchaseReceipt->id);
 
-            // SỬA: Xóa công nợ và giảm tồn kho nếu đã confirmed
+            // Xóa công nợ và giảm tồn kho nếu đã confirmed
             if ($purchaseReceipt->status === 'confirmed') {
                 $this->supplierDebtService->deleteDebtByReference('purchase_receipt', $purchaseReceipt->id);
 
@@ -296,11 +292,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             ['*'],
             [
                 'supplier',
-                'items.productVariant.products.languages',
-                'items.productVariant.languages',
+                'items.productVariant',
                 'items.productVariant.unit',
                 'journalEntries' => function ($query) {
-                    $query->with(['details.account.languages']);
+                    $query->with(['details.account']);
                 },
                 'supplierDebts'
             ]
@@ -325,19 +320,18 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         ];
 
         /*
-        |--------------------------------------------------------------------------
-        | Format sản phẩm
-        |--------------------------------------------------------------------------
-        */
+    |--------------------------------------------------------------------------
+    | Format sản phẩm - Sử dụng BaseRepository để lấy tên
+    |--------------------------------------------------------------------------
+    */
         $purchaseReceipt->product_variants = $purchaseReceipt->items->isNotEmpty()
             ? $purchaseReceipt->items->map(function ($item) use ($currentLanguageId) {
-                // Lấy tên product theo ngôn ngữ
+                // Lấy tên product variant bằng repository
                 $productName = '';
-                if ($item->productVariant && $item->productVariant->product) {
-                    $productTranslation = $item->productVariant->product->languages
-                        ->firstWhere('id', $currentLanguageId);
-                    $productName = $productTranslation?->pivot?->name ?? '';
-                }
+                $productName = $this->productVariantService->getProductNameByVariant(
+                    $item->product_variant_id,
+                    $currentLanguageId
+                );
 
                 // Lấy tên variant theo ngôn ngữ
                 $variantName = '';
@@ -347,15 +341,9 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                     $variantName = $variantTranslation?->pivot?->name ?? '';
                 }
 
-                // Ghép tên theo format: "Product Name - Variant Name"
-                $fullName = trim($productName);
-                if ($variantName) {
-                    $fullName .= ($fullName ? ' - ' : '') . $variantName;
-                }
-
                 // Nếu không có tên thì dùng SKU hoặc barcode
                 if (empty($fullName)) {
-                    $fullName = $item->productVariant?->sku ?? $item->productVariant?->barcode ?? 'N/A';
+                    $fullName = $productName . ' - ' . $variantName;
                 }
 
                 // Lấy đơn vị tính
@@ -380,10 +368,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             : [];
 
         /*
-        |--------------------------------------------------------------------------
-        | Format journal entries
-        |--------------------------------------------------------------------------
-        */
+    |--------------------------------------------------------------------------
+    | Format journal entries
+    |--------------------------------------------------------------------------
+    */
         $purchaseReceipt->journal_entries = $purchaseReceipt->journalEntries->isNotEmpty()
             ? $purchaseReceipt->journalEntries->map(function ($journal) {
                 return [
@@ -404,10 +392,10 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             : [];
 
         /*
-        |--------------------------------------------------------------------------
-        | Format công nợ
-        |--------------------------------------------------------------------------
-        */
+    |--------------------------------------------------------------------------
+    | Format công nợ
+    |--------------------------------------------------------------------------
+    */
         $totalDebit = 0;
         $totalCredit = 0;
 

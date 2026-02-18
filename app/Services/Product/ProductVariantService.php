@@ -9,6 +9,7 @@ use App\Services\BaseService;
 use App\Repositories\Product\ProductRepository;
 use App\Repositories\Product\ProductVariantRepository;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class ProductVariantService extends BaseService implements ProductVariantServiceInterface
 {
@@ -87,6 +88,7 @@ class ProductVariantService extends BaseService implements ProductVariantService
 
         return $productVariants;
     }
+
 
     public function update($request)
     {
@@ -263,6 +265,55 @@ class ProductVariantService extends BaseService implements ProductVariantService
         }
 
         return ['available' => true];
+    }
+
+    /**
+     * Hàm riêng để lấy tên product variant sử dụng BaseRepository
+     */
+    public function getProductNameByVariant($productVariantId, $languageId)
+    {
+        try {
+            $result = $this->productVariantRepository->findByCondition(
+                [
+                    ['product_variants.id', '=', $productVariantId]
+                ],
+                false, // lấy 1 record
+                [ // joins
+                    [
+                        'table' => 'products',
+                        'on' => [
+                            ['products.id', 'product_variants.product_id']
+                        ],
+                        'type' => 'inner'
+                    ],
+                    [
+                        'table' => 'product_languages',
+                        'on' => [
+                            ['product_languages.product_id', 'products.id'],
+                        ],
+                        'type' => 'left'
+                    ],
+                ],
+                [], // orderBy
+                [ // select
+                    'product_variants.id as product_variant_id',
+                    'product_languages.name'
+                ]
+            );
+
+            if ($result && $result->name) {
+                return $result->name;
+            }
+        } catch (\Exception $e) {
+            Log::error('Error in getProductVariantName: ' . $e->getMessage());
+        }
+
+        // Fallback: lấy từ productVariant relation
+        if (isset($this->productVariant)) {
+            return $this->productVariant->sku ?? 'N/A';
+        }
+
+        return 'N/A';
     }
 
     private function paginateSelect()

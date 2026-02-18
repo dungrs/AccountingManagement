@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Head, usePage } from "@inertiajs/react";
 import { useEventBus } from "@/EventBus";
 import { useReactToPrint } from "react-to-print";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 // Custom hooks
 import { useVoucherForm } from "@/admin/hooks/useVoucherForm";
@@ -14,11 +16,11 @@ import VoucherHeader from "@/admin/components/shared/vouchers/VoucherHeader";
 import VoucherGeneralInfo from "@/admin/components/shared/vouchers/VoucherGeneralInfo";
 import VoucherAccountingTabs from "@/admin/components/shared/vouchers/VoucherAccountingTabs";
 import { Button } from "@/admin/components/ui/button";
-import PaymentVoucherPrint from "@/admin/components/shared/print/PaymentVoucherPrint"; // Import component in
+import PaymentVoucherPrint from "@/admin/components/shared/print/PaymentVoucherPrint";
 
 // Utils
 import { formatCurrency } from "@/admin/utils/helpers";
-import { Save, Printer } from "lucide-react";
+import { Save, Printer, Download, Loader2 } from "lucide-react";
 
 export default function PaymentVoucherForm() {
     const {
@@ -33,8 +35,10 @@ export default function PaymentVoucherForm() {
     } = usePage().props;
 
     const printRef = useRef(null);
+    const pdfRef = useRef(null);
     const { emit } = useEventBus();
     const isEdit = !!payment_voucher;
+    const [isExportingPDF, setIsExportingPDF] = useState(false);
 
     // Main form hook
     const {
@@ -49,33 +53,22 @@ export default function PaymentVoucherForm() {
         setOpenVoucherDate,
         handleChange,
         handleSubmit: baseHandleSubmit,
+        handleJournalEntriesChange,
     } = useVoucherForm({
         voucher: payment_voucher,
         isEdit,
         type: "payment",
     });
 
-    // Thêm useEffect để debug khi chọn supplier
-    useEffect(() => {
-        if (formData.partner_id && formData.partner_info) {
-            console.log(
-                "Selected supplier banks:",
-                formData.partner_info.banks,
-            );
-        }
-    }, [formData.partner_id, formData.partner_info]);
-
     // Handle flash messages
     useEffect(() => {
         if (flash?.success) emit("toast:success", flash.success);
-        // if (flash?.error) emit("toast:error", flash.error);
     }, [flash, emit]);
 
     // Handle server errors
     useEffect(() => {
         if (serverErrors && Object.keys(serverErrors).length > 0) {
             setErrors(serverErrors);
-            // emit("toast:error", "Vui lòng kiểm tra lại thông tin!");
         }
     }, [serverErrors, setErrors, emit]);
 
@@ -89,7 +82,96 @@ export default function PaymentVoucherForm() {
         baseHandleSubmit(e, submitRoute, submitMethod);
     };
 
-    // Handle print
+    // Hàm xuất PDF
+    const generatePDF = async (element, fileName) => {
+        if (!element) {
+            throw new Error("Không tìm thấy nội dung cần xuất!");
+        }
+
+        // Tạo một container tạm thời
+        const tempContainer = document.createElement("div");
+        tempContainer.style.position = "fixed";
+        tempContainer.style.left = "-9999px";
+        tempContainer.style.top = "0";
+        tempContainer.style.width = "250mm";
+        tempContainer.style.backgroundColor = "white";
+        tempContainer.style.zIndex = "9999";
+        tempContainer.style.padding = "15mm 20mm";
+        tempContainer.style.fontFamily = "Times New Roman, serif";
+
+        // Clone nội dung từ element gốc
+        const content = element.cloneNode(true);
+        tempContainer.appendChild(content);
+        document.body.appendChild(tempContainer);
+
+        try {
+            // Đợi render
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            // Tạo canvas với chất lượng cao
+            const canvas = await html2canvas(tempContainer, {
+                scale: 3,
+                useCORS: true,
+                allowTaint: false,
+                logging: false,
+                backgroundColor: "#ffffff",
+                windowWidth: 1200,
+                onclone: (_clonedDoc, clonedElement) => {
+                    // Đảm bảo tất cả chữ đều rõ ràng
+                    const allElements = clonedElement.getElementsByTagName("*");
+                    for (let el of allElements) {
+                        if (el.style) {
+                            el.style.color = "#000000";
+                            el.style.webkitPrintColorAdjust = "exact";
+                            el.style.printColorAdjust = "exact";
+                        }
+                    }
+                },
+            });
+
+            if (!canvas || canvas.width === 0 || canvas.height === 0) {
+                throw new Error("Canvas không hợp lệ");
+            }
+
+            const pdfWidth = 210; // mm portrait
+            const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+
+            const pdf = new jsPDF({
+                orientation: "portrait",
+                unit: "mm",
+                format: "a4",
+                compress: true,
+            });
+
+            const imgData = canvas.toDataURL("image/jpeg", 1.0);
+
+            if (!imgData || imgData === "data:,") {
+                throw new Error("Không thể tạo image từ canvas");
+            }
+
+            pdf.addImage(
+                imgData,
+                "JPEG",
+                0,
+                0,
+                pdfWidth,
+                imgHeight,
+                undefined,
+                "FAST",
+            );
+            pdf.save(fileName);
+        } catch (error) {
+            console.error("Lỗi khi xuất PDF:", error);
+            throw error;
+        } finally {
+            // Xóa container tạm thời
+            if (tempContainer && tempContainer.parentNode) {
+                document.body.removeChild(tempContainer);
+            }
+        }
+    };
+
+    // Xử lý in (mở hộp thoại in)
     const handlePrint = useReactToPrint({
         contentRef: printRef,
         documentTitle: `Phieu-chi-${formData.code || "Moi"}`,
@@ -109,18 +191,38 @@ export default function PaymentVoucherForm() {
             }
         `,
         onBeforeGetContent: async () => {
-            // Có thể thực hiện các action trước khi in ở đây
             console.log("Preparing to print...");
         },
         onAfterPrint: () => {
-            // Sau khi in xong
-            // emit("toast:success", "Đã gửi lệnh in thành công!");
+            emit("toast:success", "Đã gửi lệnh in thành công!");
         },
         onPrintError: (error) => {
             console.error("Print error:", error);
             emit("toast:error", "Có lỗi khi in phiếu! Vui lòng thử lại.");
         },
     });
+
+    // Xử lý xuất PDF
+    const handleExportPDF = async () => {
+        if (!pdfRef.current) {
+            alert("Không tìm thấy nội dung cần xuất!");
+            return;
+        }
+
+        setIsExportingPDF(true);
+        try {
+            await generatePDF(
+                pdfRef.current,
+                `Phieu-chi-${formData.code || "Moi"}.pdf`,
+            );
+            emit("toast:success", "Xuất PDF thành công!");
+        } catch (error) {
+            console.error("Lỗi khi xuất PDF:", error);
+            emit("toast:error", "Có lỗi khi xuất PDF! Vui lòng thử lại.");
+        } finally {
+            setIsExportingPDF(false);
+        }
+    };
 
     // Get current supplier
     const currentSupplier = suppliers?.find(
@@ -161,7 +263,7 @@ export default function PaymentVoucherForm() {
             />
 
             <div className="space-y-6">
-                {/* Header - Sử dụng VoucherHeader */}
+                {/* Header */}
                 <div className="flex items-center justify-between">
                     <VoucherHeader
                         isEdit={isEdit}
@@ -170,17 +272,34 @@ export default function PaymentVoucherForm() {
                         type="payment"
                     />
 
-                    {/* Print Button - Chỉ hiển thị khi phiếu đã được xác nhận */}
+                    {/* Action Buttons */}
                     {canPrint && (
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handlePrint}
-                            className="gap-2"
-                        >
-                            <Printer className="w-4 h-4" />
-                            In phiếu chi
-                        </Button>
+                        <div className="flex gap-2">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handlePrint}
+                                className="gap-2"
+                                disabled={isExportingPDF}
+                            >
+                                <Printer className="w-4 h-4" />
+                                In phiếu chi
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleExportPDF}
+                                disabled={isExportingPDF}
+                                className="gap-2"
+                            >
+                                {isExportingPDF ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <Download className="w-4 h-4" />
+                                )}
+                                {isExportingPDF ? "Đang xuất..." : "Xuất PDF"}
+                            </Button>
+                        </div>
                     )}
                 </div>
 
@@ -200,7 +319,7 @@ export default function PaymentVoucherForm() {
                         partners={suppliers}
                         users={users}
                         bankAccounts={bank_accounts}
-                        isEdit={isEdit} // Thêm prop này
+                        isEdit={isEdit}
                     />
 
                     {/* Hạch toán và Công nợ */}
@@ -209,17 +328,7 @@ export default function PaymentVoucherForm() {
                         accountingAccounts={accounting_accounts || []}
                         type="payment"
                         formatCurrency={formatCurrency}
-                        onJournalEntriesChange={(entries) => {
-                            // Cập nhật formData với journal entries mới
-                            // Bạn có thể thêm logic để lưu entries vào formData nếu cần
-                            console.log("Journal entries updated:", entries);
-
-                            // Ví dụ: cập nhật formData với entries
-                            // setFormData(prev => ({
-                            //     ...prev,
-                            //     journal_entries: entries
-                            // }));
-                        }}
+                        onJournalEntriesChange={handleJournalEntriesChange}
                     />
 
                     {/* Nút lưu/cập nhật */}
@@ -236,6 +345,7 @@ export default function PaymentVoucherForm() {
                             type="submit"
                             size="lg"
                             className="min-w-[200px]"
+                            disabled={isSubmitting || isExportingPDF}
                         >
                             <Save className="w-4 h-4 mr-2" />
                             {isSubmitting
@@ -247,10 +357,35 @@ export default function PaymentVoucherForm() {
                     </div>
                 </form>
 
-                {/* Hidden Print Component */}
-                <div style={{ display: "none" }}>
+                {/* Component cho in ấn - để trong DOM nhưng ẩn */}
+                <div
+                    style={{
+                        position: "absolute",
+                        left: "-9999px",
+                        top: 0,
+                        visibility: "hidden",
+                    }}
+                >
                     <PaymentVoucherPrint
                         ref={printRef}
+                        voucher={formData}
+                        user={currentUser}
+                        partner={currentSupplier}
+                        system_languages={system_languages}
+                    />
+                </div>
+
+                {/* Component cho xuất PDF - để trong DOM nhưng ẩn */}
+                <div
+                    style={{
+                        position: "absolute",
+                        left: "-9999px",
+                        top: 0,
+                        visibility: "hidden",
+                    }}
+                >
+                    <PaymentVoucherPrint
+                        ref={pdfRef}
                         voucher={formData}
                         user={currentUser}
                         partner={currentSupplier}

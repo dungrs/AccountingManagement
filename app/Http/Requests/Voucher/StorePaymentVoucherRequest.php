@@ -32,8 +32,6 @@ class StorePaymentVoucherRequest extends FormRequest
 
             'amount'           => ['required', 'numeric', 'min:0'],
             'payment_method'   => ['required', 'in:cash,bank'],
-
-            'supplier_code'    => ['nullable', 'string', 'max:50'],
         ];
     }
 

@@ -29,9 +29,34 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $user = $request->user();
+        
+        // Nếu user đã đăng nhập, lấy thêm thông tin user_catalogue
+        if ($user) {
+            // Load relationship user_catalogue
+            $user->load('user_catalogues');
+            
+            // Hoặc nếu bạn muốn format lại dữ liệu
+            $userData = [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'phone' => $user->phone,
+                'avatar' => $user->avatar,
+                'is_admin' => $user->is_admin,
+                'publish' => $user->publish,
+                'user_catalogue' => $user->user_catalogues ? [
+                    'id' => $user->user_catalogues->id,
+                    'name' => $user->user_catalogues->name,
+                    'description' => $user->user_catalogues->description,
+                    'publish' => $user->user_catalogues->publish,
+                ] : null,
+            ];
+        }
+
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => $request->user(),
+                'user' => $user ? $userData : null,
             ],
 
             'flash' => [

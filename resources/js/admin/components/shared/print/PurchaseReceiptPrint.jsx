@@ -16,6 +16,8 @@ const PurchaseReceiptPrint = forwardRef(
             }
         };
 
+        console.log(receipt);
+
         // Format money with better handling
         const formatMoney = (value) => {
             if (value === null || value === undefined || value === "")
@@ -465,7 +467,6 @@ const PurchaseReceiptPrint = forwardRef(
                     <div>
                         <p className="font-bold mb-1">Người lập phiếu</p>
                         <p className="italic text-xs mb-16">(Ký, họ tên)</p>
-                        <p className="mt-12">{user?.name || ""}</p>
                     </div>
                     <div>
                         <p className="font-bold mb-1">Người giao hàng</p>

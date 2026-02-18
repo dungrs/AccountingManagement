@@ -109,11 +109,11 @@ export default function InventoryTable({
                                     />
                                 </TableCell>
 
-                                <TableCell className="font-mono text-sm">
+                                <TableCell className="text-sm">
                                     {row.sku || "—"}
                                 </TableCell>
 
-                                <TableCell className="font-mono text-sm">
+                                <TableCell className="text-sm">
                                     {row.barcode || "—"}
                                 </TableCell>
 

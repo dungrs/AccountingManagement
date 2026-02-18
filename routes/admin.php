@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\Attribute\AttributeController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
 use App\Http\Controllers\Admin\Customer\CustomerController;
+use App\Http\Controllers\Admin\Debt\SupplierDebtController;
 use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
 use App\Http\Controllers\Admin\Product\ProductVariantController;
@@ -217,6 +218,13 @@ Route::middleware('auth')->group(function () {
         Route::post('store', [PaymentVoucherController::class, 'store'])->name('admin.voucher.payment.store');
         Route::put('update/{id}', [PaymentVoucherController::class, 'update'])->name('admin.voucher.payment.update')->where(['id' => '[0-9]+']);
         Route::post('delete/{id}', [PaymentVoucherController::class, 'delete'])->name('admin.voucher.payment.delete')->where(['id' => '[0-9]+']);
+    });
+
+    // DEBT SUPPLIER
+    Route::prefix('debt/supplier')->group(function () {
+        Route::get('index', [SupplierDebtController::class, 'index'])->name('admin.debt.supplier.index');
+        Route::post('filter', [SupplierDebtController::class, 'filter'])->name('admin.debt.supplier.filter');
+        Route::get('details/{supplier_id}', [SupplierDebtController::class, 'details'])->name('admin.debt.supplier.details')->where(['supplier_id' => '[0-9]+']);
     });
 
     // UNIT

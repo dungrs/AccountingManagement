@@ -45,12 +45,6 @@ export default function VoucherGeneralInfo({
     };
 
     const getStatusOptions = () => {
-        // Nếu là edit mode, chỉ hiển thị "Đã xác nhận"
-        if (isEdit) {
-            return [{ value: "confirmed", label: "Đã xác nhận" }];
-        }
-
-        // Nếu là create mode, hiển thị cả 2 option
         return [
             { value: "draft", label: "Nháp" },
             { value: "confirmed", label: "Đã xác nhận" },

@@ -89,21 +89,18 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                 $payload['supplier_id'] = $request->input('partner_id');
             }
 
-            // Map voucher_date
-            if ($request->has('voucher_date')) {
-                $payload['voucher_date'] = $request->input('voucher_date');
-            }
-
             // Xử lý user_id
-            $payload['user_id'] = Auth::id() ?? $request->input('user_id');
+            $payload['user_id'] = $request->input('user_id') ?? Auth::id();
+            $payload['created_by'] = $payload['user_id'];
 
+            // Tạo mã nếu không có code từ request
             if (empty($payload['code'])) {
                 $payload['code'] = $this->generatePaymentVoucherCode();
             }
 
             $voucher = $this->paymentVoucherRepository->create($payload);
 
-            // SỬA: Tạo journal entries cho cả draft và confirmed
+            // Tạo journal entries cho cả draft và confirmed
             if ($request->has('journal_entries')) {
                 $this->journalEntryService->createFromRequest(
                     'payment_voucher',
@@ -113,9 +110,9 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                 );
             }
 
-            // SỬA: Chỉ tạo công nợ khi status là confirmed
+            // Xử lý khi xác nhận - chỉ tạo công nợ
             if ($payload['status'] === 'confirmed') {
-                $this->supplierDebtService->createDebtForPaymentVoucher($voucher);
+                $this->handleConfirm($voucher);
             }
 
             return $voucher;
@@ -125,7 +122,14 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
     public function update($request, $id)
     {
         return DB::transaction(function () use ($request, $id) {
-            $voucher = $this->paymentVoucherRepository->findById($id);
+            $voucher = $this->paymentVoucherRepository->findByCondition(
+                [['id', '=', $id]],
+                false,
+                [],
+                [],
+                ['*'],
+                ['journalEntries']
+            );
 
             if (!$voucher) {
                 throw new \Exception('Phiếu chi không tồn tại.');
@@ -143,11 +147,10 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
             |--------------------------------------------------------------------------
             */
             if ($voucher->status === 'confirmed') {
+
                 // Chỉ cho phép hủy
                 if ($newStatus === 'cancelled') {
-                    // SỬA: Xóa công nợ nhưng giữ lại journal entries
-                    $this->supplierDebtService->deleteDebtByReference('payment_voucher', $voucher->id);
-
+                    $this->handleCancel($voucher);
                     $voucher->update(['status' => 'cancelled']);
                     return true;
                 }
@@ -168,23 +171,17 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                     $payload['supplier_id'] = $request->input('partner_id');
                 }
 
-                // Map voucher_date
-                if ($request->has('voucher_date')) {
-                    $payload['voucher_date'] = $request->input('voucher_date');
-                }
-
                 // Xử lý user_id
-                $payload['user_id'] = Auth::id() ?? $request->input('user_id');
+                $payload['user_id'] = $request->input('user_id') ?? Auth::id();
+
+                // Không cho phép sửa code khi update
+                unset($payload['code']);
 
                 $this->paymentVoucherRepository->update($id, $payload);
 
-                // SỬA: Cập nhật journal entries
+                // Cập nhật journal entries
                 if ($request->has('journal_entries')) {
-                    // Xóa journal entries cũ
-                    $this->journalEntryService->deleteJournalByReference('payment_voucher', $voucher->id);
-
-                    // Tạo journal entries mới
-                    $this->journalEntryService->createFromRequest(
+                    $this->journalEntryService->updateJournalByReference(
                         'payment_voucher',
                         $voucher->id,
                         $request->input('journal_entries'),
@@ -192,10 +189,10 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                     );
                 }
 
-                // SỬA: Xử lý chuyển từ draft sang confirmed
+                // Nếu từ draft → confirmed
                 if ($newStatus === 'confirmed') {
-                    // Tạo công nợ
-                    $this->supplierDebtService->createDebtForPaymentVoucher($voucher);
+                    $voucher = $this->paymentVoucherRepository->findById($id);
+                    $this->handleConfirm($voucher);
                 }
 
                 return true;
@@ -214,11 +211,10 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                 throw new \Exception('Phiếu chi không tồn tại.');
             }
 
-            // SỬA: Xóa journal entries và công nợ (nếu có)
             // Xóa journal entries (cho cả draft và confirmed)
             $this->journalEntryService->deleteJournalByReference('payment_voucher', $paymentVoucher->id);
 
-            // Xóa công nợ (nếu có)
+            // Xóa công nợ nếu đã confirmed
             if ($paymentVoucher->status === 'confirmed') {
                 $this->supplierDebtService->deleteDebtByReference('payment_voucher', $paymentVoucher->id);
             }
@@ -227,6 +223,24 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
             return true;
         });
+    }
+
+    private function handleConfirm($voucher)
+    {
+        // Tạo công nợ
+        $this->supplierDebtService->createDebtForPaymentVoucher($voucher);
+
+        // Xác nhận journal entries (nếu cần)
+        $this->journalEntryService->confirmJournalByReference('payment_voucher', $voucher->id);
+    }
+
+    private function handleCancel($voucher)
+    {
+        // Xoá công nợ
+        $this->supplierDebtService->deleteDebtByReference('payment_voucher', $voucher->id);
+
+        // Xoá định khoản
+        $this->journalEntryService->deleteJournalByReference('payment_voucher', $voucher->id);
     }
 
     public function getPaymentVoucherDetail($id)
@@ -374,20 +388,30 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         return $paymentVoucher;
     }
 
+    /**
+     * Tự động generate mã phiếu chi duy nhất
+     * Format: PC_YYYYMMDD_HHMMSS (dựa trên thời gian hiện tại)
+     */
     private function generatePaymentVoucherCode()
     {
-        $latest = $this->paymentVoucherRepository->findLastest();
+        do {
+            // Tạo mã dựa trên thời gian: PC_YYYYMMDD_HHMMSS
+            $code = 'PC_' . now()->format('Ymd_His');
 
-        if (!$latest || !$latest->code) {
-            return 'PC_001';
-        }
+            // Kiểm tra xem mã đã tồn tại chưa
+            $exists = $this->paymentVoucherRepository->findByCondition(
+                [['code', '=', $code]],
+                false
+            );
 
-        $latestCode = $latest->code;
-        preg_match('/(\d+)/', $latestCode, $matches);
+            // Nếu đã tồn tại, chờ 1 giây để tạo mã mới
+            if ($exists) {
+                sleep(1);
+                now()->refresh();
+            }
+        } while ($exists);
 
-        $number = isset($matches[1]) ? (int)$matches[1] + 1 : 1;
-
-        return 'PC_' . str_pad($number, 3, '0', STR_PAD_LEFT);
+        return $code;
     }
 
     private function paginateSelect()

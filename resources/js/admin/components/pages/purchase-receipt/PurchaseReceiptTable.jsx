@@ -117,7 +117,7 @@ export default function PurchaseReceiptTable({
                                     </TableCell>
 
                                     {/* Mã phiếu */}
-                                    <TableCell className="font-medium font-mono">
+                                    <TableCell className="font-medium">
                                         {row.code}
                                     </TableCell>
 

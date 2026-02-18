@@ -137,8 +137,8 @@ class PurchaseReceiptController extends Controller
 
     public function update(UpdatePurchaseReceiptRequest $request, $id)
     {
+        $this->purchaseReceiptService->update($request, $id);
         try {
-            $this->purchaseReceiptService->update($request, $id);
             return redirect()->route('admin.receipt.purchase.index')->with('success', 'Cập nhật phiếu nhập kho thành công!');
         } catch (\Throwable $e) {
             return redirect()->route('admin.receipt.purchase.edit', ['id' => $id])->with('error', 'Cập nhật phiếu nhập kho thất bại!');
