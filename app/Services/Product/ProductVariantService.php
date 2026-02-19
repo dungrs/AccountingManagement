@@ -70,7 +70,7 @@ class ProductVariantService extends BaseService implements ProductVariantService
 
         $extend['path'] = '/product/variant/index';
         $extend['fieldSearch'] = [
-            'name',
+            'product_languages.name',
             'product_variants.barcode',
             'product_variants.sku',
         ];

@@ -11,6 +11,12 @@ import {
 
 import { Checkbox } from "@/admin/components/ui/checkbox";
 import { Button } from "@/admin/components/ui/button";
+import { Badge } from "@/admin/components/ui/badge";
+import {
+    Avatar,
+    AvatarFallback,
+    AvatarImage,
+} from "@/admin/components/ui/avatar";
 
 import {
     DropdownMenu,
@@ -19,9 +25,20 @@ import {
     DropdownMenuTrigger,
 } from "@/admin/components/ui/dropdown-menu";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import {
+    MoreHorizontal,
+    Pencil,
+    Trash2,
+    Tag,
+    Image as ImageIcon,
+} from "lucide-react";
+
 import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
 import { router } from "@inertiajs/react";
+import { cn } from "@/admin/lib/utils";
+
+// Ảnh mặc định khi không có ảnh
+const DEFAULT_IMAGE = "/backend/images/default-attribute.png";
 
 export default function AttributeTable({
     data = [],
@@ -30,13 +47,34 @@ export default function AttributeTable({
     toggleAll,
     toggleRow,
     handleDeleteClick,
-    onToggleActive, // thêm cái này
+    onToggleActive,
 }) {
+    if (loading) {
+        return (
+            <div className="rounded-md border border-slate-200 overflow-hidden bg-white">
+                <div className="flex flex-col items-center justify-center py-16">
+                    <div className="relative">
+                        <div className="h-16 w-16 rounded-full border-4 border-slate-100 border-t-blue-600 border-r-purple-600 animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 animate-pulse"></div>
+                        </div>
+                    </div>
+                    <p className="mt-4 text-slate-600 font-medium">
+                        Đang tải dữ liệu...
+                    </p>
+                    <p className="text-sm text-slate-400">
+                        Vui lòng chờ trong giây lát
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="rounded-md border overflow-hidden">
+        <div className="rounded-md border border-slate-200 overflow-hidden bg-white shadow-sm">
             <Table>
                 <TableHeader>
-                    <TableRow className="bg-muted/40">
+                    <TableRow className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 hover:from-blue-600/10 hover:to-purple-600/10">
                         <TableHead className="w-12">
                             <Checkbox
                                 checked={
@@ -44,32 +82,45 @@ export default function AttributeTable({
                                     data.length > 0
                                 }
                                 onCheckedChange={toggleAll}
+                                className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                             />
                         </TableHead>
 
-                        <TableHead>Tên Nhóm</TableHead>
-                        <TableHead className="text-center">
+                        <TableHead className="font-semibold text-slate-700">
+                            <div className="flex items-center gap-2">
+                                <ImageIcon className="h-4 w-4 text-blue-600" />
+                                Ảnh
+                            </div>
+                        </TableHead>
+
+                        <TableHead className="font-semibold text-slate-700">
+                            <div className="flex items-center gap-2">
+                                <Tag className="h-4 w-4 text-purple-600" />
+                                Tên thuộc tính
+                            </div>
+                        </TableHead>
+
+                        <TableHead className="font-semibold text-slate-700 text-center">
                             Tình trạng
                         </TableHead>
-                        <TableHead className="text-right">Thao tác</TableHead>
+
+                        <TableHead className="font-semibold text-slate-700 text-right">
+                            Thao tác
+                        </TableHead>
                     </TableRow>
                 </TableHeader>
 
                 <TableBody>
-                    {loading ? (
-                        <TableRow>
-                            <TableCell
-                                colSpan={7}
-                                className="text-center text-muted-foreground py-10"
-                            >
-                                Đang tải dữ liệu...
-                            </TableCell>
-                        </TableRow>
-                    ) : data.length > 0 ? (
-                        data.map((row) => (
+                    {data.length > 0 ? (
+                        data.map((row, index) => (
                             <TableRow
                                 key={row.id}
-                                className="hover:bg-muted/30 transition"
+                                className={cn(
+                                    "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all duration-200",
+                                    index % 2 === 0
+                                        ? "bg-white"
+                                        : "bg-slate-50/50",
+                                )}
                             >
                                 <TableCell>
                                     <Checkbox
@@ -77,16 +128,39 @@ export default function AttributeTable({
                                         onCheckedChange={() =>
                                             toggleRow(row.id)
                                         }
+                                        className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                                     />
                                 </TableCell>
 
-                                <TableCell className="font-medium">
-                                    <span>
-                                        {"|----".repeat(
-                                            row.level > 0 ? row.level - 1 : 0,
-                                        )}
-                                        {row.name}
-                                    </span>
+                                <TableCell>
+                                    <Avatar className="h-10 w-10 ring-2 ring-offset-2 ring-offset-white ring-blue-200">
+                                        <AvatarImage
+                                            src={row.image || DEFAULT_IMAGE}
+                                            alt={row.name}
+                                        />
+                                        <AvatarFallback className="bg-gradient-to-br from-blue-600 to-purple-600 text-white font-medium">
+                                            {row.name
+                                                ? row.name
+                                                      .charAt(0)
+                                                      .toUpperCase()
+                                                : "A"}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                </TableCell>
+
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className={cn(
+                                                "h-8 w-8 rounded-lg flex items-center justify-center bg-gradient-to-r from-blue-600/10 to-purple-600/10",
+                                            )}
+                                        >
+                                            <Tag className="h-4 w-4 text-blue-600" />
+                                        </div>
+                                        <span className="font-medium text-slate-800">
+                                            {row.name}
+                                        </span>
+                                    </div>
                                 </TableCell>
 
                                 <TableCell className="text-center">
@@ -103,6 +177,7 @@ export default function AttributeTable({
                                                     res.checked,
                                                 );
                                             }}
+                                            className="data-[state=checked]:bg-blue-600"
                                         />
                                     </div>
                                 </TableCell>
@@ -113,7 +188,7 @@ export default function AttributeTable({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="rounded-md"
+                                                className="rounded-md hover:bg-gradient-to-r hover:from-blue-600/10 hover:to-purple-600/10 hover:text-blue-600 transition-all duration-200"
                                             >
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
@@ -121,10 +196,10 @@ export default function AttributeTable({
 
                                         <DropdownMenuContent
                                             align="end"
-                                            className="rounded-md"
+                                            className="dropdown-premium-content rounded-md w-48"
                                         >
                                             <DropdownMenuItem
-                                                className="cursor-pointer"
+                                                className="cursor-pointer dropdown-premium-item group"
                                                 onClick={() =>
                                                     router.visit(
                                                         route(
@@ -134,18 +209,26 @@ export default function AttributeTable({
                                                     )
                                                 }
                                             >
-                                                <Pencil className="mr-1 h-4 w-4 text-yellow-600" />
-                                                Chỉnh sửa
+                                                <div className="flex items-center w-full">
+                                                    <Pencil className="mr-2 h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
+                                                    <span className="text-slate-700 group-hover:text-blue-600">
+                                                        Chỉnh sửa
+                                                    </span>
+                                                </div>
                                             </DropdownMenuItem>
 
                                             <DropdownMenuItem
-                                                className="cursor-pointer text-red-600"
+                                                className="cursor-pointer dropdown-premium-item group text-red-600 hover:text-red-700"
                                                 onClick={() =>
                                                     handleDeleteClick(row)
                                                 }
                                             >
-                                                <Trash2 className="mr-1 h-4 w-4" />
-                                                Xóa
+                                                <div className="flex items-center w-full">
+                                                    <Trash2 className="mr-2 h-4 w-4 text-red-600 group-hover:scale-110 transition-transform" />
+                                                    <span className="text-red-600 group-hover:text-red-700">
+                                                        Xóa
+                                                    </span>
+                                                </div>
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -155,10 +238,21 @@ export default function AttributeTable({
                     ) : (
                         <TableRow>
                             <TableCell
-                                colSpan={7}
-                                className="text-center text-muted-foreground py-10"
+                                colSpan={5}
+                                className="text-center py-16"
                             >
-                                Không tìm thấy dữ liệu phù hợp.
+                                <div className="flex flex-col items-center justify-center">
+                                    <div className="h-16 w-16 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center mb-4">
+                                        <Tag className="h-8 w-8 text-blue-600/50" />
+                                    </div>
+                                    <p className="text-slate-600 font-medium text-lg">
+                                        Không tìm thấy dữ liệu
+                                    </p>
+                                    <p className="text-sm text-slate-400 mt-1">
+                                        Thử thay đổi bộ lọc hoặc tìm kiếm với từ
+                                        khóa khác
+                                    </p>
+                                </div>
                             </TableCell>
                         </TableRow>
                     )}

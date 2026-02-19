@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
 use App\Http\Controllers\Admin\Product\ProductVariantController;
 use App\Http\Controllers\Admin\Receipt\PurchaseReceiptController;
+use App\Http\Controllers\Admin\Receipt\SalesReceiptController;
 use App\Http\Controllers\Admin\SupplierController;
 use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UnitController;
@@ -186,14 +187,15 @@ Route::middleware('auth')->group(function () {
 
     // PRICE LIST
     Route::prefix('price-list')->group(function () {
-        Route::get('index', [PriceListController::class, 'index'])->name('admin.price_list.index');
-        Route::get('create', [PriceListController::class, 'create'])->name('admin.price_list.create');
-        Route::get('edit/{id}', [PriceListController::class, 'edit'])->name('admin.price_list.edit')->where(['id' => '[0-9]+']);
+        Route::get('index', [PriceListController::class, 'index'])->name('admin.price.list.index');
+        Route::get('create', [PriceListController::class, 'create'])->name('admin.price.list.create');
+        Route::get('edit/{id}', [PriceListController::class, 'edit'])->name('admin.price.list.edit')->where(['id' => '[0-9]+']);
 
-        Route::post('filter', [PriceListController::class, 'filter'])->name('admin.price_list.filter');
-        Route::post('store', [PriceListController::class, 'store'])->name('admin.price_list.store');
-        Route::put('update/{id}', [PriceListController::class, 'update'])->name('admin.price_list.update')->where(['id' => '[0-9]+']);
-        Route::post('delete/{id}', [PriceListController::class, 'delete'])->name('admin.price_list.delete')->where(['id' => '[0-9]+']);
+        Route::post('filter', [PriceListController::class, 'filter'])->name('admin.price.list.filter');
+        Route::post('store', [PriceListController::class, 'store'])->name('admin.price.list.store');
+        Route::put('update/{id}', [PriceListController::class, 'update'])->name('admin.price.list.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [PriceListController::class, 'delete'])->name('admin.price.list.delete')->where(['id' => '[0-9]+']);
+        Route::post('getDetails/{id}', [PriceListController::class, 'getDetails'])->name('admin.price.list.getDetails')->where(['id' => '[0-9]+']);
     });
 
     // PURCHASE RECEIPT
@@ -207,6 +209,19 @@ Route::middleware('auth')->group(function () {
         Route::put('update/{id}', [PurchaseReceiptController::class, 'update'])->name('admin.receipt.purchase.update')->where(['id' => '[0-9]+']);
         Route::post('delete/{id}', [PurchaseReceiptController::class, 'delete'])->name('admin.receipt.purchase.delete')->where(['id' => '[0-9]+']);
     });
+
+    // SALES RECEIPT
+    Route::prefix('receipt/sales')->group(function () {
+        Route::get('index', [SalesReceiptController::class, 'index'])->name('admin.receipt.sales.index');
+        Route::get('create', [SalesReceiptController::class, 'create'])->name('admin.receipt.sales.create');
+        Route::get('edit/{id}', [SalesReceiptController::class, 'edit'])->name('admin.receipt.sales.edit')->where(['id' => '[0-9]+']);
+
+        Route::post('filter', [SalesReceiptController::class, 'filter'])->name('admin.receipt.sales.filter');
+        Route::post('store', [SalesReceiptController::class, 'store'])->name('admin.receipt.sales.store');
+        Route::put('update/{id}', [SalesReceiptController::class, 'update'])->name('admin.receipt.sales.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [SalesReceiptController::class, 'delete'])->name('admin.receipt.sales.delete')->where(['id' => '[0-9]+']);
+    });
+
 
     // PAYMENT VOUCHER
     Route::prefix('voucher/payment')->group(function () {

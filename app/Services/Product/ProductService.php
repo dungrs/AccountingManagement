@@ -7,7 +7,6 @@ use App\Services\BaseService;
 use App\Services\Product\ProductCatalogueService;
 use App\Services\Product\ProductVariantService;
 use App\Services\Attribute\AttributeService;
-use App\Services\PromotionService;
 use App\Repositories\Product\ProductRepository;
 use App\Repositories\Product\ProductCatalogueRepository;
 use App\Repositories\Product\ProductVariantAttributeRepository;
@@ -389,6 +388,7 @@ class ProductService extends BaseService implements ProductServiceInterface
                     'sku' => $val,
                     'base_price' => isset($payload['variant']['price'][$key]) ? parseValue($payload['variant']['price'][$key]) : 0,
                     'barcode' => ($payload['variant']['barcode'][$key]) ?? '',
+                    'unit_id' => (int) ($payload['variant']['unit_id'][$key] ?? 0),
                     'file_name' => ($payload['variant']['file_name'][$key]) ?? '',
                     'file_url' => ($payload['variant']['file_url'][$key]) ?? '',
                     'album' => ($payload['variant']['album'][$key]) ?? '',

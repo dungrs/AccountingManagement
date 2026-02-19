@@ -12,12 +12,10 @@ export function useProductVariants({
 }) {
     const { emit } = useEventBus();
 
-    // Lấy VAT tax object từ ID
     const getVatTaxById = (taxId) => {
         return vatTaxes?.find((tax) => tax.id === taxId);
     };
 
-    // Tìm VAT tax mặc định (10%)
     const getDefaultVatTax = () => {
         return (
             vatTaxes?.find((tax) => parseFloat(tax.rate) === 10) ||
@@ -25,7 +23,6 @@ export function useProductVariants({
         );
     };
 
-    // Tính toán amounts
     const calculateAmounts = (quantity, price, vatId) => {
         const qty = parseFloat(quantity) || 0;
         const unitPrice = parseFloat(price) || 0;
@@ -39,27 +36,21 @@ export function useProductVariants({
         return { vatAmount, subtotal };
     };
 
-    // Thêm vào useProductVariants.js (nếu chưa có)
     const calculateVatAndSubtotal = (quantity, price, vatRate) => {
         const qty = parseFloat(quantity) || 0;
         const pr = parseFloat(price) || 0;
         const subtotal = qty * pr;
         const vatAmount = subtotal * (parseFloat(vatRate) / 100);
 
-        return {
-            subtotal,
-            vatAmount,
-        };
+        return { subtotal, vatAmount };
     };
 
-    // Sử dụng trong handleUpdateAddingRow
     const handleUpdateAddingRow = (rowId, field, value) => {
         setAddingRows((prev) => {
             const updated = prev.map((row) => {
                 if (row.id === rowId) {
                     const updatedRow = { ...row, [field]: value };
 
-                    // Tính toán lại VAT và subtotal khi thay đổi quantity, price hoặc vat_id
                     if (
                         field === "quantity" ||
                         field === "price" ||
@@ -86,7 +77,6 @@ export function useProductVariants({
         });
     };
 
-    // Lấy danh sách product_variant_id đã được sử dụng
     const getUsedVariantIds = () => {
         const savedIds = formData.product_variants.map(
             (item) => item.product_variant_id,
@@ -99,7 +89,6 @@ export function useProductVariants({
         return [...savedIds, ...addingIds];
     };
 
-    // Lọc options cho SelectCombobox
     const getAvailableProductVariantOptions = (
         productVariants,
         currentVariantId = null,
@@ -109,23 +98,24 @@ export function useProductVariants({
         return (
             productVariants
                 ?.filter((pv) => {
+                    // ✅ FIX: dùng product_variant_id thay vì id
                     const id = pv.product_variant_id;
-
-                    // luôn giữ lại item hiện tại đang chọn
-                    if (currentVariantId && id === currentVariantId) {
+                    if (
+                        currentVariantId &&
+                        Number(id) === Number(currentVariantId)
+                    ) {
                         return true;
                     }
-
                     return !usedIds.includes(id);
                 })
                 .map((pv) => ({
-                    value: pv.product_variant_id, // 🔥 giữ number
+                    value: pv.product_variant_id,
                     label: pv.name,
+                    sku: pv.sku,
                 })) || []
         );
     };
 
-    // Thêm một dòng mới
     const handleAddProductRow = () => {
         const defaultTax = getDefaultVatTax();
         const newRow = {
@@ -140,12 +130,10 @@ export function useProductVariants({
         setAddingRows([...addingRows, newRow]);
     };
 
-    // Hủy một dòng đang thêm
     const handleCancelAddRow = (rowId) => {
         setAddingRows(addingRows.filter((row) => row.id !== rowId));
     };
 
-    // Lưu một dòng vào danh sách chính
     const handleSaveRow = (rowId) => {
         const row = addingRows.find((r) => r.id === rowId);
         if (!row || !row.product_variant_id || !row.quantity || !row.price) {
@@ -170,6 +158,12 @@ export function useProductVariants({
             vat_id: row.vat_id,
             vat_amount: parseFloat(row.vat_amount),
             subtotal: parseFloat(row.subtotal),
+            name: row.name || null,
+            sku: row.sku || null,
+            unit: row.unit || null,
+            unit_name: row.unit_name || null,
+            list_price: row.list_price || null,
+            cost_price: row.cost_price || null,
         };
 
         setFormData((prev) => ({
@@ -180,12 +174,10 @@ export function useProductVariants({
         setAddingRows(addingRows.filter((r) => r.id !== rowId));
     };
 
-    // Bật chế độ edit cho một item
     const handleEditItem = (index) => {
         setEditingIndexes([...editingIndexes, index]);
     };
 
-    // Hủy edit một item
     const handleCancelEditItem = (index) => {
         setEditingIndexes(editingIndexes.filter((i) => i !== index));
 
@@ -203,6 +195,10 @@ export function useProductVariants({
                               vat_id: originalItem.vat_id,
                               vat_amount: originalItem.vat_amount,
                               subtotal: originalItem.subtotal,
+                              name: originalItem.name || null,
+                              sku: originalItem.sku || null,
+                              unit: originalItem.unit || null,
+                              unit_name: originalItem.unit_name || null,
                           }
                         : item,
                 ),
@@ -210,7 +206,6 @@ export function useProductVariants({
         }
     };
 
-    // Lưu item đang edit
     const handleSaveEditItem = (index) => {
         const item = formData.product_variants[index];
         if (!item.product_variant_id || !item.quantity || !item.price) {
@@ -222,7 +217,6 @@ export function useProductVariants({
         emit("toast:success", "Cập nhật thành công!");
     };
 
-    // Update item trong formData
     const handleUpdateItem = (index, field, value) => {
         setFormData((prev) => ({
             ...prev,
@@ -251,7 +245,6 @@ export function useProductVariants({
         }));
     };
 
-    // Xóa sản phẩm
     const handleDeleteProduct = (index) => {
         if (confirm("Bạn có chắc chắn muốn xóa sản phẩm này?")) {
             setFormData((prev) => ({

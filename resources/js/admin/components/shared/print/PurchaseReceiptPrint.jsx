@@ -16,8 +16,6 @@ const PurchaseReceiptPrint = forwardRef(
             }
         };
 
-        console.log(receipt);
-
         // Format money with better handling
         const formatMoney = (value) => {
             if (value === null || value === undefined || value === "")

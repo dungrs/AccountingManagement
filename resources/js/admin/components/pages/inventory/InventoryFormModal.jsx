@@ -11,11 +11,10 @@ import {
 } from "@/admin/components/ui/dialog";
 import { Input } from "@/admin/components/ui/input";
 import { Button } from "@/admin/components/ui/button";
+import { Badge } from "@/admin/components/ui/badge";
 import axios from "axios";
-import { Info, Package, Barcode, Hash } from "lucide-react";
+import { Info, Package, Barcode, Hash, Save, Box } from "lucide-react";
 import toast from "react-hot-toast";
-
-// cn helper của shadcn
 import { cn } from "@/admin/lib/utils";
 
 export default function InventoryFormModal({
@@ -28,13 +27,11 @@ export default function InventoryFormModal({
     const isEdit = mode === "edit" || mode === "adjust";
 
     const [loading, setLoading] = useState(false);
-
     const [form, setForm] = useState({
         sku: "",
         barcode: "",
         quantity: 0,
     });
-
     const [errors, setErrors] = useState({});
 
     useEffect(() => {
@@ -57,18 +54,8 @@ export default function InventoryFormModal({
         }
     }, [open, isEdit, data]);
 
-    // Toast khi có lỗi validate
-    useEffect(() => {
-        if (Object.keys(errors).length > 0) {
-            const errorMessages = Object.values(errors)
-                .flat()
-                .join(", ");
-        }
-    }, [errors]);
-
     const handleChange = (field, value) => {
         if (field === "quantity") {
-            // Đảm bảo quantity là số không âm
             value = Math.max(0, parseInt(value) || 0);
         }
 
@@ -87,36 +74,36 @@ export default function InventoryFormModal({
         setLoading(true);
         setErrors({});
 
-        // Sử dụng route update cho cả edit và adjust
         const apiRoute = route("admin.product.variant.update");
 
         const payload = {
             id: data.id,
             sku: form.sku,
             barcode: form.barcode,
-            quantity: form.quantity
+            quantity: form.quantity,
         };
 
         axios
             .post(apiRoute, payload)
             .then((res) => {
-                toast.success(res.data?.message || "Cập nhật tồn kho thành công!");
+                toast.success(
+                    res.data?.message || "Cập nhật tồn kho thành công!",
+                );
                 onSuccess?.();
                 onClose();
             })
             .catch((err) => {
                 console.log("Submit error:", err);
 
-                // validate error laravel
                 if (err.response?.status === 422) {
                     setErrors(err.response.data.errors || {});
+                    toast.error("Vui lòng kiểm tra lại thông tin!");
                     return;
                 }
 
-                // lỗi khác
                 toast.error(
                     err.response?.data?.message ||
-                        "Có lỗi xảy ra, vui lòng thử lại!"
+                        "Có lỗi xảy ra, vui lòng thử lại!",
                 );
             })
             .finally(() => {
@@ -138,126 +125,168 @@ export default function InventoryFormModal({
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
-            <DialogContent className="sm:max-w-[500px] rounded-md">
-                <DialogHeader>
-                    <DialogTitle>
-                        {getTitle()}
-                    </DialogTitle>
-
-                    <DialogDescription>
-                        {getDescription()}
-                    </DialogDescription>
-                </DialogHeader>
-
-                {/* Alert */}
-                <div className="flex items-start gap-2 rounded-md border border-yellow-300 bg-yellow-50 px-3 py-2 text-sm text-yellow-800">
-                    <Info className="w-4 h-4 mt-0.5" />
-                    <p>
-                        Những trường có dấu{" "}
-                        <span className="text-red-500 font-semibold">*</span>{" "}
-                        là bắt buộc phải nhập.
-                    </p>
+            <DialogContent className="sm:max-w-[500px] border-0 p-0 gap-0 rounded-lg overflow-hidden">
+                {/* Header Gradient */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+                    <DialogHeader>
+                        <DialogTitle className="text-xl text-white flex items-center gap-2">
+                            <Package className="h-5 w-5" />
+                            {getTitle()}
+                        </DialogTitle>
+                        <DialogDescription className="text-white/80">
+                            {getDescription()}
+                        </DialogDescription>
+                    </DialogHeader>
                 </div>
 
-                <div className="space-y-4 mt-3">
-                    {/* SKU */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium flex items-center gap-1">
-                            <Hash className="w-4 h-4" />
-                            Mã SKU <span className="text-red-500">*</span>
-                        </label>
-
-                        <Input
-                            value={form.sku}
-                            onChange={(e) =>
-                                handleChange("sku", e.target.value)
-                            }
-                            placeholder="Nhập mã SKU..."
-                            className={cn(
-                                errors?.sku &&
-                                    "border-red-500 focus-visible:ring-red-500"
-                            )}
-                        />
-
-                        {errors?.sku && (
-                            <p className="text-red-500 text-sm mt-1">
-                                {errors.sku[0]}
-                            </p>
-                        )}
+                <div className="px-6 py-4 space-y-4">
+                    {/* Alert */}
+                    <div className="flex items-start gap-3 rounded-lg border-l-4 border-l-blue-600 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3 text-sm text-slate-700">
+                        <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                        <p>
+                            Những trường có dấu{" "}
+                            <Badge
+                                variant="outline"
+                                className="bg-red-100 text-red-600 border-red-200 mx-1 px-1.5"
+                            >
+                                *
+                            </Badge>{" "}
+                            là bắt buộc phải nhập.
+                        </p>
                     </div>
 
-                    {/* Barcode */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium flex items-center gap-1">
-                            <Barcode className="w-4 h-4" />
-                            Mã Barcode
-                        </label>
-
-                        <Input
-                            value={form.barcode}
-                            onChange={(e) =>
-                                handleChange("barcode", e.target.value)
-                            }
-                            placeholder="Nhập mã barcode..."
-                            className={cn(
-                                errors?.barcode &&
-                                    "border-red-500 focus-visible:ring-red-500"
+                    <div className="space-y-4">
+                        {/* SKU */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                                <Hash className="h-4 w-4 text-blue-600" />
+                                Mã SKU <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <Input
+                                    value={form.sku}
+                                    onChange={(e) =>
+                                        handleChange("sku", e.target.value)
+                                    }
+                                    placeholder="Nhập mã SKU..."
+                                    className={cn(
+                                        "pl-3 border-slate-200 focus:border-blue-500 focus:ring-blue-500 transition-all",
+                                        errors?.sku &&
+                                            "border-red-500 focus:border-red-500 focus:ring-red-500",
+                                    )}
+                                />
+                            </div>
+                            {errors?.sku && (
+                                <p className="text-xs text-red-500 flex items-center gap-1">
+                                    <Info className="h-3 w-3" />
+                                    {errors.sku[0]}
+                                </p>
                             )}
-                        />
+                        </div>
 
-                        {errors?.barcode && (
-                            <p className="text-red-500 text-sm mt-1">
-                                {errors.barcode[0]}
-                            </p>
-                        )}
+                        {/* Barcode */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                                <Barcode className="h-4 w-4 text-purple-600" />
+                                Mã Barcode
+                            </label>
+                            <div className="relative">
+                                <Input
+                                    value={form.barcode}
+                                    onChange={(e) =>
+                                        handleChange("barcode", e.target.value)
+                                    }
+                                    placeholder="Nhập mã barcode..."
+                                    className={cn(
+                                        "pl-3 border-slate-200 focus:border-purple-500 focus:ring-purple-500 transition-all",
+                                        errors?.barcode &&
+                                            "border-red-500 focus:border-red-500 focus:ring-red-500",
+                                    )}
+                                />
+                            </div>
+                            {errors?.barcode && (
+                                <p className="text-xs text-red-500 flex items-center gap-1">
+                                    <Info className="h-3 w-3" />
+                                    {errors.barcode[0]}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* Quantity */}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
+                                <Package className="h-4 w-4 text-green-600" />
+                                Số lượng tồn kho{" "}
+                                <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative">
+                                <Input
+                                    type="number"
+                                    min="0"
+                                    value={form.quantity}
+                                    onChange={(e) =>
+                                        handleChange("quantity", e.target.value)
+                                    }
+                                    placeholder="Nhập số lượng..."
+                                    className={cn(
+                                        "pl-3 border-slate-200 focus:border-green-500 focus:ring-green-500 transition-all",
+                                        errors?.quantity &&
+                                            "border-red-500 focus:border-red-500 focus:ring-red-500",
+                                    )}
+                                />
+                            </div>
+                            {errors?.quantity && (
+                                <p className="text-xs text-red-500 flex items-center gap-1">
+                                    <Info className="h-3 w-3" />
+                                    {errors.quantity[0]}
+                                </p>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Quantity */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium flex items-center gap-1">
-                            <Package className="w-4 h-4" />
-                            Số lượng tồn kho <span className="text-red-500">*</span>
-                        </label>
-
-                        <Input
-                            type="number"
-                            min=""
-                            value={form.quantity}
-                            onChange={(e) =>
-                                handleChange("quantity", e.target.value)
-                            }
-                            placeholder="Nhập số lượng..."
-                            className={cn(
-                                errors?.quantity &&
-                                    "border-red-500 focus-visible:ring-red-500"
-                            )}
-                        />
-
-                        {errors?.quantity && (
-                            <p className="text-red-500 text-sm mt-1">
-                                {errors.quantity[0]}
-                            </p>
-                        )}
-
-                        {isEdit && data?.name && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                                Đang cập nhật cho sản phẩm: <span className="font-medium">{data.name}</span>
-                            </p>
-                        )}
-                    </div>
+                    {/* Product Info */}
+                    {isEdit && data?.name && (
+                        <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+                            <div className="flex items-center gap-2 text-sm">
+                                <Box className="h-4 w-4 text-blue-600" />
+                                <span className="text-slate-600">
+                                    Đang cập nhật cho:
+                                </span>
+                                <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                                    {data.name}
+                                </Badge>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
-                <DialogFooter className="mt-4">
-                    <Button variant="outline" onClick={onClose}>
+                <DialogFooter className="px-6 py-4 bg-slate-50 border-t border-slate-200">
+                    <Button
+                        variant="outline"
+                        onClick={onClose}
+                        disabled={loading}
+                        className="border-slate-200 hover:bg-slate-100 hover:text-slate-900 transition-all"
+                    >
                         Hủy
                     </Button>
-
-                    <Button onClick={handleSubmit} disabled={loading}>
-                        {loading
-                            ? "Đang xử lý..."
-                            : mode === "adjust"
-                              ? "Cập nhật tồn kho"
-                              : "Lưu thay đổi"}
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="btn-gradient-premium"
+                    >
+                        {loading ? (
+                            <>
+                                <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                                Đang xử lý...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="mr-2 h-4 w-4" />
+                                {mode === "adjust"
+                                    ? "Cập nhật tồn kho"
+                                    : "Lưu thay đổi"}
+                            </>
+                        )}
                     </Button>
                 </DialogFooter>
             </DialogContent>

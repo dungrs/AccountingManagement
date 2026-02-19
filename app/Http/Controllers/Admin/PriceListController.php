@@ -31,13 +31,13 @@ class PriceListController extends Controller
 
     public function index()
     {
-        $this->authorize('modules', 'price_list.index');
+        $this->authorize('modules', 'price.list.index');
         return Inertia::render('PriceList/Home');
     }
 
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'price_list.index');
+        $this->authorize('modules', 'price.list.index');
 
         $priceLists = $this->priceListService->paginate($request);
         return response()->json($priceLists);
@@ -45,7 +45,7 @@ class PriceListController extends Controller
 
     public function create()
     {
-        $this->authorize('modules', 'price_list.create');
+        $this->authorize('modules', 'price.list.create');
         $vat_taxes = $this->vatTaxRepository->findByCondition([
             ['direction', '=', 'output'],
             ['publish', '=', 1]
@@ -59,14 +59,14 @@ class PriceListController extends Controller
 
     public function edit($id)
     {
-        $this->authorize('modules', 'price_list.update');
+        $this->authorize('modules', 'price.list.update');
 
         $vat_taxes = $this->vatTaxRepository->findByCondition([
             ['direction', '=', 'output'],
             ['publish', '=', 1]
         ], true);
         $productVariants = $this->productVariantService->getListProductVariant();
-        $priceList = $this->priceListService->getPriceList($id);
+        $priceList = $this->priceListService->getPriceListDetails($id);
         return Inertia::render('PriceList/Form', [
             'price_list' => $priceList,
             'product_variants' => $productVariants,
@@ -74,13 +74,37 @@ class PriceListController extends Controller
         ]);
     }
 
+    public function getDetails($id)
+    {
+        try {
+            $priceList = $this->priceListService->getPriceListDetails($id);
+
+            if (!$priceList) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Không tìm thấy bảng giá!',
+                ], 404);
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'data'   => $priceList,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'status'  => 'error',
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
     public function store(StorePriceListRequest $request)
     {
         try {
             $this->priceListService->create($request);
-            return redirect()->route('admin.price_list.index')->with('success', 'Thêm mới bảng giá thành công!');
+            return redirect()->route('admin.price.list.index')->with('success', 'Thêm mới bảng giá thành công!');
         } catch (\Throwable $e) {
-            return redirect()->route('admin.price_list.create')->with('error', 'Thêm mới bảng giá thất bại!');
+            return redirect()->route('admin.price.list.create')->with('error', 'Thêm mới bảng giá thất bại!');
         }
     }
 
@@ -88,15 +112,15 @@ class PriceListController extends Controller
     {
         try {
             $this->priceListService->update($request, $id);
-            return redirect()->route('admin.price_list.index')->with('success', 'Cập nhật bảng giá thành công!');
+            return redirect()->route('admin.price.list.index')->with('success', 'Cập nhật bảng giá thành công!');
         } catch (\Throwable $e) {
-            return redirect()->route('admin.price_list.edit', ['id' => $id])->with('error', 'Cập nhật bảng giá thất bại!');
+            return redirect()->route('admin.price.list.edit', ['id' => $id])->with('error', 'Cập nhật bảng giá thất bại!');
         }
     }
 
     public function delete($id)
     {
-        $this->authorize('modules', 'price_list.destroy');
+        $this->authorize('modules', 'price.list.destroy');
         try {
             $this->priceListService->delete($id);
 

@@ -18,9 +18,19 @@ import {
 import { Button } from "@/admin/components/ui/button";
 import { Input } from "@/admin/components/ui/input";
 import { Badge } from "@/admin/components/ui/badge";
-import { Plus, Trash2 } from "lucide-react";
+import {
+    Plus,
+    Trash2,
+    BookOpen,
+    DollarSign,
+    CheckCircle2,
+    XCircle,
+    Info,
+    AlertCircle,
+} from "lucide-react";
 import SelectCombobox from "../../ui/select-combobox";
 import { useRef, useState, useMemo, useEffect } from "react";
+import { cn } from "@/admin/lib/utils";
 
 export default function VoucherAccountingTabs({
     formData,
@@ -311,53 +321,91 @@ export default function VoucherAccountingTabs({
     const isBalanced = Math.abs(totalDebit - totalCredit) < 0.0001;
 
     return (
-        <Card className="shadow-sm">
+        <Card className="border-slate-200 shadow-lg overflow-hidden">
             {/* Header */}
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <div>
-                    <CardTitle className="mb-2">Hạch toán kế toán</CardTitle>
-                    <CardDescription>
-                        Nhập các bút toán cho phiếu{" "}
-                        {type === "payment" ? "chi" : "thu"}
-                    </CardDescription>
-                </div>
+            <CardHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 border-b border-slate-200 py-4">
+                <div className="flex flex-row items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                            <BookOpen className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                            <CardTitle className="text-lg text-slate-800">
+                                Hạch toán kế toán
+                            </CardTitle>
+                            <CardDescription>
+                                Nhập các bút toán cho phiếu{" "}
+                                {type === "payment" ? "chi" : "thu"}
+                            </CardDescription>
+                        </div>
+                    </div>
 
-                <div className="flex items-center gap-3">
-                    <Badge variant={isBalanced ? "default" : "destructive"}>
-                        {isBalanced ? "✓ Cân bằng" : "✗ Mất cân bằng"}
-                    </Badge>
+                    <div className="flex items-center gap-3">
+                        <Badge
+                            className={cn(
+                                "flex items-center gap-1",
+                                isBalanced
+                                    ? "bg-green-100 text-green-700 border-green-200"
+                                    : "bg-red-100 text-red-700 border-red-200",
+                            )}
+                        >
+                            {isBalanced ? (
+                                <CheckCircle2 className="h-3 w-3" />
+                            ) : (
+                                <XCircle className="h-3 w-3" />
+                            )}
+                            {isBalanced ? "Cân bằng" : "Mất cân bằng"}
+                        </Badge>
 
-                    <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleAddEntry}
-                    >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Thêm dòng
-                    </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleAddEntry}
+                            className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                        >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Thêm dòng
+                        </Button>
+                    </div>
                 </div>
             </CardHeader>
 
-            <CardContent className="space-y-6">
+            <CardContent className="p-6 space-y-6">
                 {/* Table */}
-                <div className="rounded-md border">
+                <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
                     <Table>
-                        <TableHeader>
+                        <TableHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
                             <TableRow>
-                                <TableHead className="w-[40%]">
-                                    Tài khoản{" "}
-                                    <span className="text-red-500">*</span>
+                                <TableHead className="w-[40%] font-semibold text-slate-700">
+                                    <div className="flex items-center gap-1">
+                                        <BookOpen className="h-4 w-4 text-blue-600" />
+                                        Tài khoản{" "}
+                                        <span className="text-red-500">*</span>
+                                    </div>
                                 </TableHead>
-                                <TableHead className="text-right">Nợ</TableHead>
-                                <TableHead className="text-right">Có</TableHead>
+                                <TableHead className="text-right font-semibold text-slate-700">
+                                    <div className="flex items-center justify-end gap-1">
+                                        <DollarSign className="h-4 w-4 text-green-600" />
+                                        Nợ
+                                    </div>
+                                </TableHead>
+                                <TableHead className="text-right font-semibold text-slate-700">
+                                    <div className="flex items-center justify-end gap-1">
+                                        <DollarSign className="h-4 w-4 text-purple-600" />
+                                        Có
+                                    </div>
+                                </TableHead>
                                 <TableHead className="w-[60px]" />
                             </TableRow>
                         </TableHeader>
 
                         <TableBody>
                             {entries.map((entry, index) => (
-                                <TableRow key={entry.id}>
+                                <TableRow
+                                    key={entry.id}
+                                    className="hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all duration-200"
+                                >
                                     {/* Account */}
                                     <TableCell>
                                         <SelectCombobox
@@ -371,6 +419,9 @@ export default function VoucherAccountingTabs({
                                             options={accountOptions}
                                             placeholder="-- Chọn tài khoản --"
                                             searchPlaceholder="Tìm tài khoản..."
+                                            icon={
+                                                <BookOpen className="h-4 w-4 text-blue-600" />
+                                            }
                                         />
                                     </TableCell>
 
@@ -386,7 +437,7 @@ export default function VoucherAccountingTabs({
                                                     e.target.value,
                                                 )
                                             }
-                                            className="text-right"
+                                            className="text-right border-slate-200 focus:border-green-500 focus:ring-green-500"
                                             placeholder="0"
                                             step="1000"
                                             min="0"
@@ -405,7 +456,7 @@ export default function VoucherAccountingTabs({
                                                     e.target.value,
                                                 )
                                             }
-                                            className="text-right"
+                                            className="text-right border-slate-200 focus:border-purple-500 focus:ring-purple-500"
                                             placeholder="0"
                                             step="1000"
                                             min="0"
@@ -422,8 +473,9 @@ export default function VoucherAccountingTabs({
                                                 onClick={() =>
                                                     handleRemoveEntry(index)
                                                 }
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
                                             >
-                                                <Trash2 className="w-4 h-4 text-red-500" />
+                                                <Trash2 className="w-4 h-4" />
                                             </Button>
                                         )}
                                     </TableCell>
@@ -431,12 +483,14 @@ export default function VoucherAccountingTabs({
                             ))}
 
                             {/* Total row */}
-                            <TableRow className="bg-muted/50 font-medium">
-                                <TableCell>Tổng cộng</TableCell>
-                                <TableCell className="text-right">
+                            <TableRow className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 font-medium">
+                                <TableCell className="font-semibold text-slate-800">
+                                    Tổng cộng
+                                </TableCell>
+                                <TableCell className="text-right font-bold text-green-600">
                                     {formatCurrency(totalDebit)}
                                 </TableCell>
-                                <TableCell className="text-right">
+                                <TableCell className="text-right font-bold text-purple-600">
                                     {formatCurrency(totalCredit)}
                                 </TableCell>
                                 <TableCell />
@@ -447,19 +501,31 @@ export default function VoucherAccountingTabs({
 
                 {/* Unbalanced Warning */}
                 {!isBalanced && (
-                    <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
-                        ⚠️ Tổng Nợ và tổng Có không cân bằng. Vui lòng kiểm tra
-                        lại!
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                        <div className="flex items-start gap-3">
+                            <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-600">
+                                ⚠️ Tổng Nợ và tổng Có không cân bằng. Vui lòng
+                                kiểm tra lại!
+                            </p>
+                        </div>
                     </div>
                 )}
 
                 {/* Journal Note */}
                 {formData.journal_note && (
-                    <div className="rounded-md border bg-muted/40 p-3">
-                        <p className="text-xs text-muted-foreground mb-1">
-                            📝 Ghi chú bút toán
-                        </p>
-                        <p className="text-sm">{formData.journal_note}</p>
+                    <div className="rounded-lg border border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 p-4">
+                        <div className="flex items-start gap-3">
+                            <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <p className="text-xs text-slate-500 mb-1">
+                                    📝 Ghi chú bút toán
+                                </p>
+                                <p className="text-sm text-slate-700">
+                                    {formData.journal_note}
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 )}
             </CardContent>

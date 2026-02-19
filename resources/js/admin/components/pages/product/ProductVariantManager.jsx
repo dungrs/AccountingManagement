@@ -4,6 +4,7 @@ import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/admin/components/ui/button";
 import { Input } from "@/admin/components/ui/input";
 import { Label } from "@/admin/components/ui/label";
+import { Badge } from "@/admin/components/ui/badge";
 import {
     Card,
     CardContent,
@@ -33,7 +34,22 @@ import {
     PopoverTrigger,
 } from "@/admin/components/ui/popover";
 import { Switch } from "@/admin/components/ui/switch";
-import { Check, ChevronsUpDown, Trash2, Plus, X } from "lucide-react";
+import {
+    Check,
+    ChevronsUpDown,
+    Trash2,
+    Plus,
+    X,
+    Package,
+    Layers,
+    Tag,
+    Barcode,
+    FileText,
+    Image,
+    Settings,
+    Save,
+    Edit,
+} from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { useEventBus } from "@/EventBus";
 import AlbumUpload from "@/admin/components/shared/upload/AlbumUpload";
@@ -41,7 +57,15 @@ import SelectCombobox from "@/admin/components/ui/select-combobox";
 import React from "react";
 
 const ProductVariantManager = forwardRef(
-    ({ attributeCatalogues = [], units = [], mainPrice = "", productData = null }, ref) => {
+    (
+        {
+            attributeCatalogues = [],
+            units = [],
+            mainPrice = "",
+            productData = null,
+        },
+        ref,
+    ) => {
         const { emit } = useEventBus();
 
         const [productCode, setProductCode] = useState("");
@@ -53,7 +77,6 @@ const ProductVariantManager = forwardRef(
         const [editingData, setEditingData] = useState({});
         const [isInitialized, setIsInitialized] = useState(false);
 
-        // Convert units array to SelectCombobox format
         const unitOptions = Array.isArray(units)
             ? units.map((unit) => ({
                   value: unit.id,
@@ -66,7 +89,6 @@ const ProductVariantManager = forwardRef(
             console.log("Unit options:", unitOptions);
         }, [units]);
 
-        // Load dữ liệu khi edit
         useEffect(() => {
             if (productData && !isInitialized) {
                 console.log("ProductData received:", productData);
@@ -77,12 +99,23 @@ const ProductVariantManager = forwardRef(
             }
         }, [productData]);
 
-        // Auto-generate SKU when product code changes
         useEffect(() => {
             if (productCode && variantTable.length > 0) {
                 updateAllSKU();
             }
         }, [productCode]);
+
+        // Effect để cập nhật unit_id cho tất cả biến thể khi selectedUnit thay đổi
+        useEffect(() => {
+            if (selectedUnit && variantTable.length > 0) {
+                setVariantTable((prev) =>
+                    prev.map((variant) => ({
+                        ...variant,
+                        unit_id: selectedUnit,
+                    })),
+                );
+            }
+        }, [selectedUnit]);
 
         const updateAllSKU = () => {
             setVariantTable((prev) =>
@@ -93,10 +126,8 @@ const ProductVariantManager = forwardRef(
             );
         };
 
-        // Load variant data từ product khi edit
         const loadProductVariants = async () => {
             try {
-                // Parse attribute từ product.attribute
                 let attributeData = {};
                 if (productData?.attribute) {
                     if (typeof productData.attribute === "string") {
@@ -122,7 +153,6 @@ const ProductVariantManager = forwardRef(
 
                 setVariantEnabled(true);
 
-                // Tạo variant items từ attribute data
                 const items = Object.keys(attributeData).map(
                     (catalogueId, index) => ({
                         id: Date.now() + index,
@@ -133,7 +163,6 @@ const ProductVariantManager = forwardRef(
 
                 setVariantItems(items);
 
-                // Load attributes cho từng item song song
                 const loadPromises = items.map(async (item) => {
                     const selectedAttributes = await loadAttributesForEdit(
                         item.id,
@@ -145,7 +174,6 @@ const ProductVariantManager = forwardRef(
 
                 const loadedAttributes = await Promise.all(loadPromises);
 
-                // Update tất cả items với attributes đã load
                 setVariantItems((prev) =>
                     prev.map((item) => {
                         const loaded = loadedAttributes.find(
@@ -157,9 +185,7 @@ const ProductVariantManager = forwardRef(
                     }),
                 );
 
-                // Đợi state update rồi tạo table
                 setTimeout(() => {
-                    // Rebuild items với attributes đã load
                     const itemsWithAttributes = items.map((item) => {
                         const loaded = loadedAttributes.find(
                             (la) => la.itemId === item.id,
@@ -339,7 +365,6 @@ const ProductVariantManager = forwardRef(
                 variants.push(attrVariant);
             });
 
-            // Cartesian product
             if (attributes.length > 0) {
                 attributes = attributes.reduce((a, b) =>
                     a.flatMap((d) => b.map((e) => ({ ...d, ...e }))),
@@ -379,25 +404,20 @@ const ProductVariantManager = forwardRef(
                 const attributeIdString = variantValues.join(", ");
                 const variantKey = attributeIdString.replace(/, /g, "-");
 
-                // Tìm existing variant trong table hiện tại
                 const existingVariant = variantTable.find(
                     (v) => v.variantKey === variantKey,
                 );
 
-                // Tìm variant từ database
                 let dbVariant = null;
                 if (existingVariants && Array.isArray(existingVariants)) {
-                    // Cách 1: Tìm theo code
                     dbVariant = existingVariants.find(
                         (v) => v.code === variantKey,
                     );
 
-                    // Cách 2: Tìm theo index
                     if (!dbVariant && existingVariants[index]) {
                         dbVariant = existingVariants[index];
                     }
 
-                    // Cách 3: Tìm theo attribute
                     if (!dbVariant) {
                         dbVariant = existingVariants.find((v) => {
                             try {
@@ -418,7 +438,6 @@ const ProductVariantManager = forwardRef(
 
                 const sourceVariant = existingVariant || dbVariant;
 
-                // Parse album
                 let albumArray = [];
                 if (sourceVariant?.album) {
                     if (Array.isArray(sourceVariant.album)) {
@@ -450,6 +469,7 @@ const ProductVariantManager = forwardRef(
                     fileUrl:
                         sourceVariant?.fileUrl || sourceVariant?.file_url || "",
                     album: albumArray,
+                    // Ưu tiên: 1. Từ DB, 2. Từ selectedUnit, 3. Giữ nguyên giá trị cũ
                     unit_id: sourceVariant?.unit_id || selectedUnit || "",
                     id: sourceVariant?.id || null,
                 };
@@ -528,7 +548,7 @@ const ProductVariantManager = forwardRef(
                         ? variant.album.join(",")
                         : variant.album || "",
                 );
-                variantData.unit_id.push(variant.unit_id || "");
+                variantData.unit_id.push(variant.unit_id || selectedUnit || "");
 
                 productVariantData.name.push(variant.attributeString);
                 productVariantData.id.push(variant.attributeIdString);
@@ -550,17 +570,27 @@ const ProductVariantManager = forwardRef(
         return (
             <div className="space-y-6">
                 {/* Product Info Card */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Thông tin sản phẩm</CardTitle>
-                        <CardDescription>
-                            Nhập mã sản phẩm và chọn đơn vị tính
-                        </CardDescription>
+                <Card className="border-slate-200 shadow-lg overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                                <Package className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-lg text-slate-800">
+                                    Thông tin sản phẩm
+                                </CardTitle>
+                                <CardDescription>
+                                    Nhập mã sản phẩm và chọn đơn vị tính
+                                </CardDescription>
+                            </div>
+                        </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-6">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label htmlFor="product-code">
+                                <Label className="text-slate-700 flex items-center gap-1">
+                                    <Tag className="h-3.5 w-3.5 text-blue-600" />
                                     Mã sản phẩm
                                 </Label>
                                 <Input
@@ -568,8 +598,11 @@ const ProductVariantManager = forwardRef(
                                     placeholder="VD: PROD-001"
                                     value={productCode}
                                     onChange={(e) =>
-                                        setProductCode(e.target.value.toUpperCase())
+                                        setProductCode(
+                                            e.target.value.toUpperCase(),
+                                        )
                                     }
+                                    className="border-slate-200 focus:border-blue-500 focus:ring-blue-500"
                                 />
                             </div>
                             <div>
@@ -580,6 +613,9 @@ const ProductVariantManager = forwardRef(
                                     options={unitOptions}
                                     placeholder="Chọn đơn vị tính"
                                     searchPlaceholder="Tìm kiếm đơn vị..."
+                                    icon={
+                                        <Package className="h-4 w-4 text-purple-600" />
+                                    }
                                 />
                             </div>
                         </div>
@@ -587,27 +623,59 @@ const ProductVariantManager = forwardRef(
                 </Card>
 
                 {/* Variant Manager Card */}
-                <Card>
-                    <CardHeader>
+                <Card className="border-slate-200 shadow-lg overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-purple-600/5 to-blue-600/5 border-b border-slate-200">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle className="mb-2">Biến thể sản phẩm</CardTitle>
-                                <CardDescription>
-                                    Tạo và quản lý các phiên bản khác nhau của
-                                    sản phẩm
-                                </CardDescription>
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                                    <Layers className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg text-slate-800">
+                                        Biến thể sản phẩm
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Tạo và quản lý các phiên bản khác nhau
+                                        của sản phẩm
+                                    </CardDescription>
+                                </div>
                             </div>
-                            <Switch
-                                checked={variantEnabled}
-                                onCheckedChange={handleToggleVariant}
-                            />
+                            <div className="flex items-center gap-3">
+                                <Badge
+                                    className={cn(
+                                        variantEnabled
+                                            ? "bg-green-100 text-green-700 border-green-200"
+                                            : "bg-slate-100 text-slate-700 border-slate-200",
+                                    )}
+                                >
+                                    {variantEnabled ? "Đã bật" : "Đã tắt"}
+                                </Badge>
+                                <Switch
+                                    checked={variantEnabled}
+                                    onCheckedChange={handleToggleVariant}
+                                    className="data-[state=checked]:bg-blue-600"
+                                />
+                            </div>
                         </div>
                     </CardHeader>
 
                     {variantEnabled && (
-                        <CardContent className="space-y-6">
+                        <CardContent className="p-6 space-y-6">
                             {/* Attribute Selection */}
-                            <div className="space-y-3">
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                        <Settings className="h-4 w-4 text-blue-600" />
+                                        Cấu hình biến thể
+                                    </h4>
+                                    <Badge
+                                        variant="outline"
+                                        className="bg-blue-50 text-blue-700 border-blue-200"
+                                    >
+                                        {variantItems.length} nhóm thuộc tính
+                                    </Badge>
+                                </div>
+
                                 {variantItems.map((item) => (
                                     <VariantItemRow
                                         key={item.id}
@@ -634,118 +702,175 @@ const ProductVariantManager = forwardRef(
                                         type="button"
                                         variant="outline"
                                         onClick={addVariantItem}
-                                        className="w-full"
+                                        className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                                     >
                                         <Plus className="w-4 h-4 mr-2" />
-                                        Thêm phiên bản mới
+                                        Thêm nhóm thuộc tính mới
                                     </Button>
                                 )}
                             </div>
 
                             {/* Variant Table */}
                             {variantTable.length > 0 && (
-                                <div className="border rounded-lg overflow-hidden">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                {variantItems
-                                                    .filter(
-                                                        (i) =>
-                                                            i.catalogueId &&
-                                                            i.attributes
-                                                                .length > 0,
-                                                    )
-                                                    .map((item) => {
-                                                        const cat =
-                                                            attributeCatalogues.find(
-                                                                (c) =>
-                                                                    c.id.toString() ===
-                                                                    item.catalogueId,
-                                                            );
-                                                        return (
-                                                            <TableHead
-                                                                key={item.id}
-                                                            >
-                                                                {cat?.name}
-                                                            </TableHead>
-                                                        );
-                                                    })}
-                                                <TableHead>SKU</TableHead>
-                                                <TableHead>Đơn vị tính</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <h4 className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                            <Layers className="h-4 w-4 text-purple-600" />
+                                            Danh sách biến thể
+                                        </h4>
+                                        <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                                            {variantTable.length} biến thể
+                                        </Badge>
+                                    </div>
 
-                                        <TableBody>
-                                            {variantTable.map((variant) => {
-                                                const unitName = unitOptions.find(
-                                                    (u) =>
-                                                        String(u.value) ===
-                                                        String(variant.unit_id),
-                                                )?.label || "-";
-
-                                                return (
-                                                    <React.Fragment
-                                                        key={variant.variantKey}
-                                                    >
-                                                        <TableRow
-                                                            onClick={() =>
-                                                                handleEditVariant(
-                                                                    variant,
-                                                                )
-                                                            }
-                                                            className="cursor-pointer hover:bg-muted/50"
-                                                        >
-                                                            {variant.attributes.map(
-                                                                (attr, i) => (
-                                                                    <TableCell
-                                                                        key={`${variant.variantKey}-${i}`}
-                                                                    >
-                                                                        {attr}
-                                                                    </TableCell>
-                                                                ),
-                                                            )}
-                                                            <TableCell>
-                                                                {variant.sku}
-                                                            </TableCell>
-                                                            <TableCell className="font-medium">
-                                                                {unitName}
-                                                            </TableCell>
-                                                        </TableRow>
-
-                                                        {editingRow ===
-                                                            variant.variantKey && (
-                                                            <TableRow>
-                                                                <TableCell
-                                                                    colSpan={
-                                                                        999
+                                    <div className="border rounded-lg overflow-hidden shadow-sm">
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
+                                                    {variantItems
+                                                        .filter(
+                                                            (i) =>
+                                                                i.catalogueId &&
+                                                                i.attributes
+                                                                    .length > 0,
+                                                        )
+                                                        .map((item) => {
+                                                            const cat =
+                                                                attributeCatalogues.find(
+                                                                    (c) =>
+                                                                        c.id.toString() ===
+                                                                        item.catalogueId,
+                                                                );
+                                                            return (
+                                                                <TableHead
+                                                                    key={
+                                                                        item.id
                                                                     }
-                                                                    className="p-0"
+                                                                    className="font-semibold text-slate-700"
                                                                 >
-                                                                    <VariantEditForm
-                                                                        data={
-                                                                            editingData
+                                                                    {cat?.name}
+                                                                </TableHead>
+                                                            );
+                                                        })}
+                                                    <TableHead className="font-semibold text-slate-700">
+                                                        SKU
+                                                    </TableHead>
+                                                    <TableHead className="font-semibold text-slate-700">
+                                                        Đơn vị tính
+                                                    </TableHead>
+                                                    <TableHead className="w-10"></TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+
+                                            <TableBody>
+                                                {variantTable.map((variant) => {
+                                                    const unitName =
+                                                        unitOptions.find(
+                                                            (u) =>
+                                                                String(
+                                                                    u.value,
+                                                                ) ===
+                                                                String(
+                                                                    variant.unit_id,
+                                                                ),
+                                                        )?.label ||
+                                                        (variant.unit_id
+                                                            ? "Đang tải..."
+                                                            : "Chưa chọn");
+
+                                                    return (
+                                                        <React.Fragment
+                                                            key={
+                                                                variant.variantKey
+                                                            }
+                                                        >
+                                                            <TableRow
+                                                                onClick={() =>
+                                                                    handleEditVariant(
+                                                                        variant,
+                                                                    )
+                                                                }
+                                                                className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all"
+                                                            >
+                                                                {variant.attributes.map(
+                                                                    (
+                                                                        attr,
+                                                                        i,
+                                                                    ) => (
+                                                                        <TableCell
+                                                                            key={`${variant.variantKey}-${i}`}
+                                                                            className="font-medium"
+                                                                        >
+                                                                            {
+                                                                                attr
+                                                                            }
+                                                                        </TableCell>
+                                                                    ),
+                                                                )}
+                                                                <TableCell>
+                                                                    <code className="bg-slate-100 px-2 py-1 rounded text-xs text-blue-600">
+                                                                        {
+                                                                            variant.sku
                                                                         }
-                                                                        onChange={
-                                                                            setEditingData
-                                                                        }
-                                                                        onSave={
-                                                                            handleSaveEdit
-                                                                        }
-                                                                        onCancel={
-                                                                            handleCancelEdit
-                                                                        }
-                                                                        units={
-                                                                            unitOptions
-                                                                        }
-                                                                    />
+                                                                    </code>
+                                                                </TableCell>
+                                                                <TableCell className="font-medium">
+                                                                    {unitName}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-blue-600 hover:bg-blue-50"
+                                                                        onClick={(
+                                                                            e,
+                                                                        ) => {
+                                                                            e.stopPropagation();
+                                                                            handleEditVariant(
+                                                                                variant,
+                                                                            );
+                                                                        }}
+                                                                    >
+                                                                        <Edit className="h-4 w-4" />
+                                                                    </Button>
                                                                 </TableCell>
                                                             </TableRow>
-                                                        )}
-                                                    </React.Fragment>
-                                                );
-                                            })}
-                                        </TableBody>
-                                    </Table>
+
+                                                            {editingRow ===
+                                                                variant.variantKey && (
+                                                                <TableRow>
+                                                                    <TableCell
+                                                                        colSpan={
+                                                                            999
+                                                                        }
+                                                                        className="p-0 bg-gradient-to-r from-blue-50 to-purple-50"
+                                                                    >
+                                                                        <VariantEditForm
+                                                                            data={
+                                                                                editingData
+                                                                            }
+                                                                            onChange={
+                                                                                setEditingData
+                                                                            }
+                                                                            onSave={
+                                                                                handleSaveEdit
+                                                                            }
+                                                                            onCancel={
+                                                                                handleCancelEdit
+                                                                            }
+                                                                            units={
+                                                                                unitOptions
+                                                                            }
+                                                                        />
+                                                                    </TableCell>
+                                                                </TableRow>
+                                                            )}
+                                                        </React.Fragment>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    </div>
                                 </div>
                             )}
                         </CardContent>
@@ -813,39 +938,52 @@ function VariantItemRow({
     };
 
     return (
-        <div className="grid grid-cols-12 gap-3">
+        <div className="grid grid-cols-12 gap-3 p-4 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-200">
             <div className="col-span-4">
-                <Label className="text-sm mb-2 block">Nhóm thuộc tính</Label>
+                <Label className="text-sm mb-2 block text-slate-700 flex items-center gap-1">
+                    <Package className="h-3.5 w-3.5 text-blue-600" />
+                    Nhóm thuộc tính
+                </Label>
                 <Popover>
                     <PopoverTrigger asChild>
                         <Button
                             variant="outline"
                             role="combobox"
                             type="button"
-                            className="w-full justify-between"
+                            className="w-full justify-between border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all"
                         >
                             {item.catalogueId ? (
-                                availableCatalogues.find(
-                                    (cat) =>
-                                        cat.id.toString() === item.catalogueId,
-                                )?.name
+                                <span className="flex items-center gap-2">
+                                    <Package className="h-4 w-4 text-blue-600" />
+                                    {
+                                        availableCatalogues.find(
+                                            (cat) =>
+                                                cat.id.toString() ===
+                                                item.catalogueId,
+                                        )?.name
+                                    }
+                                </span>
                             ) : (
-                                <span className="text-muted-foreground">
+                                <span className="text-muted-foreground flex items-center gap-2">
+                                    <Package className="h-4 w-4 text-slate-400" />
                                     Chọn nhóm
                                 </span>
                             )}
                             <ChevronsUpDown className="ml-2 h-4 w-4 opacity-50" />
                         </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                    <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 border-blue-200">
                         <Command>
                             <CommandInput
                                 className="border-0 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:ring-0 shadow-none"
                                 placeholder="Tìm kiếm..."
                             />
                             <CommandList>
-                                <CommandEmpty>
-                                    Không tìm thấy nhóm thuộc tính.
+                                <CommandEmpty className="py-6 text-center">
+                                    <Package className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                                    <p className="text-sm text-slate-500">
+                                        Không tìm thấy nhóm thuộc tính.
+                                    </p>
                                 </CommandEmpty>
                                 <CommandGroup>
                                     {availableCatalogues.map((cat) => (
@@ -858,13 +996,14 @@ function VariantItemRow({
                                                     cat.id.toString(),
                                                 )
                                             }
+                                            className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
                                         >
                                             <Check
                                                 className={cn(
                                                     "mr-2 h-4 w-4",
                                                     cat.id.toString() ===
                                                         item.catalogueId
-                                                        ? "opacity-100"
+                                                        ? "opacity-100 text-blue-600"
                                                         : "opacity-0",
                                                 )}
                                             />
@@ -879,7 +1018,10 @@ function VariantItemRow({
             </div>
 
             <div className="col-span-7">
-                <Label className="text-sm mb-2 block">Giá trị thuộc tính</Label>
+                <Label className="text-sm mb-2 block text-slate-700 flex items-center gap-1">
+                    <Layers className="h-3.5 w-3.5 text-purple-600" />
+                    Giá trị thuộc tính
+                </Label>
                 <AttributeMultiSelect
                     options={attributes}
                     selected={item.attributes}
@@ -897,13 +1039,13 @@ function VariantItemRow({
                 />
             </div>
 
-            <div className="col-span-1 flex items-end">
+            <div className="col-span-1 flex items-end justify-end">
                 <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     onClick={() => onRemove(item.id)}
-                    className="pb-2"
+                    className="h-10 w-10 text-red-600 hover:text-red-700 hover:bg-red-50"
                 >
                     <Trash2 className="w-4 h-4" />
                 </Button>
@@ -949,7 +1091,7 @@ function AttributeMultiSelect({
                             type="button"
                             disabled={isDisabled}
                             className={cn(
-                                "w-full justify-between min-h-11 h-auto",
+                                "w-full justify-between min-h-11 h-auto border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition-all",
                                 isDisabled && "cursor-not-allowed opacity-50",
                             )}
                         >
@@ -958,11 +1100,11 @@ function AttributeMultiSelect({
                                     selected.map((option) => (
                                         <span
                                             key={option.value}
-                                            className="inline-flex items-center gap-1 bg-secondary px-2.5 py-1 rounded-md text-xs font-medium"
+                                            className="inline-flex items-center gap-1 bg-gradient-to-r from-blue-100 to-purple-100 px-2.5 py-1 rounded-md text-xs font-medium text-purple-700"
                                         >
                                             {option.label}
                                             <X
-                                                className="w-3 h-3 cursor-pointer hover:text-destructive"
+                                                className="w-3 h-3 cursor-pointer hover:text-red-600"
                                                 onClick={(e) =>
                                                     removeOption(option, e)
                                                 }
@@ -979,15 +1121,18 @@ function AttributeMultiSelect({
                         </Button>
                     </div>
                 </PopoverTrigger>
-                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0">
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 border-purple-200">
                     <Command>
                         <CommandInput
                             className="border-0 outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:ring-0 shadow-none"
                             placeholder="Tìm kiếm thuộc tính..."
                         />
                         <CommandList>
-                            <CommandEmpty>
-                                Không tìm thấy thuộc tính.
+                            <CommandEmpty className="py-6 text-center">
+                                <Layers className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                                <p className="text-sm text-slate-500">
+                                    Không tìm thấy thuộc tính.
+                                </p>
                             </CommandEmpty>
                             <CommandGroup>
                                 {options.map((option) => {
@@ -1001,15 +1146,24 @@ function AttributeMultiSelect({
                                             onSelect={() =>
                                                 toggleOption(option)
                                             }
+                                            className={cn(
+                                                "cursor-pointer",
+                                                isSelected &&
+                                                    "bg-gradient-to-r from-blue-600/5 to-purple-600/5",
+                                            )}
                                         >
-                                            <Check
+                                            <div
                                                 className={cn(
-                                                    "mr-2 h-4 w-4",
+                                                    "mr-2 h-4 w-4 rounded border flex items-center justify-center",
                                                     isSelected
-                                                        ? "opacity-100"
-                                                        : "opacity-0",
+                                                        ? "bg-purple-600 border-purple-600"
+                                                        : "border-slate-300",
                                                 )}
-                                            />
+                                            >
+                                                {isSelected && (
+                                                    <Check className="h-3 w-3 text-white" />
+                                                )}
+                                            </div>
                                             {option.label}
                                         </CommandItem>
                                     );
@@ -1041,15 +1195,25 @@ function VariantEditForm({ data, onChange, onSave, onCancel, units = [] }) {
     };
 
     return (
-        <div className="p-6 space-y-6 bg-muted/30">
+        <div className="p-6 space-y-6 bg-gradient-to-r from-blue-50 to-purple-50">
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b">
-                <div>
-                    <h3 className="font-semibold text-lg">Cập Nhật Biến Thể</h3>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                        Chỉnh sửa thông tin chi tiết
-                    </p>
+            <div className="flex items-center justify-between pb-4 border-b border-blue-200">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                        <Settings className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                        <h3 className="font-semibold text-lg text-slate-800">
+                            Cập Nhật Biến Thể
+                        </h3>
+                        <p className="text-sm text-slate-500 mt-0.5">
+                            Chỉnh sửa thông tin chi tiết
+                        </p>
+                    </div>
                 </div>
+                <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                    {data.sku}
+                </Badge>
             </div>
 
             {/* Album Upload */}
@@ -1067,33 +1231,46 @@ function VariantEditForm({ data, onChange, onSave, onCancel, units = [] }) {
             />
 
             {/* Product Info */}
-            <Card>
-                <CardHeader>
-                    <CardTitle className="text-base">
+            <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 py-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <Package className="h-4 w-4 text-blue-600" />
                         Thông Tin Cơ Bản
                     </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4">
                     <div className="grid grid-cols-3 gap-3">
                         <div className="space-y-2">
-                            <Label className="text-sm">SKU</Label>
-                            <Input
-                                value={data.sku}
-                                onChange={(e) =>
-                                    handleChange("sku", e.target.value)
-                                }
-                                placeholder="Mã SKU"
-                            />
+                            <Label className="text-xs text-slate-500">
+                                SKU
+                            </Label>
+                            <div className="relative">
+                                <Tag className="absolute left-2 top-2.5 h-4 w-4 text-blue-600" />
+                                <Input
+                                    value={data.sku}
+                                    onChange={(e) =>
+                                        handleChange("sku", e.target.value)
+                                    }
+                                    placeholder="Mã SKU"
+                                    className="pl-8 border-slate-200 focus:border-blue-500 focus:ring-blue-500"
+                                />
+                            </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-sm">Barcode</Label>
-                            <Input
-                                value={data.barcode}
-                                onChange={(e) =>
-                                    handleChange("barcode", e.target.value)
-                                }
-                                placeholder="Barcode"
-                            />
+                            <Label className="text-xs text-slate-500">
+                                Barcode
+                            </Label>
+                            <div className="relative">
+                                <Barcode className="absolute left-2 top-2.5 h-4 w-4 text-purple-600" />
+                                <Input
+                                    value={data.barcode}
+                                    onChange={(e) =>
+                                        handleChange("barcode", e.target.value)
+                                    }
+                                    placeholder="Barcode"
+                                    className="pl-8 border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                                />
+                            </div>
                         </div>
                         <div>
                             <SelectCombobox
@@ -1104,6 +1281,9 @@ function VariantEditForm({ data, onChange, onSave, onCancel, units = [] }) {
                                 }
                                 options={units}
                                 placeholder="Chọn đơn vị"
+                                icon={
+                                    <Package className="h-4 w-4 text-blue-600" />
+                                }
                             />
                         </div>
                     </div>
@@ -1111,58 +1291,85 @@ function VariantEditForm({ data, onChange, onSave, onCancel, units = [] }) {
             </Card>
 
             {/* Digital Product File Management */}
-            <Card>
-                <CardHeader>
+            <Card className="border-slate-200 shadow-sm">
+                <CardHeader className="bg-gradient-to-r from-purple-600/5 to-blue-600/5 py-3">
                     <div className="flex items-center justify-between">
-                        <CardTitle className="text-base">
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <FileText className="h-4 w-4 text-purple-600" />
                             File Sản Phẩm Số
                         </CardTitle>
                         <div className="flex items-center gap-2">
-                            <Label htmlFor="file-toggle" className="text-sm">
+                            <Label
+                                htmlFor="file-toggle"
+                                className="text-sm text-slate-600"
+                            >
                                 Kích hoạt
                             </Label>
                             <Switch
                                 id="file-toggle"
                                 checked={fileEnabled}
                                 onCheckedChange={setFileEnabled}
+                                className="data-[state=checked]:bg-purple-600"
                             />
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-4">
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
-                            <Label className="text-sm">Tên file</Label>
-                            <Input
-                                value={data.fileName}
-                                onChange={(e) =>
-                                    handleChange("fileName", e.target.value)
-                                }
-                                disabled={!fileEnabled}
-                                placeholder="document.pdf"
-                            />
+                            <Label className="text-xs text-slate-500">
+                                Tên file
+                            </Label>
+                            <div className="relative">
+                                <FileText className="absolute left-2 top-2.5 h-4 w-4 text-blue-600" />
+                                <Input
+                                    value={data.fileName}
+                                    onChange={(e) =>
+                                        handleChange("fileName", e.target.value)
+                                    }
+                                    disabled={!fileEnabled}
+                                    placeholder="document.pdf"
+                                    className="pl-8 border-slate-200 focus:border-blue-500 focus:ring-blue-500 disabled:opacity-50"
+                                />
+                            </div>
                         </div>
                         <div className="space-y-2">
-                            <Label className="text-sm">URL file</Label>
-                            <Input
-                                value={data.fileUrl}
-                                onChange={(e) =>
-                                    handleChange("fileUrl", e.target.value)
-                                }
-                                disabled={!fileEnabled}
-                                placeholder="https://..."
-                            />
+                            <Label className="text-xs text-slate-500">
+                                URL file
+                            </Label>
+                            <div className="relative">
+                                <FileText className="absolute left-2 top-2.5 h-4 w-4 text-purple-600" />
+                                <Input
+                                    value={data.fileUrl}
+                                    onChange={(e) =>
+                                        handleChange("fileUrl", e.target.value)
+                                    }
+                                    disabled={!fileEnabled}
+                                    placeholder="https://..."
+                                    className="pl-8 border-slate-200 focus:border-purple-500 focus:ring-purple-500 disabled:opacity-50"
+                                />
+                            </div>
                         </div>
                     </div>
                 </CardContent>
             </Card>
 
             {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button type="button" variant="outline" onClick={onCancel}>
+            <div className="flex justify-end gap-3 pt-4 border-t border-blue-200">
+                <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onCancel}
+                    className="border-slate-200 hover:bg-slate-100 hover:text-slate-900"
+                >
                     Hủy
                 </Button>
-                <Button type="button" onClick={onSave}>
+                <Button
+                    type="button"
+                    onClick={onSave}
+                    className="btn-gradient-premium"
+                >
+                    <Save className="mr-2 h-4 w-4" />
                     Lưu Lại
                 </Button>
             </div>

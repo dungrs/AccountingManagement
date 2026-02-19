@@ -23,7 +23,20 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/admin/components/ui/select";
-import { MoreHorizontal, Plus, CheckCircle2, XCircle } from "lucide-react";
+import {
+    MoreHorizontal,
+    Plus,
+    CheckCircle2,
+    XCircle,
+    Truck,
+    Building2,
+    Filter,
+    RefreshCw,
+    FileText,
+    Users,
+    UserCheck,
+    UserX,
+} from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
@@ -33,13 +46,14 @@ import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
 import useFlashToast from "@/admin/hooks/useFlashToast";
+import { cn } from "@/admin/lib/utils";
 
 export default function Home() {
     useFlashToast();
 
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
-    const [pageSize, setPageSize] = useState("10");
+    const [pageSize, setPageSize] = useState("20");
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -198,6 +212,15 @@ export default function Home() {
         setPageSize(value);
     };
 
+    const handleRefresh = () => {
+        fetchData(paginationData.current_page);
+        toast.success("Đã làm mới dữ liệu");
+    };
+
+    // Thống kê
+    const activeCount = data.filter((item) => item.active).length;
+    const inactiveCount = data.filter((item) => !item.active).length;
+
     return (
         <AdminLayout
             breadcrumb={[
@@ -206,19 +229,89 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "QL Nhà Cung Cấp",
+                    label: "Quản Lý Nhà Cung Cấp",
                 },
             ]}
         >
             <Head title="Quản Lý Nhà Cung Cấp" />
-            <Card className="rounded-md shadow-sm">
-                <CardHeader className="pb-4">
+
+            {/* Header Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Tổng nhà cung cấp
+                            </p>
+                            <p className="text-2xl font-bold text-blue-600">
+                                {paginationData.total}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Truck className="h-6 w-6 text-blue-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Đang hoạt động
+                            </p>
+                            <p className="text-2xl font-bold text-purple-600">
+                                {activeCount}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                            <UserCheck className="h-6 w-6 text-purple-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Ngừng hoạt động
+                            </p>
+                            <p className="text-2xl font-bold text-red-600">
+                                {inactiveCount}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                            <UserX className="h-6 w-6 text-red-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Đã chọn
+                            </p>
+                            <p className="text-2xl font-bold text-green-600">
+                                {selectedRows.length}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                            <Users className="h-6 w-6 text-green-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
+                {/* HEADER - Gradient Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <CardTitle className="text-2xl font-bold mb-1">
+                            <CardTitle className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                <Truck className="h-6 w-6" />
                                 Quản Lý Nhà Cung Cấp
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription className="text-white/80">
                                 Quản lý thông tin nhà cung cấp, bao gồm tên, mã
                                 số thuế, thông tin liên hệ.
                             </CardDescription>
@@ -226,7 +319,16 @@ export default function Home() {
 
                         <div className="flex items-center gap-2">
                             <Button
-                                className="rounded-md"
+                                onClick={handleRefresh}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                            >
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Làm mới
+                            </Button>
+
+                            <Button
+                                className="btn-gradient-premium rounded-md shadow-lg"
                                 onClick={() =>
                                     router.visit(route("admin.supplier.create"))
                                 }
@@ -238,9 +340,8 @@ export default function Home() {
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="rounded-md"
+                                        variant="secondary"
+                                        className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                                     >
                                         <MoreHorizontal className="h-4 w-4" />
                                     </Button>
@@ -248,10 +349,14 @@ export default function Home() {
 
                                 <DropdownMenuContent
                                     align="end"
-                                    className="rounded-md"
+                                    className="dropdown-premium-content rounded-md w-56"
                                 >
                                     <DropdownMenuItem
-                                        className="cursor-pointer"
+                                        className={cn(
+                                            "cursor-pointer dropdown-premium-item",
+                                            selectedRows.length === 0 &&
+                                                "opacity-50 cursor-not-allowed",
+                                        )}
                                         disabled={selectedRows.length === 0}
                                         onClick={() =>
                                             bulkUpdateStatus(
@@ -262,11 +367,17 @@ export default function Home() {
                                         }
                                     >
                                         <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                                        Xuất bản
+                                        <span className="text-slate-700">
+                                            Xuất bản
+                                        </span>
                                     </DropdownMenuItem>
 
                                     <DropdownMenuItem
-                                        className="cursor-pointer"
+                                        className={cn(
+                                            "cursor-pointer dropdown-premium-item",
+                                            selectedRows.length === 0 &&
+                                                "opacity-50 cursor-not-allowed",
+                                        )}
                                         disabled={selectedRows.length === 0}
                                         onClick={() =>
                                             bulkUpdateStatus(
@@ -277,38 +388,61 @@ export default function Home() {
                                         }
                                     >
                                         <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                                        Không xuất bản
+                                        <span className="text-slate-700">
+                                            Không xuất bản
+                                        </span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
                     </div>
-                </CardHeader>
+                </div>
 
-                <CardContent className="space-y-4">
+                <CardContent className="p-6 space-y-4">
                     <DataTableFilter
                         keyword={keyword}
                         setKeyword={setKeyword}
                         placeholder="Tìm kiếm theo tên, mã số thuế, email..."
+                        className="bg-white"
                     >
-                        <Select
-                            value={statusFilter}
-                            onValueChange={setStatusFilter}
-                        >
-                            <SelectTrigger className="w-full sm:w-[200px] rounded-md">
-                                <SelectValue placeholder="Tình trạng" />
-                            </SelectTrigger>
+                        <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-slate-400" />
+                            <Select
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                            >
+                                <SelectTrigger className="w-full sm:w-[200px] rounded-md border-slate-200 focus:ring-blue-500">
+                                    <SelectValue placeholder="Tình trạng" />
+                                </SelectTrigger>
 
-                            <SelectContent>
-                                <SelectItem value="all">Tất cả</SelectItem>
-                                <SelectItem value="1">
-                                    Đang hoạt động
-                                </SelectItem>
-                                <SelectItem value="0">
-                                    Ngừng hoạt động
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                                <SelectContent className="dropdown-premium-content">
+                                    <SelectItem
+                                        value="all"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        Tất cả
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="1"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                                            Đang hoạt động
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="0"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                                            Ngừng hoạt động
+                                        </span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </DataTableFilter>
 
                     <SupplierTable

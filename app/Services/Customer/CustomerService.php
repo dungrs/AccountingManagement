@@ -142,6 +142,15 @@ class CustomerService extends BaseService implements CustomerServiceInterface
         });
     }
 
+    public function getCustomerList()
+    {
+        $suppliers = $this->customerRepository->findByCondition([
+            ['publish', '=', 1]
+        ], true, [], [], ['id', 'name', 'id', 'phone', 'email', 'address']);
+
+        return $suppliers;
+    }
+
     private function payload()
     {
         return [

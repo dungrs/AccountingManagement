@@ -8,6 +8,7 @@ import { Button } from "@/admin/components/ui/button";
 import { Input } from "@/admin/components/ui/input";
 import { Textarea } from "@/admin/components/ui/textarea";
 import { Label } from "@/admin/components/ui/label";
+import { Badge } from "@/admin/components/ui/badge";
 import {
     Card,
     CardContent,
@@ -36,7 +37,6 @@ import {
     PopoverTrigger,
 } from "@/admin/components/ui/popover";
 import { Calendar } from "@/admin/components/ui/calendar";
-import { Badge } from "@/admin/components/ui/badge";
 import {
     Plus,
     Trash2,
@@ -46,6 +46,13 @@ import {
     CalendarIcon,
     Pencil,
     Info,
+    Tag,
+    Package,
+    DollarSign,
+    Percent,
+    FileText,
+    ListChecks,
+    Loader2,
 } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { useEventBus } from "@/EventBus";
@@ -382,8 +389,8 @@ export default function PriceListForm() {
         };
 
         const submitRoute = isEdit
-            ? route("admin.price_list.update", price_list.id)
-            : route("admin.price_list.store");
+            ? route("admin.price.list.update", price_list.id)
+            : route("admin.price.list.store");
 
         const submitMethod = isEdit ? "put" : "post";
 
@@ -436,7 +443,7 @@ export default function PriceListForm() {
         <AdminLayout
             breadcrumb={[
                 { label: "Dashboard", link: route("admin.dashboard.index") },
-                { label: "Bảng giá", link: route("admin.price_list.index") },
+                { label: "Bảng giá", link: route("admin.price.list.index") },
                 {
                     label: isEdit ? "Chỉnh sửa bảng giá" : "Thêm mới bảng giá",
                 },
@@ -444,26 +451,61 @@ export default function PriceListForm() {
         >
             <Head title={isEdit ? "Chỉnh sửa bảng giá" : "Thêm bảng giá"} />
 
+            {/* Header */}
+            <div className="mb-6 flex items-center gap-4">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center shadow-lg">
+                    <Tag className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-800">
+                        {isEdit ? "Chỉnh sửa bảng giá" : "Thêm bảng giá mới"}
+                    </h1>
+                    <p className="text-slate-500 text-sm">
+                        Quản lý thông tin bảng giá và giá bán cho từng sản phẩm
+                    </p>
+                </div>
+            </div>
+
             <div className="space-y-6">
                 <form onSubmit={handleSubmit}>
                     {/* Thông tin chung */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Thông tin chung</CardTitle>
-                            <CardDescription>
-                                Cập nhật thông tin cơ bản của bảng giá
-                            </CardDescription>
+                    <Card className="border-slate-200 shadow-lg overflow-hidden">
+                        <CardHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                                    <FileText className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg text-slate-800">
+                                        Thông tin chung
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Cập nhật thông tin cơ bản của bảng giá
+                                    </CardDescription>
+                                </div>
+                            </div>
                         </CardHeader>
-                        <CardContent className="space-y-4">
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-start gap-2">
-                                <Info className="w-4 h-4 text-yellow-600 mt-0.5" />
-                                <p className="text-sm text-yellow-800">
-                                    Các trường có dấu (*) là bắt buộc nhập
+                        <CardContent className="p-6 space-y-4">
+                            <div className="flex items-start gap-3 rounded-lg border-l-4 border-l-blue-600 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3 text-sm text-slate-700">
+                                <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                <p>
+                                    Các trường có dấu{" "}
+                                    <Badge
+                                        variant="outline"
+                                        className="bg-red-100 text-red-600 border-red-200 mx-1 px-1.5"
+                                    >
+                                        *
+                                    </Badge>{" "}
+                                    là bắt buộc nhập
                                 </p>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="name">
+                                    <Label
+                                        htmlFor="name"
+                                        className="text-slate-700 flex items-center gap-1"
+                                    >
+                                        <Tag className="h-3.5 w-3.5 text-blue-600" />
                                         Tên bảng giá{" "}
                                         <span className="text-red-500">*</span>
                                     </Label>
@@ -475,18 +517,27 @@ export default function PriceListForm() {
                                         }
                                         placeholder="Nhập tên bảng giá"
                                         className={cn(
-                                            errors.name && "border-red-500",
+                                            "border-slate-200 focus:border-blue-500 focus:ring-blue-500",
+                                            errors.name &&
+                                                "border-red-500 focus:border-red-500",
                                         )}
                                     />
                                     {errors.name && (
-                                        <p className="text-xs text-red-500">
+                                        <p className="text-xs text-red-500 flex items-center gap-1">
+                                            <Info className="h-3 w-3" />
                                             {errors.name}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="publish">Trạng thái</Label>
+                                    <Label
+                                        htmlFor="publish"
+                                        className="text-slate-700 flex items-center gap-1"
+                                    >
+                                        <ListChecks className="h-3.5 w-3.5 text-purple-600" />
+                                        Trạng thái
+                                    </Label>
                                     <Select
                                         value={formData.publish ? "1" : "0"}
                                         onValueChange={(value) =>
@@ -496,15 +547,27 @@ export default function PriceListForm() {
                                             )
                                         }
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className="border-slate-200 focus:border-purple-500 focus:ring-purple-500">
                                             <SelectValue />
                                         </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="1">
-                                                Đang áp dụng
+                                        <SelectContent className="dropdown-premium-content">
+                                            <SelectItem
+                                                value="1"
+                                                className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                                                    Đang áp dụng
+                                                </span>
                                             </SelectItem>
-                                            <SelectItem value="0">
-                                                Ngừng áp dụng
+                                            <SelectItem
+                                                value="0"
+                                                className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                            >
+                                                <span className="flex items-center gap-2">
+                                                    <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                                                    Ngừng áp dụng
+                                                </span>
                                             </SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -513,7 +576,8 @@ export default function PriceListForm() {
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>
+                                    <Label className="text-slate-700 flex items-center gap-1">
+                                        <CalendarIcon className="h-3.5 w-3.5 text-green-600" />
                                         Ngày bắt đầu{" "}
                                         <span className="text-red-500">*</span>
                                     </Label>
@@ -527,14 +591,14 @@ export default function PriceListForm() {
                                                 type="button"
                                                 variant="outline"
                                                 className={cn(
-                                                    "w-full justify-start font-normal",
+                                                    "w-full justify-start font-normal border-slate-200 hover:border-green-500 hover:bg-green-50/50 transition-all",
                                                     !startDate &&
                                                         "text-muted-foreground",
                                                     errors.start_date &&
-                                                        "border-red-500",
+                                                        "border-red-500 hover:border-red-500",
                                                 )}
                                             >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-green-500" />
                                                 {startDate
                                                     ? format(
                                                           startDate,
@@ -546,7 +610,7 @@ export default function PriceListForm() {
                                         </PopoverTrigger>
 
                                         <PopoverContent
-                                            className="w-auto overflow-hidden p-0"
+                                            className="w-auto overflow-hidden p-0 border-green-200"
                                             align="start"
                                         >
                                             <Calendar
@@ -572,14 +636,18 @@ export default function PriceListForm() {
                                     </Popover>
 
                                     {errors.start_date && (
-                                        <p className="text-xs text-red-500">
+                                        <p className="text-xs text-red-500 flex items-center gap-1">
+                                            <Info className="h-3 w-3" />
                                             {errors.start_date}
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Ngày kết thúc</Label>
+                                    <Label className="text-slate-700 flex items-center gap-1">
+                                        <CalendarIcon className="h-3.5 w-3.5 text-orange-600" />
+                                        Ngày kết thúc
+                                    </Label>
 
                                     <Popover
                                         open={openEndDate}
@@ -590,14 +658,14 @@ export default function PriceListForm() {
                                                 type="button"
                                                 variant="outline"
                                                 className={cn(
-                                                    "w-full justify-start font-normal",
+                                                    "w-full justify-start font-normal border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 transition-all",
                                                     !endDate &&
                                                         "text-muted-foreground",
                                                     errors.end_date &&
-                                                        "border-red-500",
+                                                        "border-red-500 hover:border-red-500",
                                                 )}
                                             >
-                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                <CalendarIcon className="mr-2 h-4 w-4 text-orange-500" />
                                                 {endDate
                                                     ? format(
                                                           endDate,
@@ -609,7 +677,7 @@ export default function PriceListForm() {
                                         </PopoverTrigger>
 
                                         <PopoverContent
-                                            className="w-auto overflow-hidden p-0"
+                                            className="w-auto overflow-hidden p-0 border-orange-200"
                                             align="start"
                                         >
                                             <Calendar
@@ -642,7 +710,8 @@ export default function PriceListForm() {
                                     </Popover>
 
                                     {errors.end_date && (
-                                        <p className="text-xs text-red-500">
+                                        <p className="text-xs text-red-500 flex items-center gap-1">
+                                            <Info className="h-3 w-3" />
                                             {errors.end_date}
                                         </p>
                                     )}
@@ -650,7 +719,13 @@ export default function PriceListForm() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="description">Mô tả</Label>
+                                <Label
+                                    htmlFor="description"
+                                    className="text-slate-700 flex items-center gap-1"
+                                >
+                                    <FileText className="h-3.5 w-3.5 text-blue-600" />
+                                    Mô tả
+                                </Label>
                                 <Textarea
                                     id="description"
                                     value={formData.description}
@@ -663,11 +738,14 @@ export default function PriceListForm() {
                                     placeholder="Nhập mô tả cho bảng giá"
                                     rows={3}
                                     className={cn(
-                                        errors.description && "border-red-500",
+                                        "border-slate-200 focus:border-blue-500 focus:ring-blue-500",
+                                        errors.description &&
+                                            "border-red-500 focus:border-red-500",
                                     )}
                                 />
                                 {errors.description && (
-                                    <p className="text-xs text-red-500">
+                                    <p className="text-xs text-red-500 flex items-center gap-1">
+                                        <Info className="h-3 w-3" />
                                         {errors.description}
                                     </p>
                                 )}
@@ -676,36 +754,52 @@ export default function PriceListForm() {
                     </Card>
 
                     {/* Danh sách sản phẩm */}
-                    <Card className="mt-6">
-                        <CardHeader>
-                            <div className="space-y-2">
-                                <CardTitle>Danh sách sản phẩm</CardTitle>
-                                <CardDescription>
-                                    Quản lý giá cho từng sản phẩm
-                                </CardDescription>
+                    <Card className="mt-6 border-slate-200 shadow-lg overflow-hidden">
+                        <CardHeader className="bg-gradient-to-r from-purple-600/5 to-blue-600/5 border-b border-slate-200">
+                            <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-lg text-slate-800">
+                                        Danh sách sản phẩm
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Quản lý giá cho từng sản phẩm
+                                    </CardDescription>
+                                </div>
                             </div>
                         </CardHeader>
-                        <CardContent>
-                            <div className="rounded-md border">
+                        <CardContent className="p-6">
+                            <div className="rounded-lg border border-slate-200 overflow-hidden shadow-sm">
                                 <Table>
-                                    <TableHeader>
-                                        <TableRow className="bg-muted/40">
-                                            <TableHead className="min-w-[300px]">
-                                                Tên sản phẩm
+                                    <TableHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
+                                        <TableRow>
+                                            <TableHead className="min-w-[300px] font-semibold text-slate-700">
+                                                <div className="flex items-center gap-2">
+                                                    <Package className="h-4 w-4 text-blue-600" />
+                                                    Tên sản phẩm
+                                                </div>
                                             </TableHead>
-                                            <TableHead className="w-[150px] text-left">
-                                                Đơn giá
+                                            <TableHead className="w-[150px] text-left font-semibold text-slate-700">
+                                                <div className="flex items-center gap-2">
+                                                    <DollarSign className="h-4 w-4 text-green-600" />
+                                                    Đơn giá
+                                                </div>
                                             </TableHead>
-                                            <TableHead className="w-[180px]">
-                                                Thuế GTGT
+                                            <TableHead className="w-[180px] font-semibold text-slate-700">
+                                                <div className="flex items-center gap-2">
+                                                    <Percent className="h-4 w-4 text-orange-600" />
+                                                    Thuế GTGT
+                                                </div>
                                             </TableHead>
-                                            <TableHead className="w-[150px] text-left">
+                                            <TableHead className="w-[150px] text-left font-semibold text-slate-700">
                                                 Tiền VAT
                                             </TableHead>
-                                            <TableHead className="w-[150px] text-left">
+                                            <TableHead className="w-[150px] text-left font-semibold text-slate-700">
                                                 Giá sau VAT
                                             </TableHead>
-                                            <TableHead className="w-[100px] text-center">
+                                            <TableHead className="w-[100px] text-center font-semibold text-slate-700">
                                                 Thao tác
                                             </TableHead>
                                         </TableRow>
@@ -738,11 +832,12 @@ export default function PriceListForm() {
                                                 return (
                                                     <TableRow
                                                         key={index}
-                                                        className={
+                                                        className={cn(
+                                                            "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5",
                                                             isEditing
                                                                 ? "bg-amber-50/50"
-                                                                : ""
-                                                        }
+                                                                : "",
+                                                        )}
                                                     >
                                                         <TableCell>
                                                             {isEditing ? (
@@ -764,10 +859,20 @@ export default function PriceListForm() {
                                                                     )}
                                                                     placeholder="Chọn sản phẩm..."
                                                                     searchPlaceholder="Tìm kiếm sản phẩm..."
+                                                                    icon={
+                                                                        <Package className="h-4 w-4 text-blue-600" />
+                                                                    }
                                                                 />
                                                             ) : (
-                                                                variant?.name ||
-                                                                "N/A"
+                                                                <div className="flex items-center gap-2">
+                                                                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600/10 to-purple-600/10 flex items-center justify-center">
+                                                                        <Package className="h-4 w-4 text-blue-600" />
+                                                                    </div>
+                                                                    <span className="font-medium text-slate-800">
+                                                                        {variant?.name ||
+                                                                            "N/A"}
+                                                                    </span>
+                                                                </div>
                                                             )}
                                                         </TableCell>
                                                         <TableCell>
@@ -788,10 +893,10 @@ export default function PriceListForm() {
                                                                                 .value,
                                                                         )
                                                                     }
-                                                                    className="text-left"
+                                                                    className="text-left border-slate-200 focus:border-green-500 focus:ring-green-500"
                                                                 />
                                                             ) : (
-                                                                <span className="font-medium">
+                                                                <span className="font-medium text-green-600">
                                                                     {formatCurrency(
                                                                         item.sale_price,
                                                                     )}
@@ -816,10 +921,10 @@ export default function PriceListForm() {
                                                                         );
                                                                     }}
                                                                 >
-                                                                    <SelectTrigger>
+                                                                    <SelectTrigger className="border-slate-200 focus:border-orange-500 focus:ring-orange-500">
                                                                         <SelectValue />
                                                                     </SelectTrigger>
-                                                                    <SelectContent>
+                                                                    <SelectContent className="dropdown-premium-content">
                                                                         {vat_taxes?.map(
                                                                             (
                                                                                 tax,
@@ -831,6 +936,7 @@ export default function PriceListForm() {
                                                                                     value={String(
                                                                                         tax.id,
                                                                                     )}
+                                                                                    className="cursor-pointer hover:bg-gradient-to-r hover:from-orange-600/5 hover:to-yellow-600/5"
                                                                                 >
                                                                                     {
                                                                                         tax.name
@@ -849,19 +955,19 @@ export default function PriceListForm() {
                                                                 <div className="flex items-center gap-2">
                                                                     <Badge
                                                                         variant="outline"
-                                                                        className="text-xs"
+                                                                        className="bg-orange-50 text-orange-700 border-orange-200 text-xs"
                                                                     >
                                                                         {vatTax?.code ||
                                                                             "N/A"}
                                                                     </Badge>
-                                                                    <span className="text-sm text-muted-foreground">
+                                                                    <span className="text-sm text-slate-600">
                                                                         {vatTax?.name ||
                                                                             "N/A"}
                                                                     </span>
                                                                 </div>
                                                             )}
                                                         </TableCell>
-                                                        <TableCell className="text-left">
+                                                        <TableCell className="text-left font-medium text-orange-600">
                                                             {formatCurrency(
                                                                 vatAmount,
                                                             )}
@@ -896,7 +1002,7 @@ export default function PriceListForm() {
                                                                                 index,
                                                                             )
                                                                         }
-                                                                        className="h-8 w-8 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                                                        className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
                                                                     >
                                                                         <Ban className="h-4 w-4" />
                                                                     </Button>
@@ -959,7 +1065,7 @@ export default function PriceListForm() {
                                             return (
                                                 <TableRow
                                                     key={row.id}
-                                                    className="bg-blue-50/50"
+                                                    className="bg-gradient-to-r from-blue-50/30 to-purple-50/30"
                                                 >
                                                     <TableCell>
                                                         <SelectCombobox
@@ -976,6 +1082,9 @@ export default function PriceListForm() {
                                                             options={getAvailableProductVariantOptions()}
                                                             placeholder="Chọn sản phẩm..."
                                                             searchPlaceholder="Tìm kiếm sản phẩm..."
+                                                            icon={
+                                                                <Package className="h-4 w-4 text-blue-600" />
+                                                            }
                                                         />
                                                     </TableCell>
                                                     <TableCell>
@@ -993,7 +1102,7 @@ export default function PriceListForm() {
                                                                         .value,
                                                                 )
                                                             }
-                                                            className="text-left"
+                                                            className="text-left border-slate-200 focus:border-green-500 focus:ring-green-500"
                                                         />
                                                     </TableCell>
                                                     <TableCell>
@@ -1013,10 +1122,10 @@ export default function PriceListForm() {
                                                                 );
                                                             }}
                                                         >
-                                                            <SelectTrigger>
+                                                            <SelectTrigger className="border-slate-200 focus:border-orange-500 focus:ring-orange-500">
                                                                 <SelectValue />
                                                             </SelectTrigger>
-                                                            <SelectContent>
+                                                            <SelectContent className="dropdown-premium-content">
                                                                 {vat_taxes?.map(
                                                                     (tax) => (
                                                                         <SelectItem
@@ -1026,6 +1135,7 @@ export default function PriceListForm() {
                                                                             value={String(
                                                                                 tax.id,
                                                                             )}
+                                                                            className="cursor-pointer hover:bg-gradient-to-r hover:from-orange-600/5 hover:to-yellow-600/5"
                                                                         >
                                                                             {
                                                                                 tax.name
@@ -1041,7 +1151,7 @@ export default function PriceListForm() {
                                                             </SelectContent>
                                                         </Select>
                                                     </TableCell>
-                                                    <TableCell className="text-left text-muted-foreground">
+                                                    <TableCell className="text-left font-medium text-orange-600">
                                                         {row.sale_price
                                                             ? formatCurrency(
                                                                   vatAmount,
@@ -1070,7 +1180,13 @@ export default function PriceListForm() {
                                                                     !row.product_variant_id ||
                                                                     !row.sale_price
                                                                 }
-                                                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                                                className={cn(
+                                                                    "h-8 w-8",
+                                                                    !row.product_variant_id ||
+                                                                        !row.sale_price
+                                                                        ? "opacity-50 cursor-not-allowed text-slate-400"
+                                                                        : "text-green-600 hover:text-green-700 hover:bg-green-50",
+                                                                )}
                                                             >
                                                                 <Check className="h-4 w-4" />
                                                             </Button>
@@ -1083,7 +1199,7 @@ export default function PriceListForm() {
                                                                         row.id,
                                                                     )
                                                                 }
-                                                                className="h-8 w-8 text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                                                                className="h-8 w-8 text-slate-600 hover:text-slate-700 hover:bg-slate-50"
                                                             >
                                                                 <Ban className="h-4 w-4" />
                                                             </Button>
@@ -1099,11 +1215,21 @@ export default function PriceListForm() {
                                                 <TableRow>
                                                     <TableCell
                                                         colSpan={6}
-                                                        className="text-center text-muted-foreground py-8"
+                                                        className="text-center py-12"
                                                     >
-                                                        Chưa có sản phẩm nào.
-                                                        Nhấn "Thêm sản phẩm" để
-                                                        bắt đầu.
+                                                        <div className="flex flex-col items-center justify-center">
+                                                            <div className="h-16 w-16 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center mb-4">
+                                                                <Package className="h-8 w-8 text-blue-600/50" />
+                                                            </div>
+                                                            <p className="text-slate-600 font-medium text-lg">
+                                                                Chưa có sản phẩm
+                                                                nào
+                                                            </p>
+                                                            <p className="text-sm text-slate-400 mt-1">
+                                                                Nhấn "Thêm sản
+                                                                phẩm" để bắt đầu
+                                                            </p>
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             )}
@@ -1118,6 +1244,7 @@ export default function PriceListForm() {
                                     onClick={handleAddProductRow}
                                     variant="outline"
                                     size="sm"
+                                    className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                                 >
                                     <Plus className="w-4 h-4 mr-2" />
                                     Thêm sản phẩm
@@ -1128,18 +1255,24 @@ export default function PriceListForm() {
                 </form>
 
                 {/* Action Buttons */}
-                <div className="fixed bottom-6 right-6 flex items-center gap-3">
+                <div className="fixed bottom-6 right-6 flex items-center gap-3 z-50">
                     <Button
                         onClick={handleSubmit}
                         disabled={isSubmitting}
                         size="lg"
+                        className="btn-gradient-premium shadow-xl hover:shadow-2xl px-8"
                     >
-                        <Save className="w-4 h-4 mr-2" />
-                        {isSubmitting
-                            ? "Đang lưu..."
-                            : isEdit
-                              ? "Cập nhật"
-                              : "Lưu lại"}
+                        {isSubmitting ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Đang lưu...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="w-4 h-4 mr-2" />
+                                {isEdit ? "Cập nhật" : "Lưu lại"}
+                            </>
+                        )}
                     </Button>
                 </div>
             </div>

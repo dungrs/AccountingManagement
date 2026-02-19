@@ -10,7 +10,6 @@ use App\Services\Debt\SupplierDebtService;
 use App\Services\Interfaces\Receipt\PurchaseReceiptServiceInterface;
 use App\Services\JournalEntryService;
 use App\Services\Product\ProductVariantService;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class PurchaseReceiptService extends BaseService implements PurchaseReceiptServiceInterface

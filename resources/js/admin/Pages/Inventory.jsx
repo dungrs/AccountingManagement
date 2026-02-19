@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Button } from "@/admin/components/ui/button";
+import { Badge } from "@/admin/components/ui/badge";
 import {
     Card,
     CardContent,
@@ -30,6 +31,15 @@ import {
     AlertTriangle,
     CheckCircle2,
     XCircle,
+    Filter,
+    RefreshCw,
+    Download,
+    Upload,
+    TrendingUp,
+    TrendingDown,
+    Boxes,
+    AlertCircle,
+    CheckCheck,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -40,11 +50,12 @@ import DataTablePagination from "@/admin/components/shared/common/DataTablePagin
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
+import { cn } from "@/admin/lib/utils";
 
 export default function Home() {
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
-    const [pageSize, setPageSize] = useState("10");
+    const [pageSize, setPageSize] = useState("20");
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
@@ -158,12 +169,6 @@ export default function Home() {
         fetchData(1);
     }, [fetchData]);
 
-    const handleCreate = () => {
-        setModalMode("create");
-        setEditingRow(null);
-        setOpenModal(true);
-    };
-
     const handleEdit = (row) => {
         setModalMode("edit");
         setEditingRow(row);
@@ -213,6 +218,11 @@ export default function Home() {
         router.visit(route("admin.product.variant.import"));
     };
 
+    const handleRefresh = () => {
+        fetchData(paginationData.current_page);
+        toast.success("Đã làm mới dữ liệu");
+    };
+
     const toggleRow = (id) => {
         setSelectedRows((prev) =>
             prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -242,11 +252,19 @@ export default function Home() {
         setPageSize(value);
     };
 
-    // Thống kê tồn kho
-    const totalItems = data.length;
-    const totalStock = data.reduce((sum, item) => sum + item.quantity, 0);
-    const lowStockItems = data.filter(item => item.quantity > 0 && item.quantity < 10).length;
-    const outOfStockItems = data.filter(item => item.quantity === 0).length;
+    // Thống kê
+    const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
+    const inStockCount = data.filter(
+        (item) => item.stock_status === "in-stock",
+    ).length;
+    const lowStockCount = data.filter(
+        (item) => item.stock_status === "low-stock",
+    ).length;
+    const outOfStockCount = data.filter(
+        (item) => item.stock_status === "out-of-stock",
+    ).length;
+    const activeCount = data.filter((item) => item.active).length;
+    const inactiveCount = data.filter((item) => !item.active).length;
 
     return (
         <AdminLayout
@@ -261,112 +279,279 @@ export default function Home() {
             ]}
         >
             <Head title="Kiểm Kê Kho" />
-            
-            <Card className="rounded-md shadow-sm">
-                <CardHeader className="pb-4">
+
+            {/* Header Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Tổng sản phẩm
+                            </p>
+                            <p className="text-2xl font-bold text-blue-600">
+                                {paginationData.total}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Package className="h-6 w-6 text-blue-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Tổng tồn kho
+                            </p>
+                            <p className="text-2xl font-bold text-green-600">
+                                {formatNumber(totalQuantity)}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                            <Boxes className="h-6 w-6 text-green-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Đang kinh doanh
+                            </p>
+                            <p className="text-2xl font-bold text-purple-600">
+                                {activeCount}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                            <CheckCheck className="h-6 w-6 text-purple-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Ngừng KD
+                            </p>
+                            <p className="text-2xl font-bold text-red-600">
+                                {inactiveCount}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                            <XCircle className="h-6 w-6 text-red-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Stock Status Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-green-200 flex items-center justify-center">
+                                <CheckCircle2 className="h-5 w-5 text-green-700" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-green-800">
+                                    Còn hàng
+                                </p>
+                                <p className="text-2xl font-bold text-green-700">
+                                    {inStockCount}
+                                </p>
+                            </div>
+                        </div>
+                        <Badge className="bg-green-200 text-green-800 border-green-300">
+                            Đủ số lượng
+                        </Badge>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-yellow-50 to-yellow-100 border-yellow-200">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-yellow-200 flex items-center justify-center">
+                                <AlertTriangle className="h-5 w-5 text-yellow-700" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-yellow-800">
+                                    Sắp hết
+                                </p>
+                                <p className="text-2xl font-bold text-yellow-700">
+                                    {lowStockCount}
+                                </p>
+                            </div>
+                        </div>
+                        <Badge className="bg-yellow-200 text-yellow-800 border-yellow-300">
+                            Dưới 10
+                        </Badge>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-red-200 flex items-center justify-center">
+                                <XCircle className="h-5 w-5 text-red-700" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-red-800">
+                                    Hết hàng
+                                </p>
+                                <p className="text-2xl font-bold text-red-700">
+                                    {outOfStockCount}
+                                </p>
+                            </div>
+                        </div>
+                        <Badge className="bg-red-200 text-red-800 border-red-300">
+                            Cần nhập
+                        </Badge>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
+                {/* HEADER - Gradient Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <CardTitle className="text-2xl font-bold mb-1">
+                            <CardTitle className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                <Package className="h-6 w-6" />
                                 Kiểm Kê Kho
                             </CardTitle>
-                            <CardDescription>
-                                Quản lý số lượng tồn kho, theo dõi nhập xuất và kiểm kê hàng hóa.
+                            <CardDescription className="text-white/80">
+                                Quản lý số lượng tồn kho, theo dõi nhập xuất và
+                                kiểm kê hàng hóa.
                             </CardDescription>
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {/* <Button
-                                variant="outline"
-                                className="rounded-md"
-                                onClick={handleExportInventory}
+                            <Button
+                                onClick={handleRefresh}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                             >
-                                <Package className="mr-2 h-4 w-4" />
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Làm mới
+                            </Button>
+
+                            <Button
+                                onClick={handleExportInventory}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                            >
+                                <Download className="mr-2 h-4 w-4" />
                                 Xuất Excel
                             </Button>
-                            
+
                             <Button
-                                variant="outline"
-                                className="rounded-md"
                                 onClick={handleImportInventory}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                             >
-                                <Package className="mr-2 h-4 w-4" />
+                                <Upload className="mr-2 h-4 w-4" />
                                 Nhập Excel
-                            </Button> */}
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="rounded-md"
-                                    >
-                                        <MoreHorizontal className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-
-                                <DropdownMenuContent
-                                    align="end"
-                                    className="rounded-md"
-                                >
-                                    <DropdownMenuItem
-                                        className="cursor-pointer"
-                                        disabled={selectedRows.length === 0}
-                                        onClick={() =>
-                                            bulkUpdateStatus(
-                                                true,
-                                                "ProductVariant",
-                                                "Product",
-                                            )
-                                        }
-                                    >
-                                        <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                                        Kích hoạt
-                                    </DropdownMenuItem>
-
-                                    <DropdownMenuItem
-                                        className="cursor-pointer"
-                                        disabled={selectedRows.length === 0}
-                                        onClick={() =>
-                                            bulkUpdateStatus(
-                                                false,
-                                                "ProductVariant",
-                                                "Product",
-                                            )
-                                        }
-                                    >
-                                        <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                                        Vô hiệu hóa
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            </Button>
                         </div>
                     </div>
-                </CardHeader>
+                </div>
 
-                <CardContent className="space-y-4">
+                <CardContent className="p-6 space-y-4">
                     <DataTableFilter
                         keyword={keyword}
                         setKeyword={setKeyword}
                         placeholder="Tìm kiếm theo tên SP, SKU, Barcode..."
+                        className="bg-white"
                     >
-                        <Select
-                            value={statusFilter}
-                            onValueChange={setStatusFilter}
-                        >
-                            <SelectTrigger className="w-full sm:w-[200px] rounded-md">
-                                <SelectValue placeholder="Trạng thái" />
-                            </SelectTrigger>
+                        <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-slate-400" />
 
-                            <SelectContent>
-                                <SelectItem value="all">Tất cả</SelectItem>
-                                <SelectItem value="1">
-                                    Đang kinh doanh
-                                </SelectItem>
-                                <SelectItem value="0">
-                                    Ngừng kinh doanh
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                            {/* Stock Status Filter */}
+                            <Select
+                                value={stockFilter}
+                                onValueChange={setStockFilter}
+                            >
+                                <SelectTrigger className="w-full sm:w-[180px] rounded-md border-slate-200 focus:ring-blue-500">
+                                    <SelectValue placeholder="Tình trạng kho" />
+                                </SelectTrigger>
+
+                                <SelectContent className="dropdown-premium-content">
+                                    <SelectItem
+                                        value="all"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        Tất cả
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="in-stock"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                                            Còn hàng
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="low-stock"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
+                                            Sắp hết
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="out-of-stock"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                                            Hết hàng
+                                        </span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+
+                            {/* Publish Status Filter */}
+                            <Select
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                            >
+                                <SelectTrigger className="w-full sm:w-[180px] rounded-md border-slate-200 focus:ring-purple-500">
+                                    <SelectValue placeholder="Trạng thái KD" />
+                                </SelectTrigger>
+
+                                <SelectContent className="dropdown-premium-content">
+                                    <SelectItem
+                                        value="all"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        Tất cả
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="1"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                                            Đang kinh doanh
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="0"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                                            Ngừng kinh doanh
+                                        </span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </DataTableFilter>
 
                     <InventoryTable
@@ -425,3 +610,8 @@ export default function Home() {
         </AdminLayout>
     );
 }
+
+// Helper function
+const formatNumber = (num) => {
+    return new Intl.NumberFormat("vi-VN").format(num);
+};

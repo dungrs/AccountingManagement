@@ -25,7 +25,7 @@ const badgeVariants = cva(
 
 const Badge = React.forwardRef(
     ({ className, variant, asChild = false, ...props }, ref) => {
-        const Comp = asChild ? Slot : "div";
+        const Comp = asChild ? Slot : "span"; // 🔥 đổi div -> span
 
         return (
             <Comp

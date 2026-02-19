@@ -28,7 +28,19 @@ import {
     SelectValue,
 } from "@/admin/components/ui/select";
 
-import { MoreHorizontal, Plus, CheckCircle2, XCircle } from "lucide-react";
+import {
+    MoreHorizontal,
+    Plus,
+    CheckCircle2,
+    XCircle,
+    Users,
+    UserPlus,
+    Filter,
+    RefreshCw,
+    UserRound,
+    UserCheck,
+    UserX,
+} from "lucide-react";
 
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -41,15 +53,16 @@ import CustomerTable from "@/admin/components/pages/customer/CustomerTable";
 import CustomerFormModal from "@/admin/components/pages/customer/CustomerFormModal";
 
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
+import { cn } from "@/admin/lib/utils";
 
 export default function Home() {
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
 
-    const [pageSize, setPageSize] = useState("10");
+    const [pageSize, setPageSize] = useState("20");
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all"); // 🔥 Đổi default thành "all"
+    const [statusFilter, setStatusFilter] = useState("all");
 
     const [loading, setLoading] = useState(false);
 
@@ -78,9 +91,9 @@ export default function Home() {
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedKeyword(keyword);
-        }, 500); // Đợi 500ms sau khi người dùng ngừng nhập
+        }, 500);
 
-        return () => clearTimeout(timer); // Clear timer nếu keyword thay đổi trước khi hết thời gian
+        return () => clearTimeout(timer);
     }, [keyword]);
 
     const fetchData = useCallback(
@@ -88,14 +101,12 @@ export default function Home() {
             setLoading(true);
 
             try {
-                // 🔥 Chuẩn bị params rõ ràng hơn
                 const params = {
                     page,
                     perpage: parseInt(pageSize),
-                    keyword: debouncedKeyword.trim(), // trim whitespace
+                    keyword: debouncedKeyword.trim(),
                 };
 
-                // 🔥 Chỉ gửi publish khi không phải "all"
                 if (statusFilter !== "all") {
                     params.publish = parseInt(statusFilter);
                 }
@@ -106,9 +117,7 @@ export default function Home() {
                 );
 
                 const response = res.data;
-                console.log(response);
 
-                // 🔥 Kiểm tra dữ liệu trả về
                 if (!response || !Array.isArray(response.data)) {
                     throw new Error("Dữ liệu trả về không hợp lệ");
                 }
@@ -131,7 +140,6 @@ export default function Home() {
 
                 setData(mappedData);
 
-                // 🔥 Cập nhật pagination với giá trị mặc định
                 setPaginationData({
                     current_page: response.current_page || 1,
                     last_page: response.last_page || 1,
@@ -148,7 +156,6 @@ export default function Home() {
                     error.response?.data?.message || "Không thể tải dữ liệu!",
                 );
 
-                // 🔥 Reset data khi lỗi
                 setData([]);
                 setPaginationData({
                     current_page: 1,
@@ -163,28 +170,24 @@ export default function Home() {
             }
         },
         [pageSize, debouncedKeyword, statusFilter],
-    ); // 🔥 Dependencies rõ ràng
+    );
 
-    // 🔥 Load lần đầu
     useEffect(() => {
         fetchData(1);
     }, [fetchData]);
 
-    // Thêm mới
     const handleCreate = () => {
         setModalMode("create");
         setEditingRow(null);
         setOpenModal(true);
     };
 
-    // Chỉnh sửa
     const handleEdit = (row) => {
         setModalMode("edit");
         setEditingRow(row);
         setOpenModal(true);
     };
 
-    // Xóa
     const handleDeleteClick = (row) => {
         setDeletingRow(row);
         setOpenDeleteDialog(true);
@@ -203,7 +206,6 @@ export default function Home() {
             setOpenDeleteDialog(false);
             setDeletingRow(null);
 
-            // 🔥 Fetch lại trang hiện tại
             fetchData(paginationData.current_page);
         } catch (err) {
             console.error("Lỗi khi xóa:", err);
@@ -214,14 +216,12 @@ export default function Home() {
         }
     };
 
-    // Toggle checkbox 1 row
     const toggleRow = (id) => {
         setSelectedRows((prev) =>
             prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
         );
     };
 
-    // Toggle all checkbox
     const toggleAll = () => {
         if (selectedRows.length === data.length && data.length > 0) {
             setSelectedRows([]);
@@ -230,7 +230,6 @@ export default function Home() {
         }
     };
 
-    // Pagination handlers
     const goToPage = (page) => {
         if (page >= 1 && page <= paginationData.last_page) {
             fetchData(page);
@@ -244,9 +243,16 @@ export default function Home() {
 
     const handleChangePageSize = (value) => {
         setPageSize(value);
-        // 🔥 Về trang 1 khi đổi page size
-        // fetchData sẽ tự động được gọi qua useEffect
     };
+
+    const handleRefresh = () => {
+        fetchData(paginationData.current_page);
+        toast.success("Đã làm mới dữ liệu");
+    };
+
+    // Thống kê
+    const activeCount = data.filter((item) => item.active).length;
+    const inactiveCount = data.filter((item) => !item.active).length;
 
     return (
         <AdminLayout
@@ -256,107 +262,220 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "QL Khách Hàng",
+                    label: "Quản Lý Khách Hàng",
                 },
             ]}
         >
             <Head title="Quản Lý Khách Hàng" />
-            <Card className="rounded-md shadow-sm">
-                {/* HEADER */}
-                <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <CardTitle className="text-2xl font-bold mb-1">
-                            Quản Lý Khách Hàng
-                        </CardTitle>
 
-                        <CardDescription>
-                            Quản lý thông tin khách hàng, phân loại nhóm và trạng thái hoạt động trong hệ thống.
-                        </CardDescription>
-                    </div>
+            {/* Header Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Tổng khách hàng
+                            </p>
+                            <p className="text-2xl font-bold text-blue-600">
+                                {paginationData.total}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Users className="h-6 w-6 text-blue-600" />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                    <div className="flex items-center gap-2">
-                        <Button className="rounded-md" onClick={handleCreate}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            Thêm mới khách hàng
-                        </Button>
+                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Đang hoạt động
+                            </p>
+                            <p className="text-2xl font-bold text-green-600">
+                                {activeCount}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                            <UserCheck className="h-6 w-6 text-green-600" />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                        {/* Bulk Action Dropdown */}
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button
-                                    variant="outline"
-                                    size="icon"
-                                    className="rounded-md"
-                                >
-                                    <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                            </DropdownMenuTrigger>
+                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Ngừng hoạt động
+                            </p>
+                            <p className="text-2xl font-bold text-red-600">
+                                {inactiveCount}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+                            <UserX className="h-6 w-6 text-red-600" />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                            <DropdownMenuContent
-                                align="end"
-                                className="rounded-md"
+                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4 flex items-center justify-between">
+                        <div>
+                            <p className="text-sm text-muted-foreground">
+                                Đã chọn
+                            </p>
+                            <p className="text-2xl font-bold text-purple-600">
+                                {selectedRows.length}
+                            </p>
+                        </div>
+                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                            <UserPlus className="h-6 w-6 text-purple-600" />
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
+                {/* HEADER - Gradient Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <CardTitle className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                <UserRound className="h-6 w-6" />
+                                Quản Lý Khách Hàng
+                            </CardTitle>
+                            <CardDescription className="text-white/80">
+                                Quản lý thông tin khách hàng, phân loại nhóm và
+                                trạng thái hoạt động trong hệ thống.
+                            </CardDescription>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={handleRefresh}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                             >
-                                <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    disabled={selectedRows.length === 0}
-                                    onClick={() =>
-                                        bulkUpdateStatus(
-                                            true,
-                                            "Customer",
-                                            "Customer",
-                                        )
-                                    }
-                                >
-                                    <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                                    Xuất bản
-                                </DropdownMenuItem>
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Làm mới
+                            </Button>
 
-                                <DropdownMenuItem
-                                    className="cursor-pointer"
-                                    disabled={selectedRows.length === 0}
-                                    onClick={() =>
-                                        bulkUpdateStatus(
-                                            false,
-                                            "Customer",
-                                            "Customer",
-                                        )
-                                    }
+                            <Button
+                                className="btn-gradient-premium rounded-md shadow-lg"
+                                onClick={handleCreate}
+                            >
+                                <Plus className="mr-2 h-4 w-4" />
+                                Thêm mới khách hàng
+                            </Button>
+
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        variant="secondary"
+                                        className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                                    >
+                                        <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="dropdown-premium-content rounded-md w-56"
                                 >
-                                    <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                                    Không xuất bản
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    <DropdownMenuItem
+                                        className={cn(
+                                            "cursor-pointer dropdown-premium-item",
+                                            selectedRows.length === 0 &&
+                                                "opacity-50 cursor-not-allowed",
+                                        )}
+                                        disabled={selectedRows.length === 0}
+                                        onClick={() =>
+                                            bulkUpdateStatus(
+                                                true,
+                                                "Customer",
+                                                "Customer",
+                                            )
+                                        }
+                                    >
+                                        <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
+                                        <span className="text-slate-700">
+                                            Xuất bản
+                                        </span>
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuItem
+                                        className={cn(
+                                            "cursor-pointer dropdown-premium-item",
+                                            selectedRows.length === 0 &&
+                                                "opacity-50 cursor-not-allowed",
+                                        )}
+                                        disabled={selectedRows.length === 0}
+                                        onClick={() =>
+                                            bulkUpdateStatus(
+                                                false,
+                                                "Customer",
+                                                "Customer",
+                                            )
+                                        }
+                                    >
+                                        <XCircle className="mr-2 h-4 w-4 text-red-600" />
+                                        <span className="text-slate-700">
+                                            Không xuất bản
+                                        </span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
                     </div>
-                </CardHeader>
+                </div>
 
-                <CardContent className="space-y-4">
+                <CardContent className="p-6 space-y-4">
                     <DataTableFilter
                         keyword={keyword}
                         setKeyword={setKeyword}
-                        placeholder="Tìm kiếm..."
+                        placeholder="Tìm kiếm theo tên, email, số điện thoại..."
+                        className="bg-white"
                     >
-                        <Select
-                            value={statusFilter}
-                            onValueChange={setStatusFilter}
-                        >
-                            <SelectTrigger className="w-full sm:w-[200px] rounded-md">
-                                <SelectValue placeholder="Tình trạng" />
-                            </SelectTrigger>
+                        <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-slate-400" />
+                            <Select
+                                value={statusFilter}
+                                onValueChange={setStatusFilter}
+                            >
+                                <SelectTrigger className="w-full sm:w-[200px] rounded-md border-slate-200 focus:ring-blue-500">
+                                    <SelectValue placeholder="Tình trạng" />
+                                </SelectTrigger>
 
-                            <SelectContent>
-                                <SelectItem value="all">Tất cả</SelectItem>
-                                <SelectItem value="1">
-                                    Đang hoạt động
-                                </SelectItem>
-                                <SelectItem value="0">
-                                    Ngừng hoạt động
-                                </SelectItem>
-                            </SelectContent>
-                        </Select>
+                                <SelectContent className="dropdown-premium-content">
+                                    <SelectItem
+                                        value="all"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        Tất cả
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="1"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-green-500"></span>
+                                            Đang hoạt động
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="0"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span className="h-2 w-2 rounded-full bg-red-500"></span>
+                                            Ngừng hoạt động
+                                        </span>
+                                    </SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
                     </DataTableFilter>
 
-                    {/* DATA TABLE */}
                     <CustomerTable
                         data={data}
                         loading={loading}
@@ -366,7 +485,6 @@ export default function Home() {
                         handleEdit={handleEdit}
                         handleDeleteClick={handleDeleteClick}
                         onToggleActive={(id, newChecked) => {
-                            // 🔥 Cập nhật ngay lập tức UI, sau đó sync với server
                             setData((prev) =>
                                 prev.map((item) =>
                                     item.id === id
@@ -377,7 +495,6 @@ export default function Home() {
                         }}
                     />
 
-                    {/* FOOTER */}
                     <DataTablePagination
                         selectedCount={selectedRows.length}
                         total={paginationData.total}
@@ -393,7 +510,6 @@ export default function Home() {
                 </CardContent>
             </Card>
 
-            {/* Modal */}
             <CustomerFormModal
                 open={openModal}
                 mode={modalMode}
@@ -402,7 +518,6 @@ export default function Home() {
                 onSuccess={() => fetchData(paginationData.current_page)}
             />
 
-            {/* Delete Dialog */}
             <ConfirmDeleteDialog
                 open={openDeleteDialog}
                 title="Xóa khách hàng"

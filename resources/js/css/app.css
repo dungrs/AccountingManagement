@@ -5,6 +5,19 @@
 @tailwind utilities;
 
 @layer base {
+  /* Theme mặc định */
+  :root {
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  /* Light theme */
   .light {
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
@@ -41,92 +54,135 @@
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
-  .light-blue {
-    --background: 210 40% 98%;
-    /* Nền trắng xanh nhẹ */
-    --foreground: 215 50% 15%;
-    /* Chữ xanh đậm */
-    --card: 210 40% 100%;
-    --card-foreground: 215 50% 15%;
-    --popover: 210 40% 100%;
-    --popover-foreground: 215 50% 15%;
-    --primary: 210 100% 50%;
-    /* Xanh dương tươi sáng */
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 30% 92%;
-    /* Xanh dương nhạt */
-    --secondary-foreground: 215 50% 25%;
-    --muted: 210 30% 92%;
-    --muted-foreground: 215 30% 40%;
-    --accent: 210 40% 90%;
-    /* Xanh nhạt hơn cho accent */
-    --accent-foreground: 215 50% 20%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 210 30% 85%;
-    /* Viền xanh nhạt */
-    --input: 210 30% 85%;
-    --ring: 210 100% 50%;
-    --chart-1: 210 80% 55%;
-    --chart-2: 190 70% 45%;
-    --chart-3: 220 65% 50%;
-    --chart-4: 200 75% 55%;
-    --chart-5: 230 70% 60%;
+
+  /* 🌈 PREMIUM THEME - Blue-Purple Gradient */
+  .premium {
+    /* Màu gradient chính */
+    --gradient-start: 217 91% 60%;    /* #3B82F6 */
+    --gradient-mid: 262 83% 58%;      /* #8B5CF6 */
+    --gradient-end: 280 87% 65%;      /* #A78BFA */
+    
+    /* Màu nền */
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    
+    /* Card & Surface */
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    /* Popover */
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    /* Primary - Blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary - Purple nhạt */
+    --secondary: 262 83% 96%;
+    --secondary-foreground: 262 83% 58%;
+    
+    /* Muted */
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    /* Accent - Purple nhạt hơn */
+    --accent: 262 83% 94%;
+    --accent-foreground: 262 83% 48%;
+    
+    /* Destructive */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Border & Input */
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    
+    /* Ring - Blue */
+    --ring: 217 91% 60%;
+    
+    /* Charts - Gradient colors */
+    --chart-1: 217 91% 60%;
+    --chart-2: 262 83% 58%;
+    --chart-3: 280 87% 65%;
+    --chart-4: 190 90% 50%;
+    --chart-5: 327 87% 67%;
+    
     --radius: 0.5rem;
-    --sidebar-background: 210 40% 96%;
-    --sidebar-foreground: 215 50% 20%;
-    --sidebar-primary: 210 100% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 210 30% 90%;
-    --sidebar-accent-foreground: 215 50% 20%;
-    --sidebar-border: 210 30% 85%;
-    --sidebar-ring: 210 100% 50%;
-  }
-
-  .dark {
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 0 0% 14.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 0 0% 83.1%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  :root {
+    
+    /* Sidebar */
     --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 262 83% 94%;
+    --sidebar-accent-foreground: 262 83% 48%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 217 91% 60%;
+  }
+
+  /* 🌙 PREMIUM DARK THEME */
+  .premium-dark {
+    /* Màu gradient chính (giữ nguyên) */
+    --gradient-start: 217 91% 60%;
+    --gradient-mid: 262 83% 58%;
+    --gradient-end: 280 87% 65%;
+    
+    /* Nền tối */
+    --background: 222 47% 7%;
+    --foreground: 210 40% 98%;
+    
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Primary - Blue */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    /* Secondary - Purple tối */
+    --secondary: 262 83% 15%;
+    --secondary-foreground: 262 83% 68%;
+    
+    /* Muted */
+    --muted: 222 47% 12%;
+    --muted-foreground: 215 20% 65%;
+    
+    /* Accent - Purple tối hơn */
+    --accent: 262 83% 12%;
+    --accent-foreground: 262 83% 68%;
+    
+    /* Destructive */
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Border & Input */
+    --border: 222 47% 15%;
+    --input: 222 47% 15%;
+    
+    /* Ring - Blue */
+    --ring: 217 91% 60%;
+    
+    /* Charts */
+    --chart-1: 217 91% 60%;
+    --chart-2: 262 83% 58%;
+    --chart-3: 280 87% 65%;
+    --chart-4: 190 90% 50%;
+    --chart-5: 327 87% 67%;
+    
+    --radius: 0.5rem;
+    
+    /* Sidebar tối */
+    --sidebar-background: 222 47% 8%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 262 83% 12%;
+    --sidebar-accent-foreground: 262 83% 68%;
+    --sidebar-border: 222 47% 15%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -137,5 +193,248 @@
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Public Sans', sans-serif;
   }
+}
+
+/* Premium Utility Classes */
+@layer utilities {
+  /* Gradients */
+  .bg-gradient-premium {
+    @apply bg-gradient-to-r from-[#3B82F6] via-[#8B5CF6] to-[#A78BFA];
+  }
+  
+  .bg-gradient-premium-vertical {
+    @apply bg-gradient-to-b from-[#3B82F6] via-[#8B5CF6] to-[#A78BFA];
+  }
+  
+  .bg-gradient-premium-hover {
+    @apply hover:bg-gradient-to-r hover:from-[#2563EB] hover:via-[#7C3AED] hover:to-[#8B5CF6] transition-all duration-300;
+  }
+  
+  .text-gradient-premium {
+    @apply bg-gradient-to-r from-[#3B82F6] via-[#8B5CF6] to-[#A78BFA] text-transparent bg-clip-text;
+  }
+  
+  .border-gradient-premium {
+    border-image: linear-gradient(to right, #3B82F6, #8B5CF6, #A78BFA) 1;
+  }
+  
+  /* Headers & Footers */
+  .header-premium {
+    @apply w-full bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-600/20 text-white;
+  }
+  
+  .header-premium-dark {
+    @apply w-full bg-gradient-to-r from-blue-700 to-purple-700 shadow-lg shadow-blue-700/20 text-white;
+  }
+  
+  .footer-premium {
+    @apply w-full bg-gradient-to-r from-blue-600 to-purple-600 shadow-lg shadow-blue-600/20 text-white/70;
+  }
+  
+  .footer-premium-dark {
+    @apply w-full bg-gradient-to-r from-blue-700 to-purple-700 shadow-lg shadow-blue-700/20 text-white/70;
+  }
+  
+  /* Navigation */
+  .nav-premium {
+    @apply border-t border-white/10 bg-gradient-to-r from-blue-700/50 to-purple-700/50 backdrop-blur-sm;
+  }
+  
+  .nav-item-premium {
+    @apply text-white/80 hover:text-white hover:bg-white/10 rounded-md transition-all duration-200 relative;
+  }
+  
+  .nav-item-premium::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-300;
+  }
+  
+  .nav-item-premium:hover::after {
+    @apply w-full;
+  }
+  
+  .nav-item-active-premium {
+    @apply bg-white/20 text-white font-medium;
+  }
+  
+  /* Buttons */
+  .btn-gradient-premium {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium shadow-lg shadow-blue-600/20 transition-all duration-300;
+  }
+  
+  .btn-gradient-premium-outline {
+    @apply border-2 border-blue-600 text-blue-600 hover:bg-gradient-to-r hover:from-blue-600 hover:to-purple-600 hover:text-white transition-all duration-300;
+  }
+  
+  /* Badges */
+  .badge-gradient-premium {
+    @apply bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium;
+  }
+  
+  /* Cards */
+  .card-gradient-premium {
+    @apply bg-white border border-slate-200 shadow-lg hover:shadow-xl transition-shadow duration-300;
+  }
+  
+  .card-gradient-border {
+    @apply relative border border-transparent rounded-lg;
+    background: linear-gradient(white, white) padding-box,
+                linear-gradient(to right, #3B82F6, #8B5CF6, #A78BFA) border-box;
+  }
+  
+  /* Breadcrumb */
+  .breadcrumb-premium {
+    @apply border-t border-white/10 bg-gradient-to-r from-blue-800/50 to-purple-800/50 backdrop-blur-sm;
+  }
+  
+  .breadcrumb-link-premium {
+    @apply text-white/70 hover:text-white transition-colors;
+  }
+  
+  .breadcrumb-active-premium {
+    @apply font-medium text-white;
+  }
+  
+  /* Search Input */
+  .search-premium {
+    @apply bg-white/10 border border-white/20 text-white placeholder-white/50 focus:border-white/30 focus:ring-white/30;
+  }
+  
+  /* Dropdowns */
+  .dropdown-premium-content {
+    @apply bg-white border border-slate-200 shadow-xl;
+  }
+  
+  .dropdown-premium-item {
+    @apply hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all duration-200;
+  }
+  
+  /* Avatars */
+  .avatar-premium {
+    @apply ring-2 ring-white/30;
+  }
+  
+  .avatar-fallback-premium {
+    @apply bg-white/20 text-white backdrop-blur-sm;
+  }
+  
+  /* Icons */
+  .icon-premium {
+    @apply text-white/70 group-hover:text-white transition-colors;
+  }
+  
+  /* Menu items */
+  .menu-item-premium {
+    @apply relative overflow-hidden transition-all duration-300 text-white/80 hover:text-white hover:bg-white/10;
+  }
+  
+  .menu-item-premium::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-0.5 bg-white transition-all duration-300;
+  }
+  
+  .menu-item-premium:hover::after {
+    @apply w-full;
+  }
+  
+  .menu-item-active-premium {
+    @apply bg-white/20 text-white font-medium;
+  }
+  
+  .menu-item-active-premium::after {
+    @apply w-full;
+  }
+  
+  /* Submenu */
+  .submenu-premium {
+    @apply bg-white border border-slate-200 shadow-xl rounded-lg p-2;
+  }
+  
+  .submenu-item-premium {
+    @apply hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all duration-200 rounded-lg;
+  }
+  
+  /* Scrollbar */
+  .scrollbar-premium {
+    scrollbar-width: thin;
+    scrollbar-color: #8B5CF6 #f1f5f9;
+  }
+  
+  .scrollbar-premium::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .scrollbar-premium::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  
+  .scrollbar-premium::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #3B82F6, #8B5CF6, #A78BFA);
+    border-radius: 10px;
+  }
+  
+  .scrollbar-premium::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, #2563EB, #7C3AED, #8B5CF6);
+  }
+  
+  /* Glassmorphism */
+  .glass-premium {
+    @apply backdrop-blur-xl bg-white/10 border border-white/20;
+  }
+  
+  .glass-premium-dark {
+    @apply backdrop-blur-xl bg-black/20 border border-white/10;
+  }
+  
+  /* Animations */
+  .animate-gradient {
+    background-size: 200% 200%;
+    animation: gradient-shift 3s ease infinite;
+  }
+  
+  .animate-pulse-premium {
+    animation: pulse-premium 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+/* Animations */
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes pulse-premium {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+/* Custom hover effects */
+.hover-lift {
+  transition: transform 0.2s;
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+}
+
+.hover-glow {
+  transition: box-shadow 0.2s;
+}
+
+.hover-glow:hover {
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
 }

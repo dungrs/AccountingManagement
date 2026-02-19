@@ -132,7 +132,7 @@ class PriceListService extends BaseService implements PriceListServiceInterface
         DB::table('price_list_items')->insert($insertData);
     }
 
-    public function getPriceList($id)
+    public function getPriceListDetails($id)
     {
         $priceList = $this->priceListRepository->findByCondition(
             [['id', '=', $id]],
@@ -161,6 +161,13 @@ class PriceListService extends BaseService implements PriceListServiceInterface
         unset($priceList->items);
 
         return $priceList;
+    }
+
+    public function getPriceList()
+    {
+        return $this->priceListRepository->findByCondition([
+            ['publish', '=', 1]
+        ], true, [], [], ['*']);
     }
 
     private function paginateSelect()

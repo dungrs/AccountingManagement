@@ -10,7 +10,7 @@ import CategorySelect from "@/admin/components/shared/fields/CategorySelect";
 import MultiCategorySelect from "@/admin/components/shared/fields/MultiCategorySelect";
 import StatusSelect from "@/admin/components/shared/fields/StatusSelect";
 import NavigationSelect from "@/admin/components/shared/fields/NavigationSelect";
-import { useEffect } from "react";
+import { Settings } from "lucide-react";
 
 export default function AdvancedConfigForm({
     data,
@@ -42,7 +42,7 @@ export default function AdvancedConfigForm({
     };
 
     const categories = Object.entries(dropdown).map(([key, value]) => ({
-        value: key, // GIỮ NGUYÊN STRING - không parseInt
+        value: key,
         label: value,
     }));
 
@@ -55,13 +55,22 @@ export default function AdvancedConfigForm({
         : null;
 
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>{title}</CardTitle>
-                <CardDescription>{description}</CardDescription>
+        <Card className="border-slate-200 shadow-lg overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                        <Settings className="h-4 w-4 text-white" />
+                    </div>
+                    <div>
+                        <CardTitle className="text-lg text-slate-800">
+                            {title}
+                        </CardTitle>
+                        <CardDescription>{description}</CardDescription>
+                    </div>
+                </div>
             </CardHeader>
 
-            <CardContent className="space-y-4">
+            <CardContent className="p-6 space-y-4">
                 <CategorySelect
                     value={data.parentCategory}
                     onChange={(value) => handleChange("parentCategory", value)}
@@ -70,7 +79,7 @@ export default function AdvancedConfigForm({
                     categories={categories}
                     excludeValue={stringExcludeId}
                     showInfoMessage={showInfoMessage}
-                    errors = {errors}
+                    errors={errors}
                 />
 
                 {hasCatalogue && (

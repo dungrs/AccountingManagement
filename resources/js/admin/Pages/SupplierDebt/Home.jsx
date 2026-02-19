@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Button } from "@/admin/components/ui/button";
+import { Badge } from "@/admin/components/ui/badge";
 import {
     Card,
     CardContent,
@@ -17,7 +18,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/admin/components/ui/select";
-import { Download, Printer } from "lucide-react";
+import {
+    Download,
+    Printer,
+    Filter,
+    RefreshCw,
+    TrendingUp,
+    TrendingDown,
+    DollarSign,
+    Calendar,
+    Users,
+    FileText,
+    ArrowUpRight,
+    ArrowDownRight,
+    BarChart3,
+} from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import SupplierDebtTable from "@/admin/components/pages/supplier-debt/SupplierDebtTable";
@@ -26,6 +41,7 @@ import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
 import useFlashToast from "@/admin/hooks/useFlashToast";
 import { formatCurrency } from "@/admin/utils/helpers";
+import { cn } from "@/admin/lib/utils";
 
 export default function SupplierDebtIndex() {
     useFlashToast();
@@ -201,6 +217,11 @@ export default function SupplierDebtIndex() {
         });
     };
 
+    const handleRefresh = () => {
+        fetchData(paginationData.current_page);
+        toast.success("Đã làm mới dữ liệu");
+    };
+
     const handleExport = () => {
         toast.success("Đang xuất báo cáo...");
         // Implement export functionality
@@ -236,95 +257,217 @@ export default function SupplierDebtIndex() {
         >
             <Head title="Công Nợ Nhà Cung Cấp" />
 
+            {/* Period Info */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                            <Calendar className="h-6 w-6 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="text-xl font-bold">
+                                Kỳ báo cáo: Tháng {period.month} - Năm{" "}
+                                {period.year}
+                            </h2>
+                            <p className="text-white/80 text-sm mt-1">
+                                Từ ngày {period.start_date} đến ngày{" "}
+                                {period.end_date}
+                            </p>
+                        </div>
+                    </div>
+                    <Badge className="bg-white/20 text-white border-0">
+                        <BarChart3 className="h-4 w-4 mr-1" />
+                        Báo cáo công nợ
+                    </Badge>
+                </div>
+            </div>
+
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="bg-blue-50 border-blue-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-blue-700">
-                            Tổng dư đầu kỳ
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-900">
-                            {formatCurrency(summary.opening_balance)}
+                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                Dư đầu kỳ
+                            </p>
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <DollarSign className="h-4 w-4 text-blue-600" />
+                            </div>
                         </div>
-                        <p className="text-xs text-blue-600 mt-1">
+                        <p className="text-2xl font-bold text-blue-600">
+                            {formatCurrency(summary.opening_balance)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
                             Đến ngày {period.start_date}
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-green-50 border-green-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-green-700">
-                            Tổng PS Nợ
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-900">
-                            {formatCurrency(summary.total_debit)}
+                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                PS Nợ
+                            </p>
+                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <TrendingDown className="h-4 w-4 text-green-600" />
+                            </div>
                         </div>
-                        <p className="text-xs text-green-600 mt-1">
+                        <p className="text-2xl font-bold text-green-600">
+                            {formatCurrency(summary.total_debit)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
                             Đã thanh toán trong kỳ
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-red-50 border-red-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-red-700">
-                            Tổng PS Có
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-red-900">
-                            {formatCurrency(summary.total_credit)}
+                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                PS Có
+                            </p>
+                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <TrendingUp className="h-4 w-4 text-red-600" />
+                            </div>
                         </div>
-                        <p className="text-xs text-red-600 mt-1">
+                        <p className="text-2xl font-bold text-red-600">
+                            {formatCurrency(summary.total_credit)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
                             Mua hàng trong kỳ
                         </p>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-purple-50 border-purple-200">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-purple-700">
-                            Tổng dư cuối kỳ
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-purple-900">
-                            {formatCurrency(summary.closing_balance)}
+                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                Dư cuối kỳ
+                            </p>
+                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <DollarSign className="h-4 w-4 text-purple-600" />
+                            </div>
                         </div>
-                        <p className="text-xs text-purple-600 mt-1">
+                        <p className="text-2xl font-bold text-purple-600">
+                            {formatCurrency(summary.closing_balance)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
                             Đến ngày {period.end_date}
                         </p>
                     </CardContent>
                 </Card>
             </div>
 
-            <Card className="rounded-md shadow-sm">
-                <CardHeader className="pb-4">
+            {/* Balance Trend */}
+            <div className="mb-6 p-4 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-200">
+                <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
+                        <BarChart3 className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-700 mb-1">
+                            Biến động công nợ
+                        </p>
+                        <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500">
+                                    Dư đầu:
+                                </span>
+                                <span className="text-sm font-semibold text-blue-600">
+                                    {formatCurrency(summary.opening_balance)}
+                                </span>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500">
+                                    Thanh toán:
+                                </span>
+                                <span className="text-sm font-semibold text-green-600">
+                                    -{formatCurrency(summary.total_debit)}
+                                </span>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500">
+                                    Mua hàng:
+                                </span>
+                                <span className="text-sm font-semibold text-red-600">
+                                    +{formatCurrency(summary.total_credit)}
+                                </span>
+                            </div>
+                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500">
+                                    Dư cuối:
+                                </span>
+                                <span className="text-sm font-semibold text-purple-600">
+                                    {formatCurrency(summary.closing_balance)}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
+                {/* HEADER - Gradient Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <CardTitle className="text-2xl font-bold mb-1">
+                            <CardTitle className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                <Users className="h-6 w-6" />
                                 Công Nợ Nhà Cung Cấp
                             </CardTitle>
-                            <CardDescription>
+                            <CardDescription className="text-white/80">
                                 Tổng hợp công nợ theo từng nhà cung cấp trong
                                 kỳ.
                             </CardDescription>
                         </div>
-                    </div>
-                </CardHeader>
 
-                <CardContent className="space-y-4">
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={handleRefresh}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                            >
+                                <RefreshCw className="mr-2 h-4 w-4" />
+                                Làm mới
+                            </Button>
+
+                            <Button
+                                onClick={handleExport}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                Xuất Excel
+                            </Button>
+
+                            <Button
+                                onClick={handlePrint}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                            >
+                                <Printer className="mr-2 h-4 w-4" />
+                                In báo cáo
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+
+                <CardContent className="p-6 space-y-4">
                     <DataTableFilter
                         keyword={keyword}
                         setKeyword={setKeyword}
                         placeholder="Tìm kiếm theo mã NCC, tên NCC, mã số thuế..."
+                        className="bg-white"
                     >
                         <div className="flex flex-wrap items-center gap-2">
+                            <Filter className="h-4 w-4 text-slate-400" />
+
                             {/* Month Filter */}
                             <Select
                                 value={month.toString()}
@@ -332,14 +475,15 @@ export default function SupplierDebtIndex() {
                                     setMonth(parseInt(value))
                                 }
                             >
-                                <SelectTrigger className="w-[120px] rounded-md">
+                                <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-blue-500">
                                     <SelectValue placeholder="Tháng" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="dropdown-premium-content">
                                     {months.map((m) => (
                                         <SelectItem
                                             key={m}
                                             value={m.toString()}
+                                            className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
                                         >
                                             Tháng {m}
                                         </SelectItem>
@@ -354,14 +498,15 @@ export default function SupplierDebtIndex() {
                                     setYear(parseInt(value))
                                 }
                             >
-                                <SelectTrigger className="w-[120px] rounded-md">
+                                <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-purple-500">
                                     <SelectValue placeholder="Năm" />
                                 </SelectTrigger>
-                                <SelectContent>
+                                <SelectContent className="dropdown-premium-content">
                                     {years.map((y) => (
                                         <SelectItem
                                             key={y}
                                             value={y.toString()}
+                                            className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
                                         >
                                             Năm {y}
                                         </SelectItem>
@@ -374,16 +519,33 @@ export default function SupplierDebtIndex() {
                                 value={referenceType}
                                 onValueChange={setReferenceType}
                             >
-                                <SelectTrigger className="w-[150px] rounded-md">
+                                <SelectTrigger className="w-[180px] rounded-md border-slate-200 focus:ring-green-500">
                                     <SelectValue placeholder="Loại chứng từ" />
                                 </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">Tất cả</SelectItem>
-                                    <SelectItem value="purchase_receipt">
-                                        Phiếu nhập
+                                <SelectContent className="dropdown-premium-content">
+                                    <SelectItem
+                                        value="all"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        Tất cả
                                     </SelectItem>
-                                    <SelectItem value="payment_voucher">
-                                        Phiếu chi
+                                    <SelectItem
+                                        value="purchase_receipt"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <FileText className="h-3 w-3 text-blue-600" />
+                                            Phiếu nhập
+                                        </span>
+                                    </SelectItem>
+                                    <SelectItem
+                                        value="payment_voucher"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <FileText className="h-3 w-3 text-purple-600" />
+                                            Phiếu chi
+                                        </span>
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
@@ -416,3 +578,6 @@ export default function SupplierDebtIndex() {
         </AdminLayout>
     );
 }
+
+// Missing import
+import { ArrowRight } from "lucide-react";

@@ -46,9 +46,14 @@ import {
     FileText,
     Info,
     Loader2,
+    Eye,
+    BookOpen,
+    ArrowLeft,
+    ArrowRight,
 } from "lucide-react";
 import SupplierDebtPrint from "@/admin/components/shared/print/SupplierDebtPrint";
 import { createPortal } from "react-dom";
+import { cn } from "@/admin/lib/utils";
 
 // Hàm dùng chung để render element ẩn và xuất PDF
 const generatePDF = async (element, fileName) => {
@@ -236,24 +241,31 @@ export default function SupplierDebtPreview() {
         try {
             // Lấy nội dung cần in
             const printContent = printRef.current.innerHTML;
-            
+
             // Tạo cửa sổ in mới
-            const printWindow = window.open('', '_blank');
-            
+            const printWindow = window.open("", "_blank");
+
             if (!printWindow) {
-                alert("Trình duyệt đã chặn cửa sổ popup. Vui lòng cho phép popup để in.");
+                alert(
+                    "Trình duyệt đã chặn cửa sổ popup. Vui lòng cho phép popup để in.",
+                );
                 setIsPrinting(false);
                 return;
             }
 
             // Lấy styles từ document hiện tại
-            const styles = document.querySelectorAll('style, link[rel="stylesheet"]');
-            let stylesHTML = '';
-            
-            styles.forEach(style => {
-                if (style.tagName === 'STYLE') {
+            const styles = document.querySelectorAll(
+                'style, link[rel="stylesheet"]',
+            );
+            let stylesHTML = "";
+
+            styles.forEach((style) => {
+                if (style.tagName === "STYLE") {
                     stylesHTML += style.outerHTML;
-                } else if (style.tagName === 'LINK' && style.rel === 'stylesheet') {
+                } else if (
+                    style.tagName === "LINK" &&
+                    style.rel === "stylesheet"
+                ) {
                     stylesHTML += style.outerHTML;
                 }
             });
@@ -353,14 +365,19 @@ export default function SupplierDebtPreview() {
             </div>
 
             {/* Header với actions */}
-            <div className="mb-6 flex items-center justify-between no-print">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">
-                        Xem trước sổ chi tiết công nợ
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Xem trước báo cáo trước khi in ấn hoặc xuất dữ liệu
-                    </p>
+            <div className="mb-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center shadow-lg">
+                        <Eye className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-800">
+                            Xem trước sổ chi tiết công nợ
+                        </h1>
+                        <p className="text-slate-500 text-sm">
+                            Tài khoản 331 - Phải trả cho người bán
+                        </p>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <TooltipProvider>
@@ -368,7 +385,7 @@ export default function SupplierDebtPreview() {
                             <TooltipTrigger asChild>
                                 <Button
                                     onClick={exportToPDF}
-                                    size="sm"
+                                    className="btn-gradient-premium"
                                     disabled={isExporting}
                                 >
                                     {isExporting ? (
@@ -391,7 +408,7 @@ export default function SupplierDebtPreview() {
                                 <Button
                                     onClick={handlePrint}
                                     variant="outline"
-                                    size="sm"
+                                    className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
                                     disabled={isPrinting}
                                 >
                                     {isPrinting ? (
@@ -410,48 +427,54 @@ export default function SupplierDebtPreview() {
                 </div>
             </div>
 
-            {/* Nội dung preview (giữ nguyên phần còn lại) */}
+            {/* Nội dung preview */}
             <div className="space-y-6">
                 {/* Card thông tin chung */}
-                <Card className="border shadow-sm">
-                    <CardHeader className="pb-3">
+                <Card className="border-slate-200 shadow-lg overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 border-b border-slate-200">
                         <div className="flex items-start justify-between">
-                            <div>
-                                <CardTitle className="text-xl uppercase">
-                                    Sổ chi tiết công nợ
-                                </CardTitle>
-                                <CardDescription>
-                                    Tài khoản: 331 - Phải trả cho người bán
-                                </CardDescription>
+                            <div className="flex items-center gap-3">
+                                <div className="h-10 w-10 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                                    <BookOpen className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <CardTitle className="text-xl uppercase text-slate-800">
+                                        Sổ chi tiết công nợ
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Tài khoản: 331 - Phải trả cho người bán
+                                    </CardDescription>
+                                </div>
                             </div>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge className="bg-gradient-to-r from-blue-600 to-purple-600 text-white border-0">
                                 Mẫu số: S31-DN
                             </Badge>
                         </div>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             {/* Thông tin công ty */}
-                            <div className="space-y-2">
-                                <h3 className="font-semibold text-sm text-muted-foreground mb-2">
+                            <div className="space-y-3 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-100">
+                                <h3 className="font-semibold text-sm text-blue-700 flex items-center gap-2">
+                                    <Building2 className="h-4 w-4" />
                                     THÔNG TIN CÔNG TY
                                 </h3>
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <div className="flex items-start gap-2">
-                                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm font-medium">
+                                        <Building2 className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm font-medium text-slate-800">
                                             {companyInfo.name}
                                         </span>
                                     </div>
                                     <div className="flex items-start gap-2">
-                                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm">
+                                        <MapPin className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm text-slate-600">
                                             {companyInfo.address}
                                         </span>
                                     </div>
                                     <div className="flex items-start gap-2">
-                                        <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm">
+                                        <FileText className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm text-slate-600">
                                             MST: {companyInfo.taxCode}
                                         </span>
                                     </div>
@@ -459,44 +482,42 @@ export default function SupplierDebtPreview() {
                             </div>
 
                             {/* Thông tin nhà cung cấp */}
-                            <div className="space-y-2">
-                                <h3 className="font-semibold text-sm text-muted-foreground mb-2">
+                            <div className="space-y-3 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-100">
+                                <h3 className="font-semibold text-sm text-purple-700 flex items-center gap-2">
+                                    <Building2 className="h-4 w-4" />
                                     THÔNG TIN NHÀ CUNG CẤP
                                 </h3>
-                                <div className="space-y-1.5">
+                                <div className="space-y-2">
                                     <div className="flex items-start gap-2">
-                                        <Building2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm font-medium">
+                                        <Building2 className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm font-medium text-slate-800">
                                             {result.supplier.name}
                                         </span>
-                                        <Badge
-                                            variant="secondary"
-                                            className="text-xs"
-                                        >
+                                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
                                             {result.supplier.supplier_code}
                                         </Badge>
                                     </div>
                                     <div className="flex items-start gap-2">
-                                        <MapPin className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm">
+                                        <MapPin className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm text-slate-600">
                                             {result.supplier.address}
                                         </span>
                                     </div>
                                     <div className="flex items-start gap-2">
-                                        <FileText className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm">
+                                        <FileText className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm text-slate-600">
                                             MST: {result.supplier.tax_code}
                                         </span>
                                     </div>
                                     <div className="flex items-start gap-2">
-                                        <Phone className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm">
+                                        <Phone className="h-4 w-4 text-purple-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm text-slate-600">
                                             {result.supplier.phone}
                                         </span>
                                     </div>
                                     <div className="flex items-start gap-2">
-                                        <Mail className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                                        <span className="text-sm">
+                                        <Mail className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+                                        <span className="text-sm text-slate-600">
                                             {result.supplier.email}
                                         </span>
                                     </div>
@@ -504,28 +525,28 @@ export default function SupplierDebtPreview() {
                             </div>
                         </div>
 
-                        <Separator className="my-4" />
+                        <Separator className="my-6 bg-gradient-to-r from-blue-600/20 via-purple-600/20 to-transparent" />
 
                         {/* Kỳ báo cáo và số dư */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                            <Card className="bg-muted/50">
+                            <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
                                 <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-blue-600 mb-1">
                                         <Calendar className="h-4 w-4" />
                                         <span className="text-xs font-medium">
                                             KỲ BÁO CÁO
                                         </span>
                                     </div>
-                                    <p className="text-sm font-semibold">
+                                    <p className="text-sm font-semibold text-slate-800">
                                         {result.period.start_date} -{" "}
                                         {result.period.end_date}
                                     </p>
                                 </CardContent>
                             </Card>
 
-                            <Card className="bg-muted/50">
+                            <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
                                 <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-blue-600 mb-1">
                                         <DollarSign className="h-4 w-4" />
                                         <span className="text-xs font-medium">
                                             SỐ DƯ ĐẦU KỲ
@@ -537,12 +558,12 @@ export default function SupplierDebtPreview() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="bg-muted/50">
+                            <Card className="bg-gradient-to-r from-red-50 to-red-100 border-red-200">
                                 <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-red-600 mb-1">
                                         <TrendingDown className="h-4 w-4" />
                                         <span className="text-xs font-medium">
-                                            PHÁT SINH NỢ (Giảm nợ)
+                                            PHÁT SINH NỢ
                                         </span>
                                     </div>
                                     <p className="text-lg font-bold text-red-600">
@@ -553,12 +574,12 @@ export default function SupplierDebtPreview() {
                                 </CardContent>
                             </Card>
 
-                            <Card className="bg-muted/50">
+                            <Card className="bg-gradient-to-r from-green-50 to-green-100 border-green-200">
                                 <CardContent className="p-4">
-                                    <div className="flex items-center gap-2 text-muted-foreground mb-1">
+                                    <div className="flex items-center gap-2 text-green-600 mb-1">
                                         <TrendingUp className="h-4 w-4" />
                                         <span className="text-xs font-medium">
-                                            PHÁT SINH CÓ (Tăng nợ)
+                                            PHÁT SINH CÓ
                                         </span>
                                     </div>
                                     <p className="text-lg font-bold text-green-600">
@@ -573,54 +594,61 @@ export default function SupplierDebtPreview() {
                 </Card>
 
                 {/* Bảng chi tiết */}
-                <Card className="border shadow-sm">
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-base">
-                            Chi tiết phát sinh
-                        </CardTitle>
-                        <CardDescription>
-                            Danh sách các giao dịch phát sinh trong kỳ
-                        </CardDescription>
+                <Card className="border-slate-200 shadow-lg overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-purple-600/5 to-blue-600/5 border-b border-slate-200">
+                        <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+                                <FileText className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-base text-slate-800">
+                                    Chi tiết phát sinh
+                                </CardTitle>
+                                <CardDescription>
+                                    Danh sách các giao dịch phát sinh trong kỳ
+                                </CardDescription>
+                            </div>
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader className="bg-muted/50">
+                                <TableHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
                                     {/* Hàng 1: nhóm cột */}
                                     <TableRow>
                                         <TableHead
                                             colSpan={2}
-                                            className="text-center border-r"
+                                            className="text-center border-r border-slate-200 font-semibold text-slate-700"
                                         >
                                             Chứng từ
                                         </TableHead>
                                         <TableHead
                                             rowSpan={2}
-                                            className="text-center w-16 align-middle"
+                                            className="text-center w-16 align-middle border-r font-semibold text-slate-700"
                                         >
                                             Loại
                                         </TableHead>
                                         <TableHead
                                             rowSpan={2}
-                                            className="align-middle"
+                                            className="align-middle font-semibold border-r text-slate-700"
                                         >
                                             Diễn giải
                                         </TableHead>
                                         <TableHead
                                             rowSpan={2}
-                                            className="text-center w-24 align-middle"
+                                            className="text-center w-24 align-middle font-semibold text-slate-700"
                                         >
                                             TK ĐƯ
                                         </TableHead>
                                         <TableHead
                                             colSpan={2}
-                                            className="text-center border-r"
+                                            className="text-center border-x border-slate-200 font-semibold text-slate-700"
                                         >
                                             Số phát sinh
                                         </TableHead>
                                         <TableHead
                                             rowSpan={2}
-                                            className="text-right w-28 align-middle"
+                                            className="text-right w-28 align-middle font-semibold text-slate-700"
                                         >
                                             Số dư
                                             <br />
@@ -631,21 +659,25 @@ export default function SupplierDebtPreview() {
                                     </TableRow>
                                     {/* Hàng 2: sub-column */}
                                     <TableRow>
-                                        <TableHead className="text-center w-20">
+                                        <TableHead className="text-center border-r w-20 font-semibold text-slate-700">
                                             Ngày
                                         </TableHead>
-                                        <TableHead className="text-center w-24">
+                                        <TableHead className="text-center border-r w-24 font-semibold text-slate-700">
                                             Số CT
                                         </TableHead>
-                                        <TableHead className="text-right w-28">
-                                            Nợ
+                                        <TableHead className="text-center w-28 font-semibold text-slate-700">
+                                            <span className="text-red-600">
+                                                Nợ
+                                            </span>
                                             <br />
                                             <span className="text-xs font-normal">
                                                 (Giảm nợ)
                                             </span>
                                         </TableHead>
-                                        <TableHead className="text-right w-28">
-                                            Có
+                                        <TableHead className="text-center w-28 font-semibold text-slate-700">
+                                            <span className="text-green-600">
+                                                Có
+                                            </span>
                                             <br />
                                             <span className="text-xs font-normal">
                                                 (Tăng nợ)
@@ -655,7 +687,7 @@ export default function SupplierDebtPreview() {
                                 </TableHeader>
                                 <TableBody>
                                     {/* Dòng số dư đầu kỳ */}
-                                    <TableRow className="bg-blue-50/50 hover:bg-blue-50/70">
+                                    <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
                                         <TableCell className="text-center"></TableCell>
                                         <TableCell className="text-center"></TableCell>
                                         <TableCell className="text-center"></TableCell>
@@ -665,12 +697,14 @@ export default function SupplierDebtPreview() {
                                         >
                                             <div className="flex items-center gap-2">
                                                 <Info className="h-4 w-4 text-blue-600" />
-                                                Số dư đầu kỳ
+                                                <span className="font-semibold text-slate-800">
+                                                    Số dư đầu kỳ
+                                                </span>
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right"></TableCell>
                                         <TableCell className="text-right"></TableCell>
-                                        <TableCell className="text-right font-bold text-blue-600">
+                                        <TableCell className="text-right font-bold text-blue-600 text-base">
                                             {formatMoney(
                                                 result.opening_balance,
                                             )}
@@ -684,27 +718,28 @@ export default function SupplierDebtPreview() {
                                                 key={
                                                     item.journal_entry_detail_id
                                                 }
-                                                className={
+                                                className={cn(
+                                                    "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5",
                                                     index % 2 === 0
-                                                        ? ""
-                                                        : "bg-muted/20"
-                                                }
+                                                        ? "bg-white"
+                                                        : "bg-slate-50/50",
+                                                )}
                                             >
-                                                <TableCell className="text-center text-sm">
+                                                <TableCell className="text-center text-sm text-slate-600">
                                                     {item.formatted_date}
                                                 </TableCell>
-                                                <TableCell className="text-center text-sm">
+                                                <TableCell className="text-center text-sm font-mono">
                                                     {item.reference_code}
                                                 </TableCell>
                                                 <TableCell className="text-center">
                                                     <Badge
-                                                        variant={
+                                                        className={cn(
+                                                            "text-xs",
                                                             item.reference_type_label ===
-                                                            "PN"
-                                                                ? "default"
-                                                                : "secondary"
-                                                        }
-                                                        className="text-xs"
+                                                                "PN"
+                                                                ? "bg-blue-100 text-blue-700 border-blue-200"
+                                                                : "bg-purple-100 text-purple-700 border-purple-200",
+                                                        )}
                                                     >
                                                         {item.reference_type_label ===
                                                         "PN" ? (
@@ -717,15 +752,15 @@ export default function SupplierDebtPreview() {
                                                         }
                                                     </Badge>
                                                 </TableCell>
-                                                <TableCell className="text-sm">
+                                                <TableCell className="text-sm text-slate-600">
                                                     {item.reference_note || ""}
                                                     {item.is_tax_account && (
-                                                        <span className="ml-2 text-xs text-yellow-600">
-                                                            (Thuế)
+                                                        <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
+                                                            Thuế
                                                         </span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-center text-sm font-medium">
+                                                <TableCell className="text-center text-sm font-medium text-purple-600">
                                                     {item.account_code}
                                                 </TableCell>
                                                 <TableCell className="text-right text-sm">
@@ -750,7 +785,7 @@ export default function SupplierDebtPreview() {
                                                         ""
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-right text-sm font-bold">
+                                                <TableCell className="text-right text-sm font-bold text-blue-600">
                                                     {formatMoney(
                                                         item.running_balance,
                                                     )}
@@ -760,9 +795,9 @@ export default function SupplierDebtPreview() {
                                     )}
 
                                     {/* Dòng tổng cộng */}
-                                    <TableRow className="bg-gray-100 font-bold">
+                                    <TableRow className="bg-gradient-to-r from-slate-100 to-slate-200 font-bold">
                                         <TableCell
-                                            className="text-center"
+                                            className="text-center font-semibold"
                                             colSpan={5}
                                         >
                                             Tổng cộng phát sinh
@@ -781,16 +816,16 @@ export default function SupplierDebtPreview() {
                                     </TableRow>
 
                                     {/* Dòng số dư cuối kỳ */}
-                                    <TableRow className="bg-blue-100 font-bold">
+                                    <TableRow className="bg-gradient-to-r from-blue-100 to-purple-100 font-bold">
                                         <TableCell
-                                            className="text-center"
+                                            className="text-center font-semibold"
                                             colSpan={5}
                                         >
                                             Số dư cuối kỳ
                                         </TableCell>
                                         <TableCell className="text-right"></TableCell>
                                         <TableCell className="text-right"></TableCell>
-                                        <TableCell className="text-right text-blue-600">
+                                        <TableCell className="text-right text-blue-600 text-lg">
                                             {formatMoney(closingBalance)}
                                         </TableCell>
                                     </TableRow>
@@ -798,15 +833,21 @@ export default function SupplierDebtPreview() {
                             </Table>
                         </div>
                     </CardContent>
-                    <CardFooter className="flex justify-between text-xs text-muted-foreground py-3">
-                        <div>
+                    <CardFooter className="flex justify-between text-xs text-slate-500 py-3 bg-gradient-to-r from-slate-50 to-white border-t border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <Calendar className="h-3 w-3" />
                             Ngày in: {new Date().toLocaleDateString("vi-VN")}
                         </div>
-                        <div>Người in: {result.supplier.name}</div>
+                        <div className="flex items-center gap-2">
+                            <User className="h-3 w-3" />
+                            Người in: {result.supplier.name}
+                        </div>
                     </CardFooter>
                 </Card>
             </div>
-            {/* ... */}
         </AdminLayout>
     );
 }
+
+// Missing import
+import { User } from "lucide-react";

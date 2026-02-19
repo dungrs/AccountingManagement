@@ -24,6 +24,7 @@ class ProductVariant extends Model
         'file_url',
         'publish',
         'user_id',
+        'unit_id',
         'album',
     ];
 

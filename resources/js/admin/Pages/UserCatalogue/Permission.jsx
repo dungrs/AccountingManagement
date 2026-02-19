@@ -27,6 +27,70 @@ import { Button } from "@/admin/components/ui/button";
 import { Badge } from "@/admin/components/ui/badge";
 import axios from "axios";
 
+import {
+    Shield,
+    Lock,
+    Users,
+    Settings,
+    Key,
+    Save,
+    CheckCircle2,
+    XCircle,
+    Eye,
+    PlusCircle,
+    Pencil,
+    Trash2,
+    FileText,
+    Home,
+    Package,
+    ShoppingCart,
+    Truck,
+    CreditCard,
+    Wallet,
+    PieChart,
+    UserCog,
+    Building2,
+    Briefcase,
+    Sparkles,
+    ChevronRight,
+} from "lucide-react";
+
+import { cn } from "@/admin/lib/utils";
+
+// Mapping icon cho các module
+const moduleIcons = {
+    admin: Shield,
+    user: Users,
+    product: Package,
+    customer: Users,
+    supplier: Truck,
+    receipt: FileText,
+    voucher: CreditCard,
+    debt: Wallet,
+    accounting: PieChart,
+    system: Settings,
+    permission: Key,
+    dashboard: Home,
+    order: ShoppingCart,
+    // Thêm các module khác nếu cần
+};
+
+// Màu sắc cho các module
+const moduleColors = {
+    admin: "from-purple-500 to-purple-600",
+    user: "from-blue-500 to-blue-600",
+    product: "from-green-500 to-green-600",
+    customer: "from-amber-500 to-amber-600",
+    supplier: "from-cyan-500 to-cyan-600",
+    receipt: "from-indigo-500 to-indigo-600",
+    voucher: "from-pink-500 to-pink-600",
+    debt: "from-rose-500 to-rose-600",
+    accounting: "from-emerald-500 to-emerald-600",
+    system: "from-slate-500 to-slate-600",
+    permission: "from-violet-500 to-violet-600",
+    dashboard: "from-blue-500 to-purple-500",
+};
+
 export default function Permission() {
     const { userCatalogues = [], permissions = [] } = usePage().props;
     const [loading, setLoading] = useState(false);
@@ -56,10 +120,10 @@ export default function Permission() {
      * MAPPING CRUD ACTIONS
      * =============================== */
     const actionMapping = {
-        view: "index",
-        create: "create",
-        update: "update",
-        delete: "destroy",
+        view: { icon: Eye, label: "Xem", color: "blue" },
+        create: { icon: PlusCircle, label: "Thêm", color: "green" },
+        update: { icon: Pencil, label: "Sửa", color: "amber" },
+        delete: { icon: Trash2, label: "Xóa", color: "red" },
     };
 
     /* ===============================
@@ -269,27 +333,97 @@ export default function Permission() {
         >
             <Head title="Cập nhật quyền" />
 
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <CardTitle className="text-xl">
-                                Phân quyền hệ thống
-                            </CardTitle>
-                            <CardDescription className="mt-1">
-                                Quản lý quyền truy cập cho từng nhóm người dùng
-                            </CardDescription>
+            {/* Header Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Tổng nhóm
+                                </p>
+                                <p className="text-2xl font-bold text-blue-600">
+                                    {userCatalogues.length}
+                                </p>
+                            </div>
+                            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                                <Users className="h-6 w-6 text-blue-600" />
+                            </div>
                         </div>
-                    </div>
-                </CardHeader>
+                    </CardHeader>
+                </Card>
 
-                <div className="max-h-[650px] overflow-auto border-t">
+                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Tổng quyền
+                                </p>
+                                <p className="text-2xl font-bold text-purple-600">
+                                    {permissions.length}
+                                </p>
+                            </div>
+                            <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
+                                <Key className="h-6 w-6 text-purple-600" />
+                            </div>
+                        </div>
+                    </CardHeader>
+                </Card>
+
+                <Card className="border-l-4 border-l-indigo-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardHeader className="p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-sm text-muted-foreground">
+                                    Module
+                                </p>
+                                <p className="text-2xl font-bold text-indigo-600">
+                                    {Object.keys(groupedPermissions).length}
+                                </p>
+                            </div>
+                            <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
+                                <Settings className="h-6 w-6 text-indigo-600" />
+                            </div>
+                        </div>
+                    </CardHeader>
+                </Card>
+            </div>
+
+            <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
+                {/* Header Gradient */}
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+                    <CardHeader className="p-0">
+                        <div className="flex items-center gap-3">
+                            <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                                <Shield className="h-6 w-6 text-white" />
+                            </div>
+                            <div>
+                                <CardTitle className="text-xl text-white flex items-center gap-2">
+                                    Phân quyền hệ thống
+                                    <Badge className="bg-white/20 text-white border-0 ml-2">
+                                        Quản lý truy cập
+                                    </Badge>
+                                </CardTitle>
+                                <CardDescription className="text-white/80">
+                                    Quản lý quyền truy cập cho từng nhóm người
+                                    dùng
+                                </CardDescription>
+                            </div>
+                        </div>
+                    </CardHeader>
+                </div>
+
+                <div className="max-h-[650px] overflow-auto border-t scrollbar-premium">
                     <Table>
                         {/* HEADER */}
-                        <TableHeader className="sticky top-0 bg-background z-20">
-                            <TableRow>
-                                <TableHead className="sticky left-0 bg-background z-10 min-w-[300px] font-semibold">
-                                    Danh sách quyền
+                        <TableHeader className="sticky top-0 bg-white z-20 shadow-sm">
+                            <TableRow className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
+                                <TableHead className="sticky left-0 bg-white z-10 min-w-[300px] font-semibold text-slate-700">
+                                    <div className="flex items-center gap-2">
+                                        <Lock className="h-4 w-4 text-blue-600" />
+                                        Danh sách quyền
+                                    </div>
                                 </TableHead>
 
                                 {userCatalogues.map((catalogue) => {
@@ -300,12 +434,23 @@ export default function Permission() {
                                             className="text-center min-w-[140px]"
                                         >
                                             <div className="flex flex-col items-center gap-2 py-2">
-                                                <span className="font-semibold">
-                                                    {catalogue.name}
-                                                </span>
+                                                <div className="flex items-center gap-1">
+                                                    <Users className="h-4 w-4 text-purple-600" />
+                                                    <span className="font-semibold text-slate-700">
+                                                        {catalogue.name}
+                                                    </span>
+                                                </div>
                                                 <Badge
-                                                    variant="secondary"
-                                                    className="text-xs"
+                                                    className={cn(
+                                                        "text-xs font-medium",
+                                                        stats.selected ===
+                                                            stats.total
+                                                            ? "bg-green-100 text-green-700 border-green-200"
+                                                            : stats.selected ===
+                                                                0
+                                                              ? "bg-slate-100 text-slate-700 border-slate-200"
+                                                              : "bg-blue-100 text-blue-700 border-blue-200",
+                                                    )}
                                                 >
                                                     {stats.selected}/
                                                     {stats.total}
@@ -320,6 +465,7 @@ export default function Permission() {
                                                             v,
                                                         )
                                                     }
+                                                    className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
                                                 />
                                             </div>
                                         </TableHead>
@@ -331,142 +477,215 @@ export default function Permission() {
                         {/* BODY */}
                         <TableBody>
                             {Object.entries(groupedPermissions).map(
-                                ([module, perms]) => (
-                                    <Fragment key={module}>
-                                        {/* MODULE HEADER */}
-                                        <TableRow className="bg-muted/50">
-                                            <TableCell className="sticky left-0 bg-muted/50 z-10">
-                                                <div className="flex items-center gap-4 py-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <Checkbox
-                                                            checked={isModuleChecked(
-                                                                module,
-                                                            )}
-                                                            onCheckedChange={(
-                                                                v,
-                                                            ) =>
-                                                                toggleModule(
-                                                                    module,
-                                                                    v,
-                                                                )
-                                                            }
-                                                        />
-                                                        <span className="font-semibold uppercase">
-                                                            {module.replace(
-                                                                /_/g,
-                                                                " ",
-                                                            )}
-                                                        </span>
-                                                    </div>
+                                ([module, perms], moduleIndex) => {
+                                    const IconComponent =
+                                        moduleIcons[module] || Shield;
+                                    const colorClass =
+                                        moduleColors[module] ||
+                                        "from-blue-500 to-purple-500";
 
-                                                    <div className="flex gap-2">
-                                                        {Object.entries(
-                                                            actionMapping,
-                                                        ).map(([action]) => (
-                                                            <Button
-                                                                key={action}
-                                                                size="sm"
-                                                                variant="outline"
-                                                                onClick={() =>
-                                                                    toggleCrud(
+                                    return (
+                                        <Fragment key={module}>
+                                            {/* MODULE HEADER */}
+                                            <TableRow className="bg-gradient-to-r from-slate-50 to-white">
+                                                <TableCell className="sticky left-0 bg-gradient-to-r from-slate-50 to-white z-10">
+                                                    <div className="flex items-center gap-4 py-3">
+                                                        <div className="flex items-center gap-3">
+                                                            <Checkbox
+                                                                checked={isModuleChecked(
+                                                                    module,
+                                                                )}
+                                                                onCheckedChange={(
+                                                                    v,
+                                                                ) =>
+                                                                    toggleModule(
                                                                         module,
-                                                                        action,
-                                                                        true,
+                                                                        v,
                                                                     )
                                                                 }
+                                                                className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                                            />
+                                                            <div
+                                                                className={cn(
+                                                                    "h-8 w-8 rounded-lg bg-gradient-to-r flex items-center justify-center text-white",
+                                                                    colorClass,
+                                                                )}
                                                             >
-                                                                {action}
-                                                            </Button>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </TableCell>
+                                                                <IconComponent className="h-4 w-4" />
+                                                            </div>
+                                                            <div>
+                                                                <span className="font-semibold text-slate-800 uppercase">
+                                                                    {module.replace(
+                                                                        /_/g,
+                                                                        " ",
+                                                                    )}
+                                                                </span>
+                                                                <p className="text-xs text-slate-500">
+                                                                    {
+                                                                        perms.length
+                                                                    }{" "}
+                                                                    quyền
+                                                                </p>
+                                                            </div>
+                                                        </div>
 
-                                            {userCatalogues.map((catalogue) => (
-                                                <TableCell
-                                                    key={catalogue.id}
-                                                    className="bg-muted/50 text-center"
-                                                >
-                                                    <div className="flex justify-center">
-                                                        <Checkbox
-                                                            checked={isModuleCheckedByCatalogue(
-                                                                catalogue.id,
-                                                                module,
+                                                        <div className="flex gap-1">
+                                                            {Object.entries(
+                                                                actionMapping,
+                                                            ).map(
+                                                                ([
+                                                                    action,
+                                                                    {
+                                                                        icon: ActionIcon,
+                                                                        label,
+                                                                        color,
+                                                                    },
+                                                                ]) => (
+                                                                    <Button
+                                                                        key={
+                                                                            action
+                                                                        }
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        onClick={() =>
+                                                                            toggleCrud(
+                                                                                module,
+                                                                                action,
+                                                                                true,
+                                                                            )
+                                                                        }
+                                                                        className={cn(
+                                                                            "h-7 px-2 text-xs gap-1",
+                                                                            `hover:bg-${color}-50 hover:text-${color}-600`,
+                                                                        )}
+                                                                        title={`Chọn tất cả quyền ${label}`}
+                                                                    >
+                                                                        <ActionIcon
+                                                                            className={cn(
+                                                                                "h-3.5 w-3.5",
+                                                                                `text-${color}-500`,
+                                                                            )}
+                                                                        />
+                                                                        {label}
+                                                                    </Button>
+                                                                ),
                                                             )}
-                                                            onCheckedChange={(
-                                                                v,
-                                                            ) =>
-                                                                toggleModuleByCatalogue(
-                                                                    catalogue.id,
-                                                                    module,
-                                                                    v,
-                                                                )
-                                                            }
-                                                        />
-                                                    </div>
-                                                </TableCell>
-                                            ))}
-                                        </TableRow>
-
-                                        {/* PERMISSIONS */}
-                                        {perms.map((permission) => (
-                                            <TableRow key={permission.id}>
-                                                <TableCell className="sticky left-0 bg-background z-10">
-                                                    <div className="flex items-center gap-3">
-                                                        <Checkbox
-                                                            checked={isRowChecked(
-                                                                permission.id,
-                                                            )}
-                                                            onCheckedChange={(
-                                                                v,
-                                                            ) =>
-                                                                toggleRow(
-                                                                    permission.id,
-                                                                    v,
-                                                                )
-                                                            }
-                                                        />
-                                                        <span>
-                                                            {permission.name}
-                                                        </span>
+                                                        </div>
                                                     </div>
                                                 </TableCell>
 
                                                 {userCatalogues.map(
-                                                    (catalogue) => {
-                                                        const isChecked =
-                                                            selectedPermissions[
-                                                                catalogue.id
-                                                            ]?.has(
-                                                                permission.id,
-                                                            );
-
-                                                        return (
-                                                            <TableCell
-                                                                key={`${catalogue.id}-${permission.id}`}
-                                                                className="text-center"
-                                                            >
-                                                                <div className="flex justify-center">
-                                                                    <Checkbox
-                                                                        checked={
-                                                                            isChecked
-                                                                        }
-                                                                        onCheckedChange={() =>
-                                                                            togglePermission(
-                                                                                catalogue.id,
-                                                                                permission.id,
-                                                                            )
-                                                                        }
-                                                                    />
-                                                                </div>
-                                                            </TableCell>
-                                                        );
-                                                    },
+                                                    (catalogue) => (
+                                                        <TableCell
+                                                            key={catalogue.id}
+                                                            className="bg-gradient-to-r from-slate-50 to-white text-center"
+                                                        >
+                                                            <div className="flex justify-center">
+                                                                <Checkbox
+                                                                    checked={isModuleCheckedByCatalogue(
+                                                                        catalogue.id,
+                                                                        module,
+                                                                    )}
+                                                                    onCheckedChange={(
+                                                                        v,
+                                                                    ) =>
+                                                                        toggleModuleByCatalogue(
+                                                                            catalogue.id,
+                                                                            module,
+                                                                            v,
+                                                                        )
+                                                                    }
+                                                                    className="border-purple-400 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-600"
+                                                                />
+                                                            </div>
+                                                        </TableCell>
+                                                    ),
                                                 )}
                                             </TableRow>
-                                        ))}
-                                    </Fragment>
-                                ),
+
+                                            {/* PERMISSIONS */}
+                                            {perms.map(
+                                                (permission, permIndex) => (
+                                                    <TableRow
+                                                        key={permission.id}
+                                                        className={cn(
+                                                            "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all duration-200",
+                                                            permIndex % 2 === 0
+                                                                ? "bg-white"
+                                                                : "bg-slate-50/30",
+                                                        )}
+                                                    >
+                                                        <TableCell className="sticky left-0 bg-inherit z-10">
+                                                            <div className="flex items-center gap-3 pl-12">
+                                                                <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                                                                <Checkbox
+                                                                    checked={isRowChecked(
+                                                                        permission.id,
+                                                                    )}
+                                                                    onCheckedChange={(
+                                                                        v,
+                                                                    ) =>
+                                                                        toggleRow(
+                                                                            permission.id,
+                                                                            v,
+                                                                        )
+                                                                    }
+                                                                    className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                                                />
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-sm font-medium text-slate-700">
+                                                                        {
+                                                                            permission.name
+                                                                        }
+                                                                    </span>
+                                                                    <span className="text-xs text-slate-400">
+                                                                        {
+                                                                            permission.canonical
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        </TableCell>
+
+                                                        {userCatalogues.map(
+                                                            (catalogue) => {
+                                                                const isChecked =
+                                                                    selectedPermissions[
+                                                                        catalogue
+                                                                            .id
+                                                                    ]?.has(
+                                                                        permission.id,
+                                                                    );
+
+                                                                return (
+                                                                    <TableCell
+                                                                        key={`${catalogue.id}-${permission.id}`}
+                                                                        className="text-center"
+                                                                    >
+                                                                        <div className="flex justify-center">
+                                                                            <Checkbox
+                                                                                checked={
+                                                                                    isChecked
+                                                                                }
+                                                                                onCheckedChange={() =>
+                                                                                    togglePermission(
+                                                                                        catalogue.id,
+                                                                                        permission.id,
+                                                                                    )
+                                                                                }
+                                                                                className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                                                            />
+                                                                        </div>
+                                                                    </TableCell>
+                                                                );
+                                                            },
+                                                        )}
+                                                    </TableRow>
+                                                ),
+                                            )}
+                                        </Fragment>
+                                    );
+                                },
                             )}
                         </TableBody>
                     </Table>
@@ -475,11 +694,39 @@ export default function Permission() {
 
             {/* SUBMIT BUTTON */}
             <div className="flex justify-end items-center gap-4 mt-6">
-                <div className="text-sm text-muted-foreground">
-                    Tổng quyền: <strong>{permissions.length}</strong>
+                <div className="flex items-center gap-3">
+                    <Badge
+                        variant="outline"
+                        className="bg-green-50 text-green-700 border-green-200"
+                    >
+                        <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                        {permissions.length} quyền
+                    </Badge>
+                    <Badge
+                        variant="outline"
+                        className="bg-blue-50 text-blue-700 border-blue-200"
+                    >
+                        <Users className="h-3.5 w-3.5 mr-1" />
+                        {userCatalogues.length} nhóm
+                    </Badge>
                 </div>
-                <Button size="lg" onClick={handleSubmit} disabled={loading}>
-                    {loading ? "Đang lưu..." : "Lưu phân quyền"}
+                <Button
+                    size="lg"
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="btn-gradient-premium px-8"
+                >
+                    {loading ? (
+                        <>
+                            <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                            Đang lưu...
+                        </>
+                    ) : (
+                        <>
+                            <Save className="mr-2 h-4 w-4" />
+                            Lưu phân quyền
+                        </>
+                    )}
                 </Button>
             </div>
         </AdminLayout>
