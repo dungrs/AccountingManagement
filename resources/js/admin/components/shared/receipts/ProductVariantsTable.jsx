@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { Button } from "@/admin/components/ui/button";
 import { Input } from "@/admin/components/ui/input";
 import { Badge } from "@/admin/components/ui/badge";
@@ -33,6 +33,7 @@ import {
     DollarSign,
     Percent,
     Tag,
+    Calculator,
 } from "lucide-react";
 import SelectCombobox from "@/admin/components/ui/select-combobox";
 import {
@@ -69,6 +70,70 @@ export default function ProductVariantsTable({
     priceListVariants = [],
     priceListData = null,
 }) {
+    // ─── Tính toán tự động khi thay đổi số lượng, đơn giá, VAT ─────────────
+
+    const calculateRowValues = (row) => {
+        if (!row) return row;
+
+        const quantity = parseFloat(row.quantity) || 0;
+        const price = parseFloat(row.price) || 0;
+        const discountAmount = parseFloat(row.discount_amount) || 0;
+
+        // Thành tiền trước VAT = (số lượng × đơn giá) - chiết khấu
+        const amount = quantity * price;
+        const afterDiscount = amount - discountAmount;
+
+        // Tính VAT
+        let vatRate = 0;
+        if (row.vat_id) {
+            const vatTax = getVatTaxById(row.vat_id);
+            vatRate = vatTax?.rate || 0;
+        }
+        const vatAmount = (afterDiscount * vatRate) / 100;
+
+        // Thành tiền sau VAT = afterDiscount + vatAmount
+        const subtotal = afterDiscount + vatAmount;
+
+        return {
+            ...row,
+            amount: amount,
+            after_discount: afterDiscount,
+            vat_amount: vatAmount,
+            subtotal: subtotal,
+        };
+    };
+
+    // ─── Cập nhật dòng thêm mới khi có thay đổi ───────────────────────────
+    useEffect(() => {
+        if (addingRows && addingRows.length > 0) {
+            const updatedRows = addingRows.map((row) =>
+                calculateRowValues(row),
+            );
+
+            // Chỉ update nếu có sự thay đổi để tránh loop
+            const hasChanges = updatedRows.some((newRow, index) => {
+                const oldRow = addingRows[index];
+                return (
+                    newRow.amount !== oldRow.amount ||
+                    newRow.after_discount !== oldRow.after_discount ||
+                    newRow.vat_amount !== oldRow.vat_amount ||
+                    newRow.subtotal !== oldRow.subtotal
+                );
+            });
+
+            if (hasChanges) {
+                setAddingRows(updatedRows);
+            }
+        }
+    }, [
+        addingRows
+            ?.map(
+                (r) =>
+                    `${r.quantity}-${r.price}-${r.discount_amount}-${r.vat_id}`,
+            )
+            .join("|"),
+    ]);
+
     // ─── Lấy đơn vị tính ────────────────────────────────────────────────────
     const getUnitDisplay = (item) => {
         const variant = getVariantInfo(item.product_variant_id);
@@ -88,15 +153,13 @@ export default function ProductVariantsTable({
     // ─── Tìm giá trong bảng giá theo variantId ──────────────────────────────
     const getPriceFromPriceList = (variantId) => {
         if (!Array.isArray(priceListVariants) || !variantId) return null;
-        return (
-            priceListVariants.find(
-                (item) => Number(item.product_variant_id) === Number(variantId),
-            ) || null
+        const found = priceListVariants.find(
+            (item) => Number(item.product_variant_id) === Number(variantId),
         );
+        return found || null;
     };
 
     // ─── Helper: lấy name/sku từ productVariants ───────────────────────────
-    // ✅ FIX: productVariants từ Laravel có key "product_variant_id", không phải "id"
     const getVariantMeta = (variantId) => {
         if (!Array.isArray(productVariants) || !variantId) return {};
 
@@ -113,6 +176,7 @@ export default function ProductVariantsTable({
             sku: found.sku ?? null,
             unit: found.unit ?? null,
             unit_name: found.unit_name ?? found.unit?.name ?? null,
+            base_price: found.base_price ?? null,
         };
     };
 
@@ -121,9 +185,14 @@ export default function ProductVariantsTable({
         if (!variantId) {
             setAddingRows((prev) =>
                 prev.map((row) =>
-                    row.id !== rowId
-                        ? row
-                        : { ...row, product_variant_id: null },
+                    row.id === rowId
+                        ? {
+                              ...row,
+                              product_variant_id: null,
+                              price: 0,
+                              vat_id: null,
+                          }
+                        : row,
                 ),
             );
             return;
@@ -136,19 +205,26 @@ export default function ProductVariantsTable({
         setAddingRows((prev) =>
             prev.map((row) => {
                 if (row.id !== rowId) return row;
-                return {
+
+                const newRow = {
                     ...row,
                     product_variant_id: variantId,
                     name: meta.name ?? row.name,
                     sku: meta.sku ?? row.sku,
                     unit: meta.unit ?? row.unit,
                     unit_name: meta.unit_name ?? row.unit_name,
-                    ...(priceInfo && {
-                        price: parseFloat(priceInfo.sale_price) || row.price,
-                        list_price: parseFloat(priceInfo.sale_price) || null,
-                        vat_id: Number(priceInfo.output_tax_id) || row.vat_id,
-                    }),
+                    price: priceInfo?.sale_price
+                        ? parseFloat(priceInfo.sale_price)
+                        : meta.base_price
+                          ? parseFloat(meta.base_price)
+                          : row.price || 0,
+                    vat_id: priceInfo?.output_tax_id
+                        ? Number(priceInfo.output_tax_id)
+                        : row.vat_id || null,
+                    discount_amount: row.discount_amount || 0,
                 };
+
+                return calculateRowValues(newRow);
             }),
         );
     };
@@ -175,24 +251,49 @@ export default function ProductVariantsTable({
         setFormData((prev) => {
             const updated = [...(prev.product_variants || [])];
             if (!updated[index]) return prev;
-            updated[index] = {
+
+            const newRow = {
                 ...updated[index],
                 product_variant_id: variantId,
-                // ✅ Lưu name & sku để hiển thị đúng sau khi save
                 name: meta.name ?? updated[index].name,
                 sku: meta.sku ?? updated[index].sku,
                 unit: meta.unit ?? updated[index].unit,
                 unit_name: meta.unit_name ?? updated[index].unit_name,
-                ...(priceInfo && {
-                    price:
-                        parseFloat(priceInfo.sale_price) ||
-                        updated[index].price,
-                    list_price: parseFloat(priceInfo.sale_price) || null,
-                    vat_id:
-                        Number(priceInfo.output_tax_id) ||
-                        updated[index].vat_id,
-                }),
+                price: priceInfo?.sale_price
+                    ? parseFloat(priceInfo.sale_price)
+                    : meta.base_price
+                      ? parseFloat(meta.base_price)
+                      : updated[index].price || 0,
+                vat_id: priceInfo?.output_tax_id
+                    ? Number(priceInfo.output_tax_id)
+                    : updated[index].vat_id || null,
             };
+
+            updated[index] = calculateRowValues(newRow);
+            return { ...prev, product_variants: updated };
+        });
+    };
+
+    // ─── Cập nhật dòng thêm mới ───────────────────────────────────────────
+    const handleUpdateAddingRowWithCalc = (rowId, field, value) => {
+        setAddingRows((prev) =>
+            prev.map((row) => {
+                if (row.id !== rowId) return row;
+                const updatedRow = { ...row, [field]: value };
+                return calculateRowValues(updatedRow);
+            }),
+        );
+    };
+
+    // ─── Cập nhật dòng đang sửa ───────────────────────────────────────────
+    const handleUpdateItemWithCalc = (index, field, value) => {
+        setFormData((prev) => {
+            const updated = [...(prev.product_variants || [])];
+            if (!updated[index]) return prev;
+
+            const updatedRow = { ...updated[index], [field]: value };
+            updated[index] = calculateRowValues(updatedRow);
+
             return { ...prev, product_variants: updated };
         });
     };
@@ -272,6 +373,12 @@ export default function ProductVariantsTable({
                                         </div>
                                     </TableHead>
                                 )}
+                                <TableHead className="w-20 text-right text-xs font-semibold text-slate-700">
+                                    <div className="flex items-center justify-end gap-1">
+                                        <Calculator className="h-3 w-3 text-blue-600" />
+                                        Thành tiền
+                                    </div>
+                                </TableHead>
                                 <TableHead className="w-16 text-center text-xs font-semibold text-slate-700">
                                     <div className="flex items-center justify-center gap-1">
                                         <Percent className="h-3 w-3 text-orange-600" />
@@ -282,7 +389,7 @@ export default function ProductVariantsTable({
                                     Tiền VAT
                                 </TableHead>
                                 <TableHead className="w-24 text-right text-xs font-semibold text-slate-700">
-                                    Thành tiền
+                                    Tổng cộng
                                 </TableHead>
                                 <TableHead className="w-20 text-center text-xs font-semibold text-slate-700">
                                     Thao tác
@@ -306,18 +413,29 @@ export default function ProductVariantsTable({
                                               item.product_variant_id,
                                           )
                                         : null;
-                                const listPriceDisplay = item.list_price
-                                    ? formatCurrency(item.list_price)
-                                    : priceInfo?.sale_price
-                                      ? formatCurrency(priceInfo.sale_price)
-                                      : null;
+                                const listPriceDisplay = priceInfo?.sale_price
+                                    ? formatCurrency(priceInfo.sale_price)
+                                    : null;
 
-                                // ✅ FIX: Ưu tiên variant từ page props, rồi đến item.name đã lưu
+                                // Tính toán lại nếu cần
+                                const calculatedItem = calculateRowValues(item);
+
                                 const displayName =
                                     variant?.name ||
                                     item?.name ||
                                     `SP #${item.product_variant_id}`;
                                 const displaySku = variant?.sku || item?.sku;
+
+                                console.log("Variant:", variant);
+                                console.log("Item:", item);
+                                console.log(
+                                    "Display name from variant:",
+                                    variant?.name,
+                                );
+                                console.log(
+                                    "Display name from item:",
+                                    item?.name,
+                                );
 
                                 return (
                                     <TableRow
@@ -375,7 +493,7 @@ export default function ProductVariantsTable({
                                                     type="number"
                                                     value={item.quantity}
                                                     onChange={(e) =>
-                                                        handleUpdateItem(
+                                                        handleUpdateItemWithCalc(
                                                             index,
                                                             "quantity",
                                                             e.target.value,
@@ -400,13 +518,13 @@ export default function ProductVariantsTable({
                                                     type="number"
                                                     value={item.price}
                                                     onChange={(e) =>
-                                                        handleUpdateItem(
+                                                        handleUpdateItemWithCalc(
                                                             index,
                                                             "price",
                                                             e.target.value,
                                                         )
                                                     }
-                                                    className="text-right h-8 text-sm w-20 ml-auto border-slate-200 focus:border-purple-500"
+                                                    className="text-right h-8 text-sm w-40 ml-auto border-slate-200 focus:border-purple-500"
                                                     min="0"
                                                     step="0.01"
                                                 />
@@ -447,12 +565,31 @@ export default function ProductVariantsTable({
                                             </TableCell>
                                         )}
 
+                                        <TableCell className="text-right font-medium">
+                                            <span className="text-sm text-blue-600">
+                                                {formatCurrency(
+                                                    calculatedItem.amount || 0,
+                                                )}
+                                            </span>
+                                            {calculatedItem.discount_amount >
+                                                0 && (
+                                                <div className="text-xs text-red-500">
+                                                    -
+                                                    {formatCurrency(
+                                                        calculatedItem.discount_amount,
+                                                    )}
+                                                </div>
+                                            )}
+                                        </TableCell>
+
                                         <TableCell className="text-center">
                                             {isEditing ? (
                                                 <Select
-                                                    value={String(item.vat_id)}
+                                                    value={String(
+                                                        item.vat_id || "",
+                                                    )}
                                                     onValueChange={(value) =>
-                                                        handleUpdateItem(
+                                                        handleUpdateItemWithCalc(
                                                             index,
                                                             "vat_id",
                                                             parseInt(value),
@@ -460,9 +597,15 @@ export default function ProductVariantsTable({
                                                     }
                                                 >
                                                     <SelectTrigger className="h-8 w-14 mx-auto text-xs border-slate-200">
-                                                        <SelectValue />
+                                                        <SelectValue placeholder="0%" />
                                                     </SelectTrigger>
                                                     <SelectContent>
+                                                        <SelectItem
+                                                            value="0"
+                                                            className="text-xs"
+                                                        >
+                                                            0%
+                                                        </SelectItem>
                                                         {vatTaxes?.map(
                                                             (tax) => (
                                                                 <SelectItem
@@ -490,12 +633,14 @@ export default function ProductVariantsTable({
 
                                         <TableCell className="text-right text-sm font-medium text-orange-600">
                                             {formatCurrency(
-                                                item.vat_amount || 0,
+                                                calculatedItem.vat_amount || 0,
                                             )}
                                         </TableCell>
 
                                         <TableCell className="text-right text-sm font-bold text-blue-600">
-                                            {formatCurrency(item.subtotal)}
+                                            {formatCurrency(
+                                                calculatedItem.subtotal || 0,
+                                            )}
                                         </TableCell>
 
                                         <TableCell className="text-center">
@@ -672,7 +817,7 @@ export default function ProductVariantsTable({
                                                 placeholder="SL"
                                                 value={row.quantity}
                                                 onChange={(e) =>
-                                                    handleUpdateAddingRow(
+                                                    handleUpdateAddingRowWithCalc(
                                                         row.id,
                                                         "quantity",
                                                         e.target.value,
@@ -690,13 +835,13 @@ export default function ProductVariantsTable({
                                                 placeholder="Đơn giá"
                                                 value={row.price}
                                                 onChange={(e) =>
-                                                    handleUpdateAddingRow(
+                                                    handleUpdateAddingRowWithCalc(
                                                         row.id,
                                                         "price",
                                                         e.target.value,
                                                     )
                                                 }
-                                                className="text-right h-8 text-sm w-40 ml-auto border-slate-200 focus:border-purple-500"
+                                                className="text-right h-8 text-sm w-24 ml-auto border-slate-200 focus:border-purple-500"
                                                 min="0"
                                                 step="0.01"
                                             />
@@ -733,11 +878,19 @@ export default function ProductVariantsTable({
                                             </TableCell>
                                         )}
 
+                                        <TableCell className="text-right font-medium">
+                                            <span className="text-sm text-blue-600">
+                                                {formatCurrency(
+                                                    row.amount || 0,
+                                                )}
+                                            </span>
+                                        </TableCell>
+
                                         <TableCell>
                                             <Select
-                                                value={String(row.vat_id)}
+                                                value={String(row.vat_id || "")}
                                                 onValueChange={(value) =>
-                                                    handleUpdateAddingRow(
+                                                    handleUpdateAddingRowWithCalc(
                                                         row.id,
                                                         "vat_id",
                                                         parseInt(value),
@@ -745,9 +898,15 @@ export default function ProductVariantsTable({
                                                 }
                                             >
                                                 <SelectTrigger className="h-8 w-14 mx-auto text-xs border-slate-200">
-                                                    <SelectValue placeholder="VAT" />
+                                                    <SelectValue placeholder="0%" />
                                                 </SelectTrigger>
                                                 <SelectContent>
+                                                    <SelectItem
+                                                        value="0"
+                                                        className="text-xs"
+                                                    >
+                                                        0%
+                                                    </SelectItem>
                                                     {vatTaxes?.map((tax) => (
                                                         <SelectItem
                                                             key={tax.id}
@@ -764,15 +923,13 @@ export default function ProductVariantsTable({
                                         </TableCell>
 
                                         <TableCell className="text-right text-sm font-medium text-orange-600">
-                                            {row.vat_amount
-                                                ? formatCurrency(row.vat_amount)
-                                                : "-"}
+                                            {formatCurrency(
+                                                row.vat_amount || 0,
+                                            )}
                                         </TableCell>
 
                                         <TableCell className="text-right text-sm font-bold text-blue-600">
-                                            {row.subtotal
-                                                ? formatCurrency(row.subtotal)
-                                                : "-"}
+                                            {formatCurrency(row.subtotal || 0)}
                                         </TableCell>
 
                                         <TableCell className="text-center">
@@ -868,8 +1025,8 @@ export default function ProductVariantsTable({
                                         <TableCell
                                             colSpan={
                                                 type === "sale" && priceListData
-                                                    ? 10
-                                                    : 9
+                                                    ? 11
+                                                    : 10
                                             }
                                             className="text-center py-16"
                                         >
@@ -929,6 +1086,16 @@ export default function ProductVariantsTable({
                                     <span className="font-medium text-slate-800">
                                         {formatCurrency(
                                             totals?.totalAmount || 0,
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-slate-600">
+                                        Tổng chiết khấu:
+                                    </span>
+                                    <span className="font-medium text-red-500">
+                                        {formatCurrency(
+                                            totals?.totalDiscount || 0,
                                         )}
                                     </span>
                                 </div>

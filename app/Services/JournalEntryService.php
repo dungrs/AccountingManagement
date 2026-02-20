@@ -9,6 +9,7 @@ use App\Services\BaseService;
 use App\Services\Interfaces\JournalEntryServiceInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class JournalEntryService extends BaseService implements JournalEntryServiceInterface
 {
@@ -33,17 +34,31 @@ class JournalEntryService extends BaseService implements JournalEntryServiceInte
     {
         return DB::transaction(function () use ($referenceType, $referenceId, $journalEntries, $entryDate) {
 
+            // Kiểm tra dữ liệu đầu vào
+            if (empty($journalEntries) || !isset($journalEntries['entries']) || empty($journalEntries['entries'])) {
+                throw new \Exception('Không có dữ liệu định khoản.');
+            }
+
+            $entries = $journalEntries['entries'];
+            $note = $journalEntries['note'] ?? 'Bút toán từ ' . $referenceType;
+
             // Kiểm tra cân bằng debit và credit
             $totalDebit = 0;
             $totalCredit = 0;
 
-            foreach ($journalEntries as $entry) {
-                $totalDebit += $entry['debit'] ?? 0;
-                $totalCredit += $entry['credit'] ?? 0;
+            foreach ($entries as $entry) {
+                // Kiểm tra dữ liệu entry
+                if (!isset($entry['account_code']) && !isset($entry['account_id'])) {
+                    throw new \Exception('Thiếu thông tin tài khoản trong định khoản.');
+                }
+
+                $totalDebit += (float)($entry['debit'] ?? 0);
+                $totalCredit += (float)($entry['credit'] ?? 0);
             }
 
-            if (abs($totalDebit - $totalCredit) > 0.01) { // Cho phép sai số nhỏ
-                throw new \Exception('Tổng debit và credit không cân bằng.');
+            // Kiểm tra cân bằng (cho phép sai số nhỏ do làm tròn)
+            if (abs($totalDebit - $totalCredit) > 0.01) {
+                throw new \Exception('Tổng debit và credit không cân bằng. Debit: ' . $totalDebit . ', Credit: ' . $totalCredit);
             }
 
             // Tạo journal entry
@@ -52,48 +67,74 @@ class JournalEntryService extends BaseService implements JournalEntryServiceInte
                 'reference_type' => $referenceType,
                 'reference_id'   => $referenceId,
                 'entry_date'     => $entryDate ?? now(),
-                'created_by'     => Auth::id(),
+                'note'           => $note,
+                'created_by'     => Auth::id() ?? 1,
             ]);
 
             // Tạo chi tiết định khoản
-            foreach ($journalEntries as $entry) {
-                // Tìm account_id từ account_code
-                $account = $this->accountingAccountRepository->findByCondition(
-                    [['account_code', '=', $entry['account_code']]],
-                    false
-                );
+            foreach ($entries as $entry) {
+                $accountId = null;
 
-                if (!$account) {
-                    throw new \Exception("Tài khoản {$entry['account_code']} không tồn tại.");
+                // Tìm account_id từ account_code hoặc account_id
+                if (isset($entry['account_code'])) {
+                    $account = $this->accountingAccountRepository->findByCondition(
+                        [['account_code', '=', $entry['account_code']]],
+                        false
+                    );
+
+                    if (!$account) {
+                        throw new \Exception("Tài khoản {$entry['account_code']} không tồn tại.");
+                    }
+                    $accountId = $account->id;
+                } elseif (isset($entry['account_id'])) {
+                    $accountId = $entry['account_id'];
+                }
+
+                if (!$accountId) {
+                    throw new \Exception('Không thể xác định tài khoản kế toán.');
                 }
 
                 $this->journalEntryDetailRepository->create([
                     'journal_entry_id' => $journalEntry->id,
-                    'account_id'       => $account->id,
-                    'debit'            => $entry['debit'] ?? 0,
-                    'credit'           => $entry['credit'] ?? 0,
+                    'account_id'       => $accountId,
+                    'debit'            => (float)($entry['debit'] ?? 0),
+                    'credit'           => (float)($entry['credit'] ?? 0),
                 ]);
             }
 
-            return $journalEntry;
+            // Load lại journal entry với details
+            return $this->journalEntryRepository->findById($journalEntry->id, ['*'], ['details.account']);
         });
     }
 
     /**
      * Cập nhật định khoản theo reference
-     * Thay vì xóa và tạo lại, phương thức này sẽ cập nhật các chi tiết định khoản hiện có
      */
     public function updateJournalByReference($referenceType, $referenceId, array $journalEntries, $entryDate = null)
     {
         return DB::transaction(function () use ($referenceType, $referenceId, $journalEntries, $entryDate) {
 
+            // Kiểm tra dữ liệu đầu vào
+            if (empty($journalEntries) || !isset($journalEntries['entries']) || empty($journalEntries['entries'])) {
+                // Nếu không có dữ liệu, xóa tất cả định khoản
+                $this->deleteJournalByReference($referenceType, $referenceId);
+                return null;
+            }
+
+            $entries = $journalEntries['entries'];
+            $note = $journalEntries['note'] ?? 'Bút toán từ ' . $referenceType;
+
             // Kiểm tra cân bằng debit và credit
             $totalDebit = 0;
             $totalCredit = 0;
 
-            foreach ($journalEntries as $entry) {
-                $totalDebit += $entry['debit'] ?? 0;
-                $totalCredit += $entry['credit'] ?? 0;
+            foreach ($entries as $entry) {
+                if (!isset($entry['account_code']) && !isset($entry['account_id'])) {
+                    throw new \Exception('Thiếu thông tin tài khoản trong định khoản.');
+                }
+
+                $totalDebit += (float)($entry['debit'] ?? 0);
+                $totalCredit += (float)($entry['credit'] ?? 0);
             }
 
             if (abs($totalDebit - $totalCredit) > 0.01) {
@@ -115,66 +156,55 @@ class JournalEntryService extends BaseService implements JournalEntryServiceInte
             }
 
             // Cập nhật thông tin journal entry
-            $updateData = [];
+            $updateData = [
+                'note' => $note,
+            ];
+
             if ($entryDate) {
                 $updateData['entry_date'] = $entryDate;
             }
 
-            if (!empty($updateData)) {
-                $this->journalEntryRepository->update($journalEntry->id, $updateData);
-            }
+            $this->journalEntryRepository->update($journalEntry->id, $updateData);
 
             // Lấy danh sách detail hiện tại
             $existingDetails = $this->journalEntryDetailRepository->findByCondition(
                 [['journal_entry_id', '=', $journalEntry->id]],
                 true
-            )->keyBy('id');
+            );
 
-            $processedDetailIds = [];
-
-            // Xử lý từng entry mới
-            foreach ($journalEntries as $entry) {
-                // Tìm account
-                $account = $this->accountingAccountRepository->findByCondition(
-                    [['account_code', '=', $entry['account_code']]],
-                    false
-                );
-
-                if (!$account) {
-                    throw new \Exception("Tài khoản {$entry['account_code']} không tồn tại.");
-                }
-
-                // Tìm detail hiện có với account này
-                $existingDetail = $existingDetails->first(function ($detail) use ($account) {
-                    return $detail->account_id == $account->id;
-                });
-
-                if ($existingDetail) {
-                    // Cập nhật detail hiện có
-                    $this->journalEntryDetailRepository->update($existingDetail->id, [
-                        'debit'  => $entry['debit'] ?? 0,
-                        'credit' => $entry['credit'] ?? 0,
-                    ]);
-                    $processedDetailIds[] = $existingDetail->id;
-                } else {
-                    // Tạo detail mới
-                    $newDetail = $this->journalEntryDetailRepository->create([
-                        'journal_entry_id' => $journalEntry->id,
-                        'account_id'       => $account->id,
-                        'debit'            => $entry['debit'] ?? 0,
-                        'credit'           => $entry['credit'] ?? 0,
-                    ]);
-                    $processedDetailIds[] = $newDetail->id;
-                }
+            // Xóa tất cả details cũ
+            foreach ($existingDetails as $detail) {
+                $this->journalEntryDetailRepository->delete($detail->id);
             }
 
-            // Xóa các detail cũ không còn trong danh sách mới
-            $detailsToDelete = $existingDetails->filter(function ($detail) use ($processedDetailIds) {
-                return !in_array($detail->id, $processedDetailIds);
-            });
+            // Tạo details mới
+            foreach ($entries as $entry) {
+                $accountId = null;
 
-            foreach ($detailsToDelete as $detail) {
-                $this->journalEntryDetailRepository->delete($detail->id);
+                if (isset($entry['account_code'])) {
+                    $account = $this->accountingAccountRepository->findByCondition(
+                        [['account_code', '=', $entry['account_code']]],
+                        false
+                    );
+
+                    if (!$account) {
+                        throw new \Exception("Tài khoản {$entry['account_code']} không tồn tại.");
+                    }
+                    $accountId = $account->id;
+                } elseif (isset($entry['account_id'])) {
+                    $accountId = $entry['account_id'];
+                }
+
+                if (!$accountId) {
+                    throw new \Exception('Không thể xác định tài khoản kế toán.');
+                }
+
+                $this->journalEntryDetailRepository->create([
+                    'journal_entry_id' => $journalEntry->id,
+                    'account_id'       => $accountId,
+                    'debit'            => (float)($entry['debit'] ?? 0),
+                    'credit'           => (float)($entry['credit'] ?? 0),
+                ]);
             }
 
             // Load lại journal entry với details mới
@@ -183,11 +213,32 @@ class JournalEntryService extends BaseService implements JournalEntryServiceInte
     }
 
     /**
-     * Xác nhận định khoản - KHÔNG CẦN THIẾT VÌ ĐÃ TẠO TRỰC TIẾP
+     * Xác nhận định khoản
      */
     public function confirmJournalByReference($referenceType, $referenceId)
     {
-        // Không cần làm gì vì journal entries đã được tạo từ đầu
+        // Có thể thêm logic xác nhận nếu cần
+        // Ví dụ: cập nhật trạng thái, ghi log, v.v.
+
+        $journalEntry = $this->journalEntryRepository->findByCondition(
+            [
+                ['reference_type', '=', $referenceType],
+                ['reference_id', '=', $referenceId]
+            ],
+            false
+        );
+
+        if ($journalEntry) {
+            // Có thể update trạng thái confirmed nếu có trường status
+            // $this->journalEntryRepository->update($journalEntry->id, ['status' => 'confirmed']);
+
+            Log::info('Journal entry confirmed', [
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'journal_id' => $journalEntry->id
+            ]);
+        }
+
         return true;
     }
 
@@ -241,35 +292,63 @@ class JournalEntryService extends BaseService implements JournalEntryServiceInte
                 'id' => $journal->id,
                 'code' => $journal->code,
                 'entry_date' => $journal->entry_date,
+                'note' => $journal->note,
                 'details' => $journal->details->map(function ($detail) {
                     return [
                         'account_code' => $detail->account?->account_code,
                         'account_name' => $detail->account?->name,
-                        'debit' => $detail->debit,
-                        'credit' => $detail->credit,
+                        'debit' => (float)$detail->debit,
+                        'credit' => (float)$detail->credit,
                     ];
-                })
+                })->values()->toArray()
             ];
-        });
+        })->values()->toArray();
+    }
+
+    /**
+     * Kiểm tra tính cân bằng của định khoản
+     */
+    public function validateJournalBalance(array $entries): bool
+    {
+        $totalDebit = 0;
+        $totalCredit = 0;
+
+        foreach ($entries as $entry) {
+            $totalDebit += (float)($entry['debit'] ?? 0);
+            $totalCredit += (float)($entry['credit'] ?? 0);
+        }
+
+        return abs($totalDebit - $totalCredit) <= 0.01;
     }
 
     /**
      * Tự động generate mã định khoản
-     * Format: JE_001, JE_002, ...
+     * Format: JE_YYYYMMDD_001, JE_YYYYMMDD_002, ...
      */
     private function generateJournalEntryCode()
     {
-        $latest = $this->journalEntryRepository->findLastest();
+        $date = now()->format('Ymd');
 
-        if (!$latest || !$latest->code) {
-            return 'JE_001';
+        // Tìm mã lớn nhất trong ngày
+        $latest = $this->journalEntryRepository->findByCondition(
+            [['code', 'LIKE', 'JE_' . $date . '_%']],
+            true,
+            [],
+            ['id' => 'DESC'],
+            ['code'],
+            [],
+            1
+        )->first();
+
+        if (!$latest) {
+            return 'JE_' . $date . '_001';
         }
 
         $latestCode = $latest->code;
-        preg_match('/(\d+)/', $latestCode, $matches);
+        $parts = explode('_', $latestCode);
+        $lastNumber = isset($parts[2]) ? (int)$parts[2] : 0;
+        $newNumber = $lastNumber + 1;
 
-        $number = isset($matches[1]) ? (int)$matches[1] + 1 : 1;
-
-        return 'JE_' . str_pad($number, 3, '0', STR_PAD_LEFT);
+        return 'JE_' . $date . '_' . str_pad($newNumber, 3, '0', STR_PAD_LEFT);
     }
 }

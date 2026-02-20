@@ -83,14 +83,17 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         return DB::transaction(function () use ($request) {
             $payload = $request->only($this->payload());
 
-            // Map partner_id thành supplier_id
-            if ($request->has('partner_id')) {
-                $payload['supplier_id'] = $request->input('partner_id');
+            // Map supplier_id
+            if ($request->has('supplier_id')) {
+                $payload['supplier_id'] = $request->input('supplier_id');
             }
 
             // Xử lý user_id
             $payload['user_id'] = $request->input('user_id') ?? Auth::id();
             $payload['created_by'] = $payload['user_id'];
+
+            // Xử lý amount
+            $payload['amount'] = $this->parseAmount($request->input('amount'));
 
             // Tạo mã nếu không có code từ request
             if (empty($payload['code'])) {
@@ -99,17 +102,19 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
             $voucher = $this->paymentVoucherRepository->create($payload);
 
-            // Tạo journal entries cho cả draft và confirmed
-            if ($request->has('journal_entries')) {
+            // Tạo journal entries
+            if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
+                $journalData = $this->prepareJournalData($request->input('journal_entries'));
+
                 $this->journalEntryService->createFromRequest(
                     'payment_voucher',
                     $voucher->id,
-                    $request->input('journal_entries'),
+                    $journalData,
                     $voucher->voucher_date
                 );
             }
 
-            // Xử lý khi xác nhận - chỉ tạo công nợ
+            // Xử lý khi xác nhận
             if ($payload['status'] === 'confirmed') {
                 $this->handleConfirm($voucher);
             }
@@ -165,13 +170,16 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
             if ($voucher->status === 'draft') {
                 $payload = $request->only($this->payload());
 
-                // Map partner_id thành supplier_id
-                if ($request->has('partner_id')) {
-                    $payload['supplier_id'] = $request->input('partner_id');
+                // Map supplier_id
+                if ($request->has('supplier_id')) {
+                    $payload['supplier_id'] = $request->input('supplier_id');
                 }
 
                 // Xử lý user_id
                 $payload['user_id'] = $request->input('user_id') ?? Auth::id();
+
+                // Xử lý amount
+                $payload['amount'] = $this->parseAmount($request->input('amount'));
 
                 // Không cho phép sửa code khi update
                 unset($payload['code']);
@@ -179,13 +187,18 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                 $this->paymentVoucherRepository->update($id, $payload);
 
                 // Cập nhật journal entries
-                if ($request->has('journal_entries')) {
+                if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
+                    $journalData = $this->prepareJournalData($request->input('journal_entries'));
+
                     $this->journalEntryService->updateJournalByReference(
                         'payment_voucher',
                         $voucher->id,
-                        $request->input('journal_entries'),
+                        $journalData,
                         $voucher->voucher_date
                     );
+                } else {
+                    // Nếu không có journal entries, xóa định khoản cũ
+                    $this->journalEntryService->deleteJournalByReference('payment_voucher', $voucher->id);
                 }
 
                 // Nếu từ draft → confirmed
@@ -210,7 +223,7 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                 throw new \Exception('Phiếu chi không tồn tại.');
             }
 
-            // Xóa journal entries (cho cả draft và confirmed)
+            // Xóa journal entries
             $this->journalEntryService->deleteJournalByReference('payment_voucher', $paymentVoucher->id);
 
             // Xóa công nợ nếu đã confirmed
@@ -224,22 +237,63 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         });
     }
 
+    /**
+     * Xử lý khi xác nhận phiếu chi
+     */
     private function handleConfirm($voucher)
     {
-        // Tạo công nợ
+        // Tạo công nợ (ghi nhận đã thanh toán)
         $this->supplierDebtService->createDebtForPaymentVoucher($voucher);
 
-        // Xác nhận journal entries (nếu cần)
+        // Xác nhận journal entries
         $this->journalEntryService->confirmJournalByReference('payment_voucher', $voucher->id);
     }
 
+    /**
+     * Xử lý khi hủy phiếu chi
+     */
     private function handleCancel($voucher)
     {
-        // Xoá công nợ
+        // Xóa công nợ
         $this->supplierDebtService->deleteDebtByReference('payment_voucher', $voucher->id);
 
-        // Xoá định khoản
+        // Xóa định khoản
         $this->journalEntryService->deleteJournalByReference('payment_voucher', $voucher->id);
+    }
+
+    /**
+     * Chuẩn bị dữ liệu journal entries từ request
+     */
+    private function prepareJournalData($journalEntries)
+    {
+        // Nếu journalEntries đã có cấu trúc {entries: [...], note: '...'}
+        if (isset($journalEntries['entries']) && is_array($journalEntries['entries'])) {
+            return $journalEntries;
+        }
+
+        // Nếu journalEntries là mảng các entry đơn thuần
+        if (is_array($journalEntries) && !isset($journalEntries['entries'])) {
+            return [
+                'entries' => $journalEntries,
+                'note' => request()->input('journal_note') ?? 'Bút toán từ phiếu chi',
+            ];
+        }
+
+        return $journalEntries;
+    }
+
+    /**
+     * Parse amount từ string sang float
+     */
+    private function parseAmount($amount)
+    {
+        if (is_numeric($amount)) {
+            return (float) $amount;
+        }
+
+        // Xóa dấu phân cách hàng nghìn (nếu có)
+        $cleaned = preg_replace('/[^\d]/', '', $amount);
+        return (float) $cleaned;
     }
 
     public function getPaymentVoucherDetail($id)
@@ -332,8 +386,9 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                     'details'    => $journal->details->map(function ($detail) {
                         return [
                             'account_code' => $detail->account?->account_code,
-                            'debit'        => $detail->debit,
-                            'credit'       => $detail->credit,
+                            'account_name' => $detail->account?->name,
+                            'debit'        => (float)$detail->debit,
+                            'credit'       => (float)$detail->credit,
                         ];
                     })->values()->toArray()
                 ];
@@ -358,7 +413,7 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         $paymentVoucher->debt = [
             'total_debit'  => $totalDebit,
             'total_credit' => $totalCredit,
-            'balance'      => $totalDebit - $totalCredit,
+            'balance'      => $totalCredit - $totalDebit, // Công nợ phải trả = credit - debit
             'details'      => $paymentVoucher->supplierDebts->isNotEmpty()
                 ? $paymentVoucher->supplierDebts->map(function ($debt) {
                     return [
@@ -389,21 +444,16 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
     /**
      * Tự động generate mã phiếu chi duy nhất
-     * Format: PC_YYYYMMDD_HHMMSS (dựa trên thời gian hiện tại)
+     * Format: PC_YYYYMMDD_HHMMSS
      */
     private function generatePaymentVoucherCode()
     {
         do {
-            // Tạo mã dựa trên thời gian: PC_YYYYMMDD_HHMMSS
             $code = 'PC_' . now()->format('Ymd_His');
-
-            // Kiểm tra xem mã đã tồn tại chưa
             $exists = $this->paymentVoucherRepository->findByCondition(
                 [['code', '=', $code]],
                 false
             );
-
-            // Nếu đã tồn tại, chờ 1 giây để tạo mã mới
             if ($exists) {
                 sleep(1);
                 now()->refresh();
@@ -411,6 +461,23 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         } while ($exists);
 
         return $code;
+    }
+
+    /**
+     * Lấy danh sách phiếu chi chưa thanh toán cho nhà cung cấp
+     */
+    public function getUnpaidVouchers($supplierId)
+    {
+        return $this->paymentVoucherRepository->findByCondition(
+            [
+                ['supplier_id', '=', $supplierId],
+                ['status', '=', 'confirmed']
+            ],
+            true,
+            [],
+            ['voucher_date' => 'DESC', 'id' => 'DESC'],
+            ['id', 'code', 'voucher_date', 'amount', 'note']
+        );
     }
 
     private function paginateSelect()

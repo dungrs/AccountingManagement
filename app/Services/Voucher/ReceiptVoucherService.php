@@ -83,14 +83,17 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
         return DB::transaction(function () use ($request) {
             $payload = $request->only($this->payload());
 
-            // Map partner_id thành customer_id
-            if ($request->has('partner_id')) {
-                $payload['customer_id'] = $request->input('partner_id');
+            // Map customer_id
+            if ($request->has('customer_id')) {
+                $payload['customer_id'] = $request->input('customer_id');
             }
 
             // Xử lý user_id
             $payload['user_id'] = $request->input('user_id') ?? Auth::id();
             $payload['created_by'] = $payload['user_id'];
+
+            // Xử lý amount
+            $payload['amount'] = $this->parseAmount($request->input('amount'));
 
             // Tạo mã nếu không có code từ request
             if (empty($payload['code'])) {
@@ -99,17 +102,19 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
 
             $voucher = $this->receiptVoucherRepository->create($payload);
 
-            // Tạo journal entries cho cả draft và confirmed
-            if ($request->has('journal_entries')) {
+            // Tạo journal entries
+            if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
+                $journalData = $this->prepareJournalData($request->input('journal_entries'));
+
                 $this->journalEntryService->createFromRequest(
                     'receipt_voucher',
                     $voucher->id,
-                    $request->input('journal_entries'),
+                    $journalData,
                     $voucher->voucher_date
                 );
             }
 
-            // Xử lý khi xác nhận - chỉ tạo công nợ
+            // Xử lý khi xác nhận
             if ($payload['status'] === 'confirmed') {
                 $this->handleConfirm($voucher);
             }
@@ -165,13 +170,16 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
             if ($voucher->status === 'draft') {
                 $payload = $request->only($this->payload());
 
-                // Map partner_id thành customer_id
-                if ($request->has('partner_id')) {
-                    $payload['customer_id'] = $request->input('partner_id');
+                // Map customer_id
+                if ($request->has('customer_id')) {
+                    $payload['customer_id'] = $request->input('customer_id');
                 }
 
                 // Xử lý user_id
                 $payload['user_id'] = $request->input('user_id') ?? Auth::id();
+
+                // Xử lý amount
+                $payload['amount'] = $this->parseAmount($request->input('amount'));
 
                 // Không cho phép sửa code khi update
                 unset($payload['code']);
@@ -179,13 +187,18 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
                 $this->receiptVoucherRepository->update($id, $payload);
 
                 // Cập nhật journal entries
-                if ($request->has('journal_entries')) {
+                if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
+                    $journalData = $this->prepareJournalData($request->input('journal_entries'));
+
                     $this->journalEntryService->updateJournalByReference(
                         'receipt_voucher',
                         $voucher->id,
-                        $request->input('journal_entries'),
+                        $journalData,
                         $voucher->voucher_date
                     );
+                } else {
+                    // Nếu không có journal entries, xóa định khoản cũ
+                    $this->journalEntryService->deleteJournalByReference('receipt_voucher', $voucher->id);
                 }
 
                 // Nếu từ draft → confirmed
@@ -210,7 +223,7 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
                 throw new \Exception('Phiếu thu không tồn tại.');
             }
 
-            // Xóa journal entries (cho cả draft và confirmed)
+            // Xóa journal entries
             $this->journalEntryService->deleteJournalByReference('receipt_voucher', $receiptVoucher->id);
 
             // Xóa công nợ nếu đã confirmed
@@ -224,22 +237,63 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
         });
     }
 
+    /**
+     * Xử lý khi xác nhận phiếu thu
+     */
     private function handleConfirm($voucher)
     {
-        // Tạo công nợ (ghi giảm công nợ khách hàng - credit)
+        // Tạo công nợ (ghi nhận khách hàng đã thanh toán - ghi Có cho công nợ)
         $this->customerDebtService->createDebtForReceiptVoucher($voucher);
 
-        // Xác nhận journal entries (nếu cần)
+        // Xác nhận journal entries
         $this->journalEntryService->confirmJournalByReference('receipt_voucher', $voucher->id);
     }
 
+    /**
+     * Xử lý khi hủy phiếu thu
+     */
     private function handleCancel($voucher)
     {
-        // Xoá công nợ
+        // Xóa công nợ
         $this->customerDebtService->deleteDebtByReference('receipt_voucher', $voucher->id);
 
-        // Xoá định khoản
+        // Xóa định khoản
         $this->journalEntryService->deleteJournalByReference('receipt_voucher', $voucher->id);
+    }
+
+    /**
+     * Chuẩn bị dữ liệu journal entries từ request
+     */
+    private function prepareJournalData($journalEntries)
+    {
+        // Nếu journalEntries đã có cấu trúc {entries: [...], note: '...'}
+        if (isset($journalEntries['entries']) && is_array($journalEntries['entries'])) {
+            return $journalEntries;
+        }
+
+        // Nếu journalEntries là mảng các entry đơn thuần
+        if (is_array($journalEntries) && !isset($journalEntries['entries'])) {
+            return [
+                'entries' => $journalEntries,
+                'note' => request()->input('journal_note') ?? 'Bút toán từ phiếu thu',
+            ];
+        }
+
+        return $journalEntries;
+    }
+
+    /**
+     * Parse amount từ string sang float
+     */
+    private function parseAmount($amount)
+    {
+        if (is_numeric($amount)) {
+            return (float) $amount;
+        }
+
+        // Xóa dấu phân cách hàng nghìn (nếu có)
+        $cleaned = preg_replace('/[^\d]/', '', $amount);
+        return (float) $cleaned;
     }
 
     public function getReceiptVoucherDetail($id)
@@ -277,7 +331,7 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
 
         /*
         |--------------------------------------------------------------------------
-        | Format Customer (không có banks)
+        | Format Customer
         |--------------------------------------------------------------------------
         */
         $receiptVoucher->customer_info = [
@@ -306,8 +360,8 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
                         return [
                             'account_code' => $detail->account?->account_code,
                             'account_name' => $detail->account?->name,
-                            'debit'        => $detail->debit,
-                            'credit'       => $detail->credit,
+                            'debit'        => (float)$detail->debit,
+                            'credit'       => (float)$detail->credit,
                         ];
                     })->values()->toArray()
                 ];
@@ -332,7 +386,7 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
         $receiptVoucher->debt = [
             'total_debit'  => $totalDebit,
             'total_credit' => $totalCredit,
-            'balance'      => $totalDebit - $totalCredit,
+            'balance'      => $totalDebit - $totalCredit, // Công nợ phải thu = debit - credit
             'details'      => $receiptVoucher->customerDebts->isNotEmpty()
                 ? $receiptVoucher->customerDebts->map(function ($debt) {
                     return [
@@ -359,7 +413,7 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
 
         /*
         |--------------------------------------------------------------------------
-        | Cleanup - xóa các relation không cần thiết
+        | Cleanup
         |--------------------------------------------------------------------------
         */
         unset($receiptVoucher->journalEntries);
@@ -384,22 +438,34 @@ class ReceiptVoucherService extends BaseService implements ReceiptVoucherService
     }
 
     /**
+     * Lấy danh sách phiếu thu chưa thu tiền từ khách hàng
+     */
+    public function getUnpaidVouchers($customerId)
+    {
+        return $this->receiptVoucherRepository->findByCondition(
+            [
+                ['customer_id', '=', $customerId],
+                ['status', '=', 'confirmed']
+            ],
+            true,
+            [],
+            ['voucher_date' => 'DESC', 'id' => 'DESC'],
+            ['id', 'code', 'voucher_date', 'amount', 'note']
+        );
+    }
+
+    /**
      * Tự động generate mã phiếu thu duy nhất
-     * Format: PT_YYYYMMDD_HHMMSS (dựa trên thời gian hiện tại)
+     * Format: PT_YYYYMMDD_HHMMSS
      */
     private function generateReceiptVoucherCode()
     {
         do {
-            // Tạo mã dựa trên thời gian: PT_YYYYMMDD_HHMMSS
             $code = 'PT_' . now()->format('Ymd_His');
-
-            // Kiểm tra xem mã đã tồn tại chưa
             $exists = $this->receiptVoucherRepository->findByCondition(
                 [['code', '=', $code]],
                 false
             );
-
-            // Nếu đã tồn tại, chờ 1 giây để tạo mã mới
             if ($exists) {
                 sleep(1);
                 now()->refresh();

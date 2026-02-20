@@ -539,6 +539,7 @@ export default function PurchaseReceiptForm() {
                     {/* Danh sách sản phẩm */}
                     <ProductVariantsTable
                         formData={formData}
+                        setFormData={setFormData}
                         addingRows={addingRows}
                         editingIndexes={editingIndexes}
                         productVariants={product_variants}

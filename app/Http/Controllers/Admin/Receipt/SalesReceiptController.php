@@ -149,7 +149,7 @@ class SalesReceiptController extends Controller
     }
 
     public function store(StoreSalesReceiptRequest $request)
-    {
+    {   
         try {
             $this->salesReceiptService->create($request);
             return redirect()->route('admin.receipt.sales.index')

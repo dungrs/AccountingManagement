@@ -54,7 +54,6 @@ class PurchaseReceiptController extends Controller
     public function filter(Request $request)
     {
         $this->authorize('modules', 'receipt.purchase.index');
-
         $purchaseReceipts = $this->purchaseReceiptService->paginate($request);
         return response()->json($purchaseReceipts);
     }
