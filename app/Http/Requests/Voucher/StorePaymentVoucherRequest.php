@@ -23,7 +23,7 @@ class StorePaymentVoucherRequest extends FormRequest
     {
         return [
             'user_id'          => ['required', 'exists:users,id'],
-            'partner_id'      => ['required', 'exists:suppliers,id'],
+            // 'partner_id'      => ['required', 'exists:suppliers,id'],
 
             'voucher_date'     => ['required', 'date'],
             'status'           => ['required', 'in:draft,confirmed'],

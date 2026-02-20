@@ -11,10 +11,12 @@ use App\Http\Controllers\Admin\User\UserController;
 use App\Http\Controllers\Admin\Attribute\AttributeCatalogueController;
 use App\Http\Controllers\Admin\Attribute\AttributeController;
 use App\Http\Controllers\Admin\BankController;
+use App\Http\Controllers\Admin\Book\CashBookController;
 use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
 use App\Http\Controllers\Admin\Customer\CustomerController;
 use App\Http\Controllers\Admin\Debt\CustomerDebtController;
 use App\Http\Controllers\Admin\Debt\SupplierDebtController;
+use App\Http\Controllers\Admin\Book\GeneralLedgerController;
 use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
 use App\Http\Controllers\Admin\Product\ProductVariantController;
@@ -261,6 +263,19 @@ Route::middleware('auth')->group(function () {
         Route::get('index', [CustomerDebtController::class, 'index'])->name('admin.debt.customer.index');
         Route::post('filter', [CustomerDebtController::class, 'filter'])->name('admin.debt.customer.filter');
         Route::get('details/{customer_id}', [CustomerDebtController::class, 'details'])->name('admin.debt.customer.details')->where(['customer_id' => '[0-9]+']);
+    });
+
+    // CASH BOOK
+    Route::prefix('book/cash')->group(function () {
+        Route::get('index', [CashBookController::class, 'index'])->name('admin.book.cash.index');
+        Route::post('filter', [CashBookController::class, 'filter'])->name('admin.book.cash.filter');
+    });
+
+    // GENERAL LEDGER (SỔ CÁI)
+    Route::prefix('book/ledger')->group(function () {
+        Route::get('index', [GeneralLedgerController::class, 'index'])->name('admin.book.ledger.index');
+        Route::post('filter', [GeneralLedgerController::class, 'filter'])->name('admin.book.ledger.filter');
+        Route::get('accounts', [GeneralLedgerController::class, 'getAccounts'])->name('admin.book.ledger.accounts');
     });
 
     // UNIT

@@ -270,7 +270,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Sổ quỹ",
-                    href: "#",
+                    href: route("admin.book.cash.index"),
                     description: "Theo dõi sổ quỹ",
                     icon: Wallet,
                 },
@@ -306,7 +306,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Sổ cái",
-                    href: "#",
+                    href: route("admin.book.ledger.index"),
                     description: "Xem sổ cái",
                     icon: FileText,
                 },
