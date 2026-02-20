@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\Attribute\AttributeController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
 use App\Http\Controllers\Admin\Customer\CustomerController;
+use App\Http\Controllers\Admin\Debt\CustomerDebtController;
 use App\Http\Controllers\Admin\Debt\SupplierDebtController;
 use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
@@ -24,6 +25,7 @@ use App\Http\Controllers\Admin\SystemController;
 use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\VatTaxController;
 use App\Http\Controllers\Admin\Voucher\PaymentVoucherController;
+use App\Http\Controllers\Admin\Voucher\ReceiptVoucherController;
 use App\Http\Controllers\LocationController;
 use Illuminate\Support\Facades\Route;
 
@@ -235,11 +237,30 @@ Route::middleware('auth')->group(function () {
         Route::post('delete/{id}', [PaymentVoucherController::class, 'delete'])->name('admin.voucher.payment.delete')->where(['id' => '[0-9]+']);
     });
 
+    // RECEIPT VOUCHER
+    Route::prefix('voucher/receipt')->group(function () {
+        Route::get('index', [ReceiptVoucherController::class, 'index'])->name('admin.voucher.receipt.index');
+        Route::get('create', [ReceiptVoucherController::class, 'create'])->name('admin.voucher.receipt.create');
+        Route::get('edit/{id}', [ReceiptVoucherController::class, 'edit'])->name('admin.voucher.receipt.edit')->where(['id' => '[0-9]+']);
+
+        Route::post('filter', [ReceiptVoucherController::class, 'filter'])->name('admin.voucher.receipt.filter');
+        Route::post('store', [ReceiptVoucherController::class, 'store'])->name('admin.voucher.receipt.store');
+        Route::put('update/{id}', [ReceiptVoucherController::class, 'update'])->name('admin.voucher.receipt.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [ReceiptVoucherController::class, 'delete'])->name('admin.voucher.receipt.delete')->where(['id' => '[0-9]+']);
+    });
+
     // DEBT SUPPLIER
     Route::prefix('debt/supplier')->group(function () {
         Route::get('index', [SupplierDebtController::class, 'index'])->name('admin.debt.supplier.index');
         Route::post('filter', [SupplierDebtController::class, 'filter'])->name('admin.debt.supplier.filter');
         Route::get('details/{supplier_id}', [SupplierDebtController::class, 'details'])->name('admin.debt.supplier.details')->where(['supplier_id' => '[0-9]+']);
+    });
+
+    // DEBT CUSTOMER
+    Route::prefix('debt/customer')->group(function () {
+        Route::get('index', [CustomerDebtController::class, 'index'])->name('admin.debt.customer.index');
+        Route::post('filter', [CustomerDebtController::class, 'filter'])->name('admin.debt.customer.filter');
+        Route::get('details/{customer_id}', [CustomerDebtController::class, 'details'])->name('admin.debt.customer.details')->where(['customer_id' => '[0-9]+']);
     });
 
     // UNIT

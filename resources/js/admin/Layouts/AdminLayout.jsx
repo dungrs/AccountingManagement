@@ -258,7 +258,7 @@ export default function AdminLayout({ children, breadcrumb }) {
             items: [
                 {
                     title: "Phiếu thu",
-                    href: "#",
+                    href: route("admin.voucher.receipt.index"),
                     description: "Quản lý phiếu thu",
                     icon: CreditCard,
                 },
@@ -288,7 +288,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Công nợ khách hàng",
-                    href: "#",
+                    href: route("admin.debt.customer.index"),
                     description: "Theo dõi công nợ KH",
                     icon: User,
                 },

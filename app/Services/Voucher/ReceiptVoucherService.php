@@ -2,28 +2,28 @@
 
 namespace App\Services\Voucher;
 
-use App\Services\Interfaces\Voucher\PaymentVoucherServiceInterface;
+use App\Services\Interfaces\Voucher\ReceiptVoucherServiceInterface;
 use App\Services\BaseService;
-use App\Repositories\Voucher\PaymentVoucherRepository;
+use App\Repositories\Voucher\ReceiptVoucherRepository;
 use App\Services\JournalEntryService;
-use App\Services\Debt\SupplierDebtService;
+use App\Services\Debt\CustomerDebtService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class PaymentVoucherService extends BaseService implements PaymentVoucherServiceInterface
+class ReceiptVoucherService extends BaseService implements ReceiptVoucherServiceInterface
 {
-    protected $paymentVoucherRepository;
+    protected $receiptVoucherRepository;
     protected $journalEntryService;
-    protected $supplierDebtService;
+    protected $customerDebtService;
 
     public function __construct(
-        PaymentVoucherRepository $paymentVoucherRepository,
+        ReceiptVoucherRepository $receiptVoucherRepository,
         JournalEntryService $journalEntryService,
-        SupplierDebtService $supplierDebtService
+        CustomerDebtService $customerDebtService
     ) {
-        $this->paymentVoucherRepository = $paymentVoucherRepository;
+        $this->receiptVoucherRepository = $receiptVoucherRepository;
         $this->journalEntryService = $journalEntryService;
-        $this->supplierDebtService = $supplierDebtService;
+        $this->customerDebtService = $customerDebtService;
     }
 
     public function paginate($request)
@@ -37,11 +37,11 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         $where = [];
 
         if (!empty($status) && $status !== 'all') {
-            $where[] = ['payment_vouchers.status', '=', $status];
+            $where[] = ['receipt_vouchers.status', '=', $status];
         }
 
         if (!empty($payment_method) && $payment_method !== 'all') {
-            $where[] = ['payment_vouchers.payment_method', '=', $payment_method];
+            $where[] = ['receipt_vouchers.payment_method', '=', $payment_method];
         }
 
         $condition = [
@@ -50,30 +50,30 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         ];
 
         $extend = [
-            'path' => '/voucher/payment/index',
+            'path' => '/voucher/receipt/index',
             'fieldSearch' => [
-                'payment_vouchers.code',
-                'payment_vouchers.note',
-                'suppliers.name',
+                'receipt_vouchers.code',
+                'receipt_vouchers.note',
+                'customers.name',
             ],
         ];
 
         $join = [
             [
-                'table' => 'suppliers',
+                'table' => 'customers',
                 'on' => [
-                    ['suppliers.id', 'payment_vouchers.supplier_id'],
+                    ['customers.id', 'receipt_vouchers.customer_id'],
                 ],
             ],
         ];
 
-        return $this->paymentVoucherRepository->paginate(
+        return $this->receiptVoucherRepository->paginate(
             $this->paginateSelect(),
             $condition,
             $perpage,
             $page,
             $extend,
-            ['payment_vouchers.id', 'DESC'],
+            ['receipt_vouchers.id', 'DESC'],
             $join
         );
     }
@@ -83,9 +83,9 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         return DB::transaction(function () use ($request) {
             $payload = $request->only($this->payload());
 
-            // Map partner_id thành supplier_id
+            // Map partner_id thành customer_id
             if ($request->has('partner_id')) {
-                $payload['supplier_id'] = $request->input('partner_id');
+                $payload['customer_id'] = $request->input('partner_id');
             }
 
             // Xử lý user_id
@@ -94,15 +94,15 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
             // Tạo mã nếu không có code từ request
             if (empty($payload['code'])) {
-                $payload['code'] = $this->generatePaymentVoucherCode();
+                $payload['code'] = $this->generateReceiptVoucherCode();
             }
 
-            $voucher = $this->paymentVoucherRepository->create($payload);
+            $voucher = $this->receiptVoucherRepository->create($payload);
 
             // Tạo journal entries cho cả draft và confirmed
             if ($request->has('journal_entries')) {
                 $this->journalEntryService->createFromRequest(
-                    'payment_voucher',
+                    'receipt_voucher',
                     $voucher->id,
                     $request->input('journal_entries'),
                     $voucher->voucher_date
@@ -121,7 +121,7 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
     public function update($request, $id)
     {
         return DB::transaction(function () use ($request, $id) {
-            $voucher = $this->paymentVoucherRepository->findByCondition(
+            $voucher = $this->receiptVoucherRepository->findByCondition(
                 [['id', '=', $id]],
                 false,
                 [],
@@ -131,7 +131,7 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
             );
 
             if (!$voucher) {
-                throw new \Exception('Phiếu chi không tồn tại.');
+                throw new \Exception('Phiếu thu không tồn tại.');
             }
 
             if ($voucher->status === 'cancelled') {
@@ -165,9 +165,9 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
             if ($voucher->status === 'draft') {
                 $payload = $request->only($this->payload());
 
-                // Map partner_id thành supplier_id
+                // Map partner_id thành customer_id
                 if ($request->has('partner_id')) {
-                    $payload['supplier_id'] = $request->input('partner_id');
+                    $payload['customer_id'] = $request->input('partner_id');
                 }
 
                 // Xử lý user_id
@@ -176,12 +176,12 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                 // Không cho phép sửa code khi update
                 unset($payload['code']);
 
-                $this->paymentVoucherRepository->update($id, $payload);
+                $this->receiptVoucherRepository->update($id, $payload);
 
                 // Cập nhật journal entries
                 if ($request->has('journal_entries')) {
                     $this->journalEntryService->updateJournalByReference(
-                        'payment_voucher',
+                        'receipt_voucher',
                         $voucher->id,
                         $request->input('journal_entries'),
                         $voucher->voucher_date
@@ -190,7 +190,7 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
                 // Nếu từ draft → confirmed
                 if ($newStatus === 'confirmed') {
-                    $voucher = $this->paymentVoucherRepository->findById($id);
+                    $voucher = $this->receiptVoucherRepository->findById($id);
                     $this->handleConfirm($voucher);
                 }
 
@@ -204,21 +204,21 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
     public function delete($id)
     {
         return DB::transaction(function () use ($id) {
-            $paymentVoucher = $this->paymentVoucherRepository->findById($id);
+            $receiptVoucher = $this->receiptVoucherRepository->findById($id);
 
-            if (!$paymentVoucher) {
-                throw new \Exception('Phiếu chi không tồn tại.');
+            if (!$receiptVoucher) {
+                throw new \Exception('Phiếu thu không tồn tại.');
             }
 
             // Xóa journal entries (cho cả draft và confirmed)
-            $this->journalEntryService->deleteJournalByReference('payment_voucher', $paymentVoucher->id);
+            $this->journalEntryService->deleteJournalByReference('receipt_voucher', $receiptVoucher->id);
 
             // Xóa công nợ nếu đã confirmed
-            if ($paymentVoucher->status === 'confirmed') {
-                $this->supplierDebtService->deleteDebtByReference('payment_voucher', $paymentVoucher->id);
+            if ($receiptVoucher->status === 'confirmed') {
+                $this->customerDebtService->deleteDebtByReference('receipt_voucher', $receiptVoucher->id);
             }
 
-            $paymentVoucher->delete();
+            $receiptVoucher->delete();
 
             return true;
         });
@@ -226,42 +226,41 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
     private function handleConfirm($voucher)
     {
-        // Tạo công nợ
-        $this->supplierDebtService->createDebtForPaymentVoucher($voucher);
+        // Tạo công nợ (ghi giảm công nợ khách hàng - credit)
+        $this->customerDebtService->createDebtForReceiptVoucher($voucher);
 
         // Xác nhận journal entries (nếu cần)
-        $this->journalEntryService->confirmJournalByReference('payment_voucher', $voucher->id);
+        $this->journalEntryService->confirmJournalByReference('receipt_voucher', $voucher->id);
     }
 
     private function handleCancel($voucher)
     {
         // Xoá công nợ
-        $this->supplierDebtService->deleteDebtByReference('payment_voucher', $voucher->id);
+        $this->customerDebtService->deleteDebtByReference('receipt_voucher', $voucher->id);
 
         // Xoá định khoản
-        $this->journalEntryService->deleteJournalByReference('payment_voucher', $voucher->id);
+        $this->journalEntryService->deleteJournalByReference('receipt_voucher', $voucher->id);
     }
 
-    public function getPaymentVoucherDetail($id)
+    public function getReceiptVoucherDetail($id)
     {
-        $paymentVoucher = $this->paymentVoucherRepository->findByCondition(
+        $receiptVoucher = $this->receiptVoucherRepository->findByCondition(
             [['id', '=', $id]],
             false,
             [],
             [],
             ['*'],
             [
-                'supplier',
+                'customer',
                 'user',
-                'supplierBankAccount.bank',
                 'journalEntries' => function ($query) {
                     $query->with(['details.account.languages']);
                 },
-                'supplierDebts'
+                'customerDebts'
             ]
         );
 
-        if (!$paymentVoucher) {
+        if (!$receiptVoucher) {
             return null;
         }
 
@@ -270,59 +269,33 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         | Format User
         |--------------------------------------------------------------------------
         */
-        $paymentVoucher->user_info = $paymentVoucher->user ? [
-            'id' => $paymentVoucher->user->id,
-            'name' => $paymentVoucher->user->name,
-            'email' => $paymentVoucher->user->email,
+        $receiptVoucher->user_info = $receiptVoucher->user ? [
+            'id' => $receiptVoucher->user->id,
+            'name' => $receiptVoucher->user->name,
+            'email' => $receiptVoucher->user->email,
         ] : null;
 
         /*
         |--------------------------------------------------------------------------
-        | Format Supplier + Banks
+        | Format Customer (không có banks)
         |--------------------------------------------------------------------------
         */
-        $paymentVoucher->supplier_info = [
-            'id'            => $paymentVoucher->supplier?->id,
-            'supplier_code' => $paymentVoucher->supplier?->supplier_code,
-            'name'          => $paymentVoucher->supplier?->name,
-            'tax_code'      => $paymentVoucher->supplier?->tax_code,
-            'phone'         => $paymentVoucher->supplier?->phone,
-            'email'         => $paymentVoucher->supplier?->email,
-            'address'       => $paymentVoucher->supplier?->address,
-            'banks'         => $paymentVoucher->supplier?->banks
-                ? $paymentVoucher->supplier->banks->map(function ($bank) {
-                    return [
-                        'id'             => $bank->id,
-                        'bank_code'      => $bank->bank_code,
-                        'name'           => $bank->name,
-                        'short_name'     => $bank->short_name,
-                        'swift_code'     => $bank->swift_code,
-                        'account_number' => $bank->pivot?->account_number,
-                    ];
-                })->values()->toArray()
-                : [],
+        $receiptVoucher->customer_info = [
+            'customer_id'   => $receiptVoucher->customer?->id,
+            'name'          => $receiptVoucher->customer?->name,
+            'tax_code'      => $receiptVoucher->customer?->tax_code ?? null,
+            'phone'         => $receiptVoucher->customer?->phone,
+            'email'         => $receiptVoucher->customer?->email,
+            'address'       => $receiptVoucher->customer?->address,
         ];
-
-        /*
-        |--------------------------------------------------------------------------
-        | Format Supplier Bank Account
-        |--------------------------------------------------------------------------
-        */
-        $paymentVoucher->supplier_bank_account_info = $paymentVoucher->supplierBankAccount ? [
-            'id' => $paymentVoucher->supplierBankAccount->id,
-            'supplier_code' => $paymentVoucher->supplierBankAccount->supplier_code,
-            'bank_code' => $paymentVoucher->supplierBankAccount->bank_code,
-            'bank_name' => $paymentVoucher->supplierBankAccount->bank?->name,
-            'account_number' => $paymentVoucher->supplierBankAccount->account_number,
-        ] : null;
 
         /*
         |--------------------------------------------------------------------------
         | Format Journal Entries
         |--------------------------------------------------------------------------
         */
-        $paymentVoucher->journal_entries = $paymentVoucher->journalEntries->isNotEmpty()
-            ? $paymentVoucher->journalEntries->map(function ($journal) {
+        $receiptVoucher->journal_entries = $receiptVoucher->journalEntries->isNotEmpty()
+            ? $receiptVoucher->journalEntries->map(function ($journal) {
                 return [
                     'id'         => $journal->id,
                     'code'       => $journal->code,
@@ -332,6 +305,7 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                     'details'    => $journal->details->map(function ($detail) {
                         return [
                             'account_code' => $detail->account?->account_code,
+                            'account_name' => $detail->account?->name,
                             'debit'        => $detail->debit,
                             'credit'       => $detail->credit,
                         ];
@@ -342,25 +316,25 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
         /*
         |--------------------------------------------------------------------------
-        | Format Supplier Debt
+        | Format Customer Debt
         |--------------------------------------------------------------------------
         */
         $totalDebit = 0;
         $totalCredit = 0;
 
-        if ($paymentVoucher->supplierDebts->isNotEmpty()) {
-            foreach ($paymentVoucher->supplierDebts as $debt) {
+        if ($receiptVoucher->customerDebts->isNotEmpty()) {
+            foreach ($receiptVoucher->customerDebts as $debt) {
                 $totalDebit += $debt->debit ?? 0;
                 $totalCredit += $debt->credit ?? 0;
             }
         }
 
-        $paymentVoucher->debt = [
+        $receiptVoucher->debt = [
             'total_debit'  => $totalDebit,
             'total_credit' => $totalCredit,
             'balance'      => $totalDebit - $totalCredit,
-            'details'      => $paymentVoucher->supplierDebts->isNotEmpty()
-                ? $paymentVoucher->supplierDebts->map(function ($debt) {
+            'details'      => $receiptVoucher->customerDebts->isNotEmpty()
+                ? $receiptVoucher->customerDebts->map(function ($debt) {
                     return [
                         'id'               => $debt->id,
                         'transaction_date' => $debt->transaction_date,
@@ -375,30 +349,52 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
 
         /*
         |--------------------------------------------------------------------------
-        | Cleanup
+        | Thêm thông tin tổng hợp
         |--------------------------------------------------------------------------
         */
-        unset($paymentVoucher->journalEntries);
-        unset($paymentVoucher->supplierDebts);
-        unset($paymentVoucher->supplier);
-        unset($paymentVoucher->user);
-        unset($paymentVoucher->supplierBankAccount);
+        $receiptVoucher->summary = [
+            'payment_method_name' => $this->getPaymentMethodName($receiptVoucher->payment_method),
+            'created_by_name' => $receiptVoucher->created_by ? optional($receiptVoucher->user)->name : null,
+        ];
 
-        return $paymentVoucher;
+        /*
+        |--------------------------------------------------------------------------
+        | Cleanup - xóa các relation không cần thiết
+        |--------------------------------------------------------------------------
+        */
+        unset($receiptVoucher->journalEntries);
+        unset($receiptVoucher->customerDebts);
+        unset($receiptVoucher->customer);
+        unset($receiptVoucher->user);
+
+        return $receiptVoucher;
     }
 
     /**
-     * Tự động generate mã phiếu chi duy nhất
-     * Format: PC_YYYYMMDD_HHMMSS (dựa trên thời gian hiện tại)
+     * Lấy tên phương thức thanh toán
      */
-    private function generatePaymentVoucherCode()
+    private function getPaymentMethodName($method)
+    {
+        $methods = [
+            'cash' => 'Tiền mặt',
+            'bank' => 'Chuyển khoản'
+        ];
+
+        return $methods[$method] ?? $method;
+    }
+
+    /**
+     * Tự động generate mã phiếu thu duy nhất
+     * Format: PT_YYYYMMDD_HHMMSS (dựa trên thời gian hiện tại)
+     */
+    private function generateReceiptVoucherCode()
     {
         do {
-            // Tạo mã dựa trên thời gian: PC_YYYYMMDD_HHMMSS
-            $code = 'PC_' . now()->format('Ymd_His');
+            // Tạo mã dựa trên thời gian: PT_YYYYMMDD_HHMMSS
+            $code = 'PT_' . now()->format('Ymd_His');
 
             // Kiểm tra xem mã đã tồn tại chưa
-            $exists = $this->paymentVoucherRepository->findByCondition(
+            $exists = $this->receiptVoucherRepository->findByCondition(
                 [['code', '=', $code]],
                 false
             );
@@ -416,17 +412,16 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
     private function paginateSelect()
     {
         return [
-            'payment_vouchers.id',
-            'payment_vouchers.code',
-            'payment_vouchers.voucher_date',
-            'payment_vouchers.supplier_id',
-            'suppliers.name as supplier_name',
-            'payment_vouchers.payment_method',
-            'payment_vouchers.note',
-            'payment_vouchers.status',
-            'payment_vouchers.amount',
-            'payment_vouchers.user_id',
-            'payment_vouchers.supplier_bank_account_id',
+            'receipt_vouchers.id',
+            'receipt_vouchers.code',
+            'receipt_vouchers.voucher_date',
+            'receipt_vouchers.customer_id',
+            'customers.name as customer_name',
+            'receipt_vouchers.payment_method',
+            'receipt_vouchers.note',
+            'receipt_vouchers.status',
+            'receipt_vouchers.amount',
+            'receipt_vouchers.user_id',
         ];
     }
 
@@ -435,9 +430,8 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
         return [
             'code',
             'voucher_date',
-            'supplier_id',
+            'customer_id',
             'user_id',
-            'supplier_bank_account_id',
             'amount',
             'payment_method',
             'note',

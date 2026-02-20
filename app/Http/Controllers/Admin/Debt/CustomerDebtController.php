@@ -4,20 +4,20 @@ namespace App\Http\Controllers\Admin\Debt;
 
 use App\Http\Controllers\Admin\Controller;
 use Illuminate\Http\Request;
-use App\Services\Debt\SupplierDebtService;
+use App\Services\Debt\CustomerDebtService;
 use App\Services\SystemService;
 use Inertia\Inertia;
 
-class SupplierDebtController extends Controller
+class CustomerDebtController extends Controller
 {
-    protected $supplierDebtService;
+    protected $customerDebtService;
     protected $systemService;
 
     public function __construct(
-        SupplierDebtService $supplierDebtService,
+        CustomerDebtService $customerDebtService,
         SystemService $systemService
     ) {
-        $this->supplierDebtService = $supplierDebtService;
+        $this->customerDebtService = $customerDebtService;
         $this->systemService = $systemService;
     }
 
@@ -26,9 +26,9 @@ class SupplierDebtController extends Controller
      */
     public function index()
     {
-        $this->authorize('modules', 'debt.supplier.index');
+        $this->authorize('modules', 'debt.customer.index');
 
-        return Inertia::render('SupplierDebt/Home', [
+        return Inertia::render('CustomerDebt/Home', [
             'initialFilters' => [
                 'month' => now()->month,
                 'year' => now()->year,
@@ -42,17 +42,17 @@ class SupplierDebtController extends Controller
      */
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'debt.supplier.index');
+        $this->authorize('modules', 'debt.customer.index');
 
         try {
-            $supplierDebts = $this->supplierDebtService->paginate($request);
+            $customerDebts = $this->customerDebtService->paginate($request);
 
             return response()->json([
                 'success' => true,
-                'data' => $supplierDebts['data'] ?? [],
-                'summary' => $supplierDebts['summary'] ?? [],
-                'period' => $supplierDebts['period'] ?? [],
-                'pagination' => $supplierDebts['pagination'] ?? [
+                'data' => $customerDebts['data'] ?? [],
+                'summary' => $customerDebts['summary'] ?? [],
+                'period' => $customerDebts['period'] ?? [],
+                'pagination' => $customerDebts['pagination'] ?? [
                     'current_page' => 1,
                     'last_page' => 1,
                     'per_page' => (int)($request->input('perpage') ?? 20),
@@ -70,11 +70,11 @@ class SupplierDebtController extends Controller
     }
 
     /**
-     * Hiển thị chi tiết công nợ của một nhà cung cấp
+     * Hiển thị chi tiết công nợ của một khách hàng
      */
     public function details($id, Request $request)
     {
-        $this->authorize('modules', 'debt.supplier.details');
+        $this->authorize('modules', 'debt.customer.details');
 
         try {
             $systems = $this->systemService->getSystemDetails();
@@ -83,8 +83,8 @@ class SupplierDebtController extends Controller
                 ->pluck('content', 'keyword')
                 ->toArray();
 
-            $result = $this->supplierDebtService->getSupplierDebtDetails($id, $request);
-            return Inertia::render('SupplierDebt/Details', [
+            $result = $this->customerDebtService->getCustomerDebtDetails($id, $request);
+            return Inertia::render('CustomerDebt/Details', [
                 'result' => $result,
                 'systems' => $system_languages,
             ]);

@@ -69,6 +69,7 @@ export default function AccountingTabs({
             ...validAddingRows,
         ];
 
+        // Doanh thu thuần (chưa VAT) = qty × giá bán
         const totalAmount = allProducts.reduce(
             (sum, item) =>
                 sum +
@@ -76,13 +77,16 @@ export default function AccountingTabs({
             0,
         );
 
+        // Tiền VAT đầu ra
         const vatAmount = allProducts.reduce(
             (sum, item) => sum + parseFloat(item.vat_amount || 0),
             0,
         );
 
+        // Tổng phải thu = doanh thu + VAT
         const grandTotal = totalAmount + vatAmount;
 
+        // Giá vốn hàng xuất = qty × cost_price (giá nhập kho)
         const totalCost = allProducts.reduce(
             (sum, item) =>
                 sum +
@@ -91,10 +95,11 @@ export default function AccountingTabs({
             0,
         );
 
+        // ─── PURCHASE ───────────────────────────────────────────────────────
         if (type === "purchase") {
-            // ✅ Chỉ tạo entry khi có sản phẩm
             if (allProducts.length === 0) return entries;
 
+            // Nợ 156 - Hàng hóa (giá trị hàng nhập, chưa VAT)
             const inventoryAccount = findAccount("156");
             if (inventoryAccount && totalAmount > 0) {
                 entries.push({
@@ -106,6 +111,7 @@ export default function AccountingTabs({
                 });
             }
 
+            // Nợ 1331 - Thuế GTGT được khấu trừ
             const vatInputAccount = findAccount("1331");
             if (vatInputAccount && vatAmount > 0) {
                 entries.push({
@@ -117,6 +123,7 @@ export default function AccountingTabs({
                 });
             }
 
+            // Có 331 - Phải trả nhà cung cấp (tổng thanh toán)
             const payableAccount = findAccount("331");
             if (payableAccount && grandTotal > 0) {
                 entries.push({
@@ -129,52 +136,42 @@ export default function AccountingTabs({
             }
         }
 
+        // ─── SALE ────────────────────────────────────────────────────────────
         if (type === "sale") {
-            // ✅ Với sale: luôn hiển thị 5 dòng bút toán, dù chưa có sản phẩm (giá trị = 0)
+            // ── Bút toán 1: Ghi nhận doanh thu bán hàng ──
+            // Nợ 131 - Phải thu khách hàng = doanh thu + VAT
             const receivableAccount = findAccount("131");
             entries.push({
                 id: "default_131",
                 account_code: receivableAccount?.account_code || "131",
-                account_name: receivableAccount?.name || "Phải thu khách hàng",
-                debit: grandTotal,
+                account_name:
+                    receivableAccount?.name || "Phải thu của khách hàng",
+                debit: grandTotal, // ✅ Tổng tiền KH phải trả (gồm VAT)
                 credit: 0,
             });
 
+            // Có 5111 - Doanh thu bán hàng hóa = giá bán chưa VAT
             const revenueAccount = findAccount("5111");
             entries.push({
                 id: "default_5111",
                 account_code: revenueAccount?.account_code || "5111",
-                account_name: revenueAccount?.name || "Doanh thu bán hàng",
+                account_name: revenueAccount?.name || "Doanh thu bán hàng hóa",
                 debit: 0,
-                credit: totalAmount,
+                credit: totalAmount, // ✅ Chỉ doanh thu thuần, không gồm VAT
             });
 
+            // Có 3331 - Thuế GTGT phải nộp
             const vatOutputAccount = findAccount("3331");
             entries.push({
                 id: "default_3331",
                 account_code: vatOutputAccount?.account_code || "3331",
-                account_name: vatOutputAccount?.name || "Thuế GTGT phải nộp",
+                account_name:
+                    vatOutputAccount?.name || "Thuế giá trị gia tăng phải nộp",
                 debit: 0,
-                credit: vatAmount,
+                credit: vatAmount, // ✅ Chỉ phần VAT đầu ra
             });
 
-            const cogsAccount = findAccount("632");
-            entries.push({
-                id: "default_632",
-                account_code: cogsAccount?.account_code || "632",
-                account_name: cogsAccount?.name || "Giá vốn hàng bán",
-                debit: totalAmount,
-                credit: 0,
-            });
-
-            const inventoryAccount = findAccount("156");
-            entries.push({
-                id: "default_156_credit",
-                account_code: inventoryAccount?.account_code || "156",
-                account_name: inventoryAccount?.name || "Hàng hóa",
-                debit: 0,
-                credit: totalAmount,
-            });
+            // 632 và 156 tạm thời bỏ - không tự động tạo
         }
 
         return entries;
@@ -226,13 +223,13 @@ export default function AccountingTabs({
             setEditableEntries(defaultJournalEntries);
             isInitializedRef.current = true;
         } else if (type === "sale") {
-            // ✅ Với sale: ngay cả khi chưa có sản phẩm, vẫn khởi tạo 5 dòng rỗng
+            // Với sale: ngay cả khi chưa có sản phẩm, vẫn hiển thị 5 dòng rỗng
             const blankSaleEntries = [
                 {
                     id: "default_131",
                     account_code: findAccount("131")?.account_code || "131",
                     account_name:
-                        findAccount("131")?.name || "Phải thu khách hàng",
+                        findAccount("131")?.name || "Phải thu của khách hàng",
                     debit: 0,
                     credit: 0,
                 },
@@ -240,7 +237,7 @@ export default function AccountingTabs({
                     id: "default_5111",
                     account_code: findAccount("5111")?.account_code || "5111",
                     account_name:
-                        findAccount("5111")?.name || "Doanh thu bán hàng",
+                        findAccount("5111")?.name || "Doanh thu bán hàng hóa",
                     debit: 0,
                     credit: 0,
                 },
@@ -248,32 +245,19 @@ export default function AccountingTabs({
                     id: "default_3331",
                     account_code: findAccount("3331")?.account_code || "3331",
                     account_name:
-                        findAccount("3331")?.name || "Thuế GTGT phải nộp",
+                        findAccount("3331")?.name ||
+                        "Thuế giá trị gia tăng phải nộp",
                     debit: 0,
                     credit: 0,
                 },
-                {
-                    id: "default_632",
-                    account_code: findAccount("632")?.account_code || "632",
-                    account_name:
-                        findAccount("632")?.name || "Giá vốn hàng bán",
-                    debit: 0,
-                    credit: 0,
-                },
-                {
-                    id: "default_156_credit",
-                    account_code: findAccount("156")?.account_code || "156",
-                    account_name: findAccount("156")?.name || "Hàng hóa",
-                    debit: 0,
-                    credit: 0,
-                },
+                // 632 và 156 tạm thời bỏ
             ];
             setEditableEntries(blankSaleEntries);
             isInitializedRef.current = true;
         }
     }, [formData.journal_entries, defaultJournalEntries, findAccount, type]);
 
-    // ✅ Cập nhật số tiền khi sản phẩm thay đổi, nhưng giữ nguyên tài khoản user đã chọn
+    // Cập nhật số tiền khi sản phẩm thay đổi, giữ nguyên tài khoản user đã chọn
     useEffect(() => {
         if (!isInitializedRef.current) return;
 
@@ -284,7 +268,6 @@ export default function AccountingTabs({
         if (allDefault && defaultJournalEntries.length > 0) {
             setEditableEntries(defaultJournalEntries);
         } else if (allDefault && type === "sale") {
-            // Giữ nguyên entries nhưng cập nhật số tiền theo default
             setEditableEntries((prev) =>
                 prev.map((entry) => {
                     const matched = defaultJournalEntries.find(
@@ -302,7 +285,7 @@ export default function AccountingTabs({
         }
     }, [defaultJournalEntries]);
 
-    // ✅ Notify parent
+    // Notify parent
     useEffect(() => {
         if (onJournalEntriesChange) {
             onJournalEntriesChange(editableEntries);
@@ -375,23 +358,24 @@ export default function AccountingTabs({
             };
         }
 
-        const totalAmount = allProducts.reduce((sum, item) => {
-            return (
+        const totalAmount = allProducts.reduce(
+            (sum, item) =>
                 sum +
-                parseFloat(item.quantity || 0) * parseFloat(item.price || 0)
-            );
-        }, 0);
+                parseFloat(item.quantity || 0) * parseFloat(item.price || 0),
+            0,
+        );
 
-        const vatAmount = allProducts.reduce((sum, item) => {
-            return sum + parseFloat(item.vat_amount || 0);
-        }, 0);
+        const vatAmount = allProducts.reduce(
+            (sum, item) => sum + parseFloat(item.vat_amount || 0),
+            0,
+        );
 
         const totalDebt = totalAmount + vatAmount;
 
         return {
             total: totalDebt,
-            totalAmount: totalAmount,
-            vatAmount: vatAmount,
+            totalAmount,
+            vatAmount,
             partnerName: type === "purchase" ? supplierName : customerName,
             totalDebit: type === "purchase" ? 0 : totalDebt,
             totalCredit: type === "purchase" ? totalDebt : 0,
@@ -590,7 +574,6 @@ export default function AccountingTabs({
                                                         }
                                                     />
                                                 </td>
-
                                                 <td className="py-2 px-4">
                                                     <Input
                                                         type="number"
@@ -608,7 +591,6 @@ export default function AccountingTabs({
                                                         className="w-full text-right border-slate-200 focus:border-green-500 focus:ring-green-500"
                                                     />
                                                 </td>
-
                                                 <td className="py-2 px-4">
                                                     <Input
                                                         type="number"
@@ -626,7 +608,6 @@ export default function AccountingTabs({
                                                         className="w-full text-right border-slate-200 focus:border-purple-500 focus:ring-purple-500"
                                                     />
                                                 </td>
-
                                                 <td className="py-2 px-4 text-center">
                                                     {editableEntries.length >
                                                         1 && (
@@ -700,6 +681,21 @@ export default function AccountingTabs({
                                 </div>
                             </div>
                         )}
+
+                        {/* Ghi chú kế toán bán hàng */}
+                        {type === "sale" && editableEntries.length > 0 && (
+                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                <p className="text-xs text-blue-700">
+                                    💡 <strong>Lưu ý:</strong> Bút toán bán hàng
+                                    gồm 2 phần độc lập — (1) Ghi nhận doanh thu:{" "}
+                                    <strong>Nợ 131 = Có 5111 + Có 3331</strong>{" "}
+                                    | (2) Xuất kho giá vốn:{" "}
+                                    <strong>Nợ 632 = Có 156</strong> (theo giá
+                                    nhập kho). Vì vậy tổng Nợ ≠ tổng Có là bình
+                                    thường nếu giá vốn ≠ doanh thu.
+                                </p>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -727,7 +723,6 @@ export default function AccountingTabs({
                                                     "Chưa chọn"}
                                             </p>
                                         </div>
-
                                         <div>
                                             <p className="text-xs text-slate-500 mb-1 flex items-center gap-1">
                                                 <DollarSign className="h-3 w-3" />
@@ -747,7 +742,6 @@ export default function AccountingTabs({
                                             Chi tiết công nợ
                                         </h5>
                                     </div>
-
                                     <div className="p-4 space-y-3">
                                         <div className="flex items-center justify-between py-2">
                                             <span className="text-sm text-slate-600">
@@ -759,7 +753,6 @@ export default function AccountingTabs({
                                                 )}
                                             </span>
                                         </div>
-
                                         <div className="flex items-center justify-between py-2">
                                             <span className="text-sm text-slate-600">
                                                 Tiền thuế (VAT)
@@ -770,7 +763,6 @@ export default function AccountingTabs({
                                                 )}
                                             </span>
                                         </div>
-
                                         <div className="border-t border-slate-200 pt-3">
                                             <div className="flex items-center justify-between">
                                                 <span className="font-semibold text-slate-800">

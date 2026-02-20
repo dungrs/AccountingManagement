@@ -23,7 +23,7 @@ class UpdatePaymentVoucherRequest extends FormRequest
     {
         return [
             'user_id'          => ['sometimes', 'exists:users,id'],
-            // 'partner_id'      => ['sometimes', 'exists:suppliers,id'],
+            'partner_id'      => ['sometimes', 'exists:suppliers,id'],
 
             'voucher_date'     => ['sometimes', 'date'],
             'status'           => ['sometimes', 'in:draft,confirmed'],

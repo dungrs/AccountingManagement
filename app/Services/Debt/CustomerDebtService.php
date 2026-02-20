@@ -304,7 +304,7 @@ class CustomerDebtService extends BaseService implements CustomerDebtServiceInte
         }
 
         return $this->customerRepository->paginate(
-            ['id', 'name', 'phone', 'email', 'address', 'tax_code'],
+            ['id', 'name', 'phone', 'email', 'address'],
             $condition,
             $perpage,
             (int)$request->input('page', 1),
@@ -543,7 +543,7 @@ class CustomerDebtService extends BaseService implements CustomerDebtServiceInte
     }
 
     /**
-     * Cập nhật running balance cho transactions (TÍNH ĐÚNG THEO DÒNG 131)
+     * Cập nhật running balance cho transactions
      */
     protected function updateRunningBalance(Collection $transactions, float $openingBalance): Collection
     {
