@@ -312,7 +312,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Báo cáo tài chính",
-                    href: "#",
+                    href: route("admin.report.business-result.index"),
                     description: "Xem báo cáo tài chính",
                     icon: PieChart,
                 },

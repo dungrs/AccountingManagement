@@ -28,6 +28,7 @@ use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\VatTaxController;
 use App\Http\Controllers\Admin\Voucher\PaymentVoucherController;
 use App\Http\Controllers\Admin\Voucher\ReceiptVoucherController;
+use App\Http\Controllers\Admin\Report\BusinessResultController;
 use App\Http\Controllers\LocationController;
 use Illuminate\Support\Facades\Route;
 
@@ -293,6 +294,19 @@ Route::middleware('auth')->group(function () {
         Route::get('index', [SystemController::class, 'index'])->name('admin.system.index');
         Route::post('create', [SystemController::class, 'create'])->name('admin.system.create');
     });
+
+    // REPORT BUSINESS
+    Route::prefix('report')->group(function () {
+        Route::get('/business-result', [BusinessResultController::class, 'index'])->name('admin.report.business-result.index');
+        Route::post('/business-result/data', [BusinessResultController::class, 'getData'])->name('admin.report.business-result.data');
+        Route::post('/business-result/export', [BusinessResultController::class, 'export'])->name('admin.report.business-result.export');
+    });
+
+    // DASHBOARD
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->name('admin.dashboard.index');
+    Route::post('/dashboard/data', [DashboardController::class, 'getData'])
+        ->name('admin.dashboard.data');
 
     Route::post('/changeStatus/{id}', [Controller::class, 'changeStatus'])->name('admin.changeStatus');
     Route::post('/changeStatusAll', [Controller::class, 'changeStatusAll'])->name('admin.changeStatusAll');

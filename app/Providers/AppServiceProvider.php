@@ -26,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
         Relation::morphMap([
             'payment_voucher' => 'App\Models\PaymentVoucher',
             'purchase_receipt' => 'App\Models\PurchaseReceipt',
+            'receipt_voucher' => 'App\Models\ReceiptVoucher',
+            'sales_receipt' => 'App\Models\SaleReceipt',
             // Thêm các model khác nếu cần
         ]);
     }
