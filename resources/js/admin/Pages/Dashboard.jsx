@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useState } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
-import { Button } from "@/admin/components/ui/button";
+import { Head, router } from "@inertiajs/react";
 import {
     Card,
     CardContent,
@@ -10,6 +10,7 @@ import {
     CardHeader,
     CardTitle,
 } from "@/admin/components/ui/card";
+import { Button } from "@/admin/components/ui/button";
 import {
     Select,
     SelectContent,
@@ -17,267 +18,235 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/admin/components/ui/select";
-import {
-    RefreshCw,
-    DollarSign,
-    TrendingUp,
-    ShoppingBag,
-    Users,
-    Package,
-    Truck,
-    CreditCard,
-    Wallet,
-    BarChart3,
-    PieChart,
-    Activity,
-    AlertCircle,
-} from "lucide-react";
+import { RefreshCw, Home } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import { Head } from "@inertiajs/react";
-import { formatCurrency } from "../utils/helpers";
-import SummaryCard from "../components/pages/dashboard/SummaryCard";
-import RevenueChart from "../components/pages/dashboard/RevenueChart";
-import TopProductsTable from "../components/pages/dashboard/TopProductsTable";
-import RecentActivities from "../components/pages/dashboard/RecentActivities";
-import LowStockAlert from "../components/pages/dashboard/LowStockAlert";
-import { cn } from "@/admin/lib/utils";
+import DashboardStats from "@/admin/components/pages/dashboard/DashboardStats";
+import RevenueChart from "@/admin/components/pages/dashboard/RevenueChart";
+import CashFlowCard from "@/admin/components/pages/dashboard/CashFlowCard";
+import DebtCard from "@/admin/components/pages/dashboard/DebtCard";
+import TopProducts from "@/admin/components/pages/dashboard/TopProducts";
+import InventoryAlert from "@/admin/components/pages/dashboard/InventoryAlert";
+import RecentActivities from "@/admin/components/pages/dashboard/RecentActivities";
 
 export default function DashboardIndex({ initialFilters }) {
-    const [data, setData] = useState({
-        summary: {},
+    const [loading, setLoading] = useState(true);
+    const [filters, setFilters] = useState({
+        month: initialFilters?.month || new Date().getMonth() + 1,
+        year: initialFilters?.year || new Date().getFullYear(),
+    });
+    const [dashboardData, setDashboardData] = useState({
+        summary: {
+            monthly_revenue: 0,
+            yearly_revenue: 0,
+            monthly_purchase: 0,
+            gross_profit: 0,
+            total_customers: 0,
+            total_suppliers: 0,
+            total_products: 0,
+            inventory_value: 0,
+            revenue_growth: 0,
+            profit_margin: 0,
+        },
         monthly_revenue: [],
         top_products: [],
-        debts: {},
-        inventory: {},
+        debts: {
+            receivable: 0,
+            payable: 0,
+            net_debt: 0,
+            top_debtors: [],
+            top_creditors: [],
+        },
+        inventory: {
+            total_value: 0,
+            total_items: 0,
+            low_stock: [],
+            out_of_stock: 0,
+        },
         recent_activities: [],
-        cash_flow: {},
+        cash_flow: {
+            cash_in: 0,
+            cash_out: 0,
+            net_cash: 0,
+            balance: 0,
+        },
         period: {
-            current_month: new Date().getMonth() + 1,
-            current_year: new Date().getFullYear(),
+            current_month: filters.month,
+            current_year: filters.year,
+            month_name: "",
         },
     });
-    const [loading, setLoading] = useState(false);
-    const [month, setMonth] = useState(initialFilters.month);
-    const [year, setYear] = useState(initialFilters.year);
 
-    const months = Array.from({ length: 12 }, (_, i) => i + 1);
-    const years = Array.from(
-        { length: 5 },
-        (_, i) => new Date().getFullYear() - 2 + i,
-    );
-
-    const fetchData = useCallback(async () => {
+    const fetchDashboardData = async () => {
         setLoading(true);
         try {
-            const params = { month, year };
-            const res = await axios.post(route("admin.dashboard.data"), params);
-
-            if (res.data.success) {
-                setData(res.data.data);
+            const response = await axios.post(
+                route("admin.dashboard.data"),
+                filters,
+            );
+            if (response.data.success) {
+                setDashboardData(response.data.data);
             }
         } catch (error) {
-            console.error("Lỗi khi tải dữ liệu dashboard:", error);
-            toast.error("Không thể tải dữ liệu dashboard!");
+            console.error("Error fetching dashboard data:", error);
+            toast.error("Không thể tải dữ liệu dashboard");
         } finally {
             setLoading(false);
         }
-    }, [month, year]);
+    };
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        fetchDashboardData();
+    }, [filters]);
 
     const handleRefresh = () => {
-        fetchData();
+        fetchDashboardData();
         toast.success("Đã làm mới dữ liệu");
     };
 
-    return (
-        <AdminLayout>
-            <Head title="Dashboard" />
+    const handleMonthChange = (value) => {
+        setFilters({ ...filters, month: parseInt(value) });
+    };
 
-            <div className="space-y-6">
-                {/* Header */}
-                <div className="flex items-center justify-between">
+    const handleYearChange = (value) => {
+        setFilters({ ...filters, year: parseInt(value) });
+    };
+
+    return (
+        <AdminLayout
+            breadcrumb={[
+                {
+                    label: "Dashboard",
+                    link: route("admin.dashboard.index"),
+                },
+            ]}
+        >
+            <Head title="Dashboard - Tổng quan" />
+
+            {/* Header Gradient - Thu gọn */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 rounded-lg mb-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold text-slate-800">
+                        <h1 className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                            <Home className="h-6 w-6" />
                             Dashboard
                         </h1>
-                        <p className="text-sm text-slate-500">
-                            Tổng quan hoạt động kinh doanh tháng {month}/{year}
+                        <p className="text-white/80">
+                            Tổng quan hoạt động kinh doanh
                         </p>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Select
-                            value={month.toString()}
-                            onValueChange={(v) => setMonth(parseInt(v))}
-                        >
-                            <SelectTrigger className="w-[120px]">
-                                <SelectValue placeholder="Tháng" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {months.map((m) => (
-                                    <SelectItem key={m} value={m.toString()}>
-                                        Tháng {m}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        <div className="flex items-center gap-2 bg-white/10 rounded-lg p-1">
+                            <Select
+                                value={filters.month.toString()}
+                                onValueChange={handleMonthChange}
+                            >
+                                <SelectTrigger className="w-[100px] bg-white/20 text-white border-0 focus:ring-0">
+                                    <SelectValue placeholder="Tháng" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Array.from(
+                                        { length: 12 },
+                                        (_, i) => i + 1,
+                                    ).map((month) => (
+                                        <SelectItem
+                                            key={month}
+                                            value={month.toString()}
+                                        >
+                                            Tháng {month}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
 
-                        <Select
-                            value={year.toString()}
-                            onValueChange={(v) => setYear(parseInt(v))}
-                        >
-                            <SelectTrigger className="w-[120px]">
-                                <SelectValue placeholder="Năm" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {years.map((y) => (
-                                    <SelectItem key={y} value={y.toString()}>
-                                        Năm {y}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            <Select
+                                value={filters.year.toString()}
+                                onValueChange={handleYearChange}
+                            >
+                                <SelectTrigger className="w-[90px] bg-white/20 text-white border-0 focus:ring-0">
+                                    <SelectValue placeholder="Năm" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {Array.from(
+                                        { length: 5 },
+                                        (_, i) => new Date().getFullYear() - i,
+                                    ).map((year) => (
+                                        <SelectItem
+                                            key={year}
+                                            value={year.toString()}
+                                        >
+                                            {year}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
 
                         <Button
                             onClick={handleRefresh}
-                            variant="outline"
-                            size="icon"
-                            disabled={loading}
+                            variant="secondary"
+                            className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                         >
-                            <RefreshCw
-                                className={cn(
-                                    "h-4 w-4",
-                                    loading && "animate-spin",
-                                )}
-                            />
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            Làm mới
                         </Button>
                     </div>
                 </div>
-
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <SummaryCard
-                        title="Doanh thu tháng"
-                        value={formatCurrency(
-                            data.summary?.monthly_revenue || 0,
-                        )}
-                        icon={DollarSign}
-                        trend={data.summary?.revenue_growth > 0 ? "up" : "down"}
-                        trendValue={`${data.summary?.revenue_growth}% so với tháng trước`}
-                        color="blue"
-                    />
-
-                    <SummaryCard
-                        title="Lợi nhuận gộp"
-                        value={formatCurrency(data.summary?.gross_profit || 0)}
-                        icon={TrendingUp}
-                        trend="up"
-                        trendValue={`Tỉ suất ${data.summary?.profit_margin}%`}
-                        color="green"
-                    />
-
-                    <SummaryCard
-                        title="Công nợ phải thu"
-                        value={formatCurrency(data.debts?.receivable || 0)}
-                        icon={CreditCard}
-                        color="indigo"
-                    />
-
-                    <SummaryCard
-                        title="Công nợ phải trả"
-                        value={formatCurrency(data.debts?.payable || 0)}
-                        icon={Truck}
-                        color="red"
-                    />
-                </div>
-
-                {/* Charts and Tables */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {/* Biểu đồ doanh thu */}
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <BarChart3 className="h-5 w-5 text-blue-600" />
-                                Doanh thu theo tháng
-                            </CardTitle>
-                            <CardDescription>
-                                Biến động doanh thu trong năm {year}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <RevenueChart data={data.monthly_revenue} />
-                        </CardContent>
-                    </Card>
-
-                    {/* Top sản phẩm */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <TrendingUp className="h-5 w-5 text-green-600" />
-                                Top sản phẩm bán chạy
-                            </CardTitle>
-                            <CardDescription>
-                                Tháng {month}/{year}
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <TopProductsTable products={data.top_products} />
-                        </CardContent>
-                    </Card>
-                </div>
-
-                {/* Bottom Section */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {/* Hoạt động gần đây */}
-                    <Card className="lg:col-span-2">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <Activity className="h-5 w-5 text-purple-600" />
-                                Hoạt động gần đây
-                            </CardTitle>
-                            <CardDescription>
-                                Các giao dịch mới nhất
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <RecentActivities
-                                activities={data.recent_activities}
-                            />
-                        </CardContent>
-                    </Card>
-
-                    {/* Cảnh báo tồn kho */}
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2 text-lg">
-                                <AlertCircle className="h-5 w-5 text-orange-600" />
-                                Cảnh báo tồn kho
-                            </CardTitle>
-                            <CardDescription>
-                                Sản phẩm sắp hết hàng
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <LowStockAlert
-                                products={data.inventory?.low_stock || []}
-                            />
-
-                            {data.inventory?.out_of_stock > 0 && (
-                                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
-                                    <p className="text-sm font-medium text-red-700">
-                                        Có {data.inventory.out_of_stock} sản
-                                        phẩm đã hết hàng
-                                    </p>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
-                </div>
             </div>
+
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-16">
+                    <div className="relative">
+                        <div className="h-16 w-16 rounded-full border-4 border-slate-100 border-t-blue-600 border-r-purple-600 animate-spin"></div>
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="h-8 w-8 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 animate-pulse"></div>
+                        </div>
+                    </div>
+                    <p className="mt-3 text-sm text-slate-600">
+                        Đang tải dữ liệu...
+                    </p>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    {/* Stats Cards - 4 cột trên desktop, 2 cột trên mobile */}
+                    <DashboardStats
+                        summary={dashboardData.summary}
+                        filters={filters}
+                    />
+
+                    {/* 2 cột: Biểu đồ (2/3) và CashFlow + Debt (1/3) */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        {/* Biểu đồ doanh thu - chiếm 2/3 */}
+                        <div className="lg:col-span-2">
+                            <RevenueChart
+                                data={dashboardData.monthly_revenue}
+                                year={filters.year}
+                            />
+                        </div>
+
+                        {/* CashFlow và Debt - xếp dọc, chiếm 1/3 */}
+                        <div className="space-y-4">
+                            <CashFlowCard cashFlow={dashboardData.cash_flow} />
+                            <DebtCard debts={dashboardData.debts} />
+                        </div>
+                    </div>
+
+                    {/* 2 cột: Top sản phẩm và Tồn kho */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <TopProducts
+                            products={dashboardData.top_products}
+                            filters={filters}
+                        />
+                        <InventoryAlert inventory={dashboardData.inventory} />
+                    </div>
+
+                    {/* Hoạt động gần đây - full width */}
+                    <RecentActivities
+                        activities={dashboardData.recent_activities}
+                    />
+                </div>
+            )}
         </AdminLayout>
     );
 }

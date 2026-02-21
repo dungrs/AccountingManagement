@@ -4,6 +4,7 @@ namespace App\Repositories\Receipt;
 
 use App\Repositories\BaseRepository;
 use App\Models\PurchaseReceipt;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class PurchaseReceiptRepository extends BaseRepository
@@ -15,6 +16,18 @@ class PurchaseReceiptRepository extends BaseRepository
         $this->model = $model;
         parent::__construct($model);
     }
+
+    /**
+     * Lấy tổng chi phí mua hàng trong khoảng thời gian
+     */
+    public function getTotalPurchase(Carbon $startDate, Carbon $endDate): float
+    {
+        return (float) $this->model
+            ->whereBetween('receipt_date', [$startDate, $endDate])
+            ->where('status', 'confirmed')
+            ->sum('grand_total');
+    }
+
 
     /**
      * Lấy thông tin purchase receipt với các quan hệ
@@ -30,7 +43,7 @@ class PurchaseReceiptRepository extends BaseRepository
     public function getBasicInfo(int $id): array
     {
         $receipt = $this->findById($id, ['code', 'note', 'receipt_date']);
-        
+
         if (!$receipt) {
             return [];
         }

@@ -299,7 +299,6 @@ Route::middleware('auth')->group(function () {
     Route::prefix('report')->group(function () {
         Route::get('/business-result', [BusinessResultController::class, 'index'])->name('admin.report.business-result.index');
         Route::post('/business-result/data', [BusinessResultController::class, 'getData'])->name('admin.report.business-result.data');
-        Route::post('/business-result/export', [BusinessResultController::class, 'export'])->name('admin.report.business-result.export');
     });
 
     // DASHBOARD

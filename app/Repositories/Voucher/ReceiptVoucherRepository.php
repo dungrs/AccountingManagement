@@ -5,6 +5,7 @@ namespace App\Repositories\Voucher;
 use App\Repositories\BaseRepository;
 use App\Models\ReceiptVoucher;
 use Illuminate\Support\Collection;
+use Carbon\Carbon;
 
 class ReceiptVoucherRepository extends BaseRepository
 {
@@ -14,6 +15,17 @@ class ReceiptVoucherRepository extends BaseRepository
     {
         $this->model = $model;
         parent::__construct($model);
+    }
+
+    /**
+     * Lấy tổng số tiền thu trong khoảng thời gian
+     */
+    public function getTotalCashIn(Carbon $startDate, Carbon $endDate): float
+    {
+        return (float) $this->model
+            ->whereBetween('voucher_date', [$startDate, $endDate])
+            ->where('status', 'confirmed')
+            ->sum('amount');
     }
 
     /**
@@ -30,7 +42,7 @@ class ReceiptVoucherRepository extends BaseRepository
     public function getBasicInfo(int $id): array
     {
         $voucher = $this->findById($id, ['code', 'note', 'voucher_date']);
-        
+
         if (!$voucher) {
             return [];
         }

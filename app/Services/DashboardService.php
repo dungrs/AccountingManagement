@@ -11,9 +11,12 @@ use App\Repositories\Product\ProductVariantRepository;
 use App\Repositories\Customer\CustomerRepository;
 use App\Repositories\SupplierRepository;
 use App\Repositories\Journal\JournalEntryDetailRepository;
+use App\Repositories\Debt\CustomerDebtRepository;
+use App\Repositories\Debt\SupplierDebtRepository;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class DashboardService extends BaseService
 {
@@ -25,6 +28,8 @@ class DashboardService extends BaseService
     protected $customerRepository;
     protected $supplierRepository;
     protected $journalEntryDetailRepository;
+    protected $customerDebtRepository;
+    protected $supplierDebtRepository;
 
     // Mã tài khoản
     const ACCOUNT_REVENUE = '511';
@@ -42,7 +47,9 @@ class DashboardService extends BaseService
         ProductVariantRepository $productVariantRepository,
         CustomerRepository $customerRepository,
         SupplierRepository $supplierRepository,
-        JournalEntryDetailRepository $journalEntryDetailRepository
+        JournalEntryDetailRepository $journalEntryDetailRepository,
+        CustomerDebtRepository $customerDebtRepository,
+        SupplierDebtRepository $supplierDebtRepository
     ) {
         $this->salesReceiptRepository = $salesReceiptRepository;
         $this->purchaseReceiptRepository = $purchaseReceiptRepository;
@@ -52,6 +59,8 @@ class DashboardService extends BaseService
         $this->customerRepository = $customerRepository;
         $this->supplierRepository = $supplierRepository;
         $this->journalEntryDetailRepository = $journalEntryDetailRepository;
+        $this->customerDebtRepository = $customerDebtRepository;
+        $this->supplierDebtRepository = $supplierDebtRepository;
     }
 
     /**
@@ -81,7 +90,7 @@ class DashboardService extends BaseService
             'debts' => $this->getDebtData(),
 
             // Tồn kho
-            'inventory' => $this->getInventoryData(),
+            'inventory' => $this->productVariantRepository->getInventorySummary(),
 
             // Hoạt động gần đây
             'recent_activities' => $this->getRecentActivities(),
@@ -104,108 +113,47 @@ class DashboardService extends BaseService
     protected function getSummaryData($startOfMonth, $endOfMonth, $startOfYear, $today): array
     {
         // Doanh thu tháng này
-        $monthlyRevenue = $this->salesReceiptRepository->findByCondition(
-            [
-                ['receipt_date', '>=', $startOfMonth],
-                ['receipt_date', '<=', $endOfMonth],
-                ['status', '=', 'confirmed']
-            ],
-            true,
-            [],
-            [],
-            [DB::raw('COALESCE(SUM(grand_total), 0) as total')]
-        )->first()->total ?? 0;
+        $monthlyRevenue = $this->salesReceiptRepository->getTotalRevenue($startOfMonth, $endOfMonth);
 
         // Doanh thu năm nay
-        $yearlyRevenue = $this->salesReceiptRepository->findByCondition(
-            [
-                ['receipt_date', '>=', $startOfYear],
-                ['receipt_date', '<=', $today],
-                ['status', '=', 'confirmed']
-            ],
-            true,
-            [],
-            [],
-            [DB::raw('COALESCE(SUM(grand_total), 0) as total')]
-        )->first()->total ?? 0;
+        $yearlyRevenue = $this->salesReceiptRepository->getTotalRevenue($startOfYear, $today);
 
         // Chi phí mua hàng tháng này
-        $monthlyPurchase = $this->purchaseReceiptRepository->findByCondition(
-            [
-                ['receipt_date', '>=', $startOfMonth],
-                ['receipt_date', '<=', $endOfMonth],
-                ['status', '=', 'confirmed']
-            ],
-            true,
-            [],
-            [],
-            [DB::raw('COALESCE(SUM(grand_total), 0) as total')]
-        )->first()->total ?? 0;
+        $monthlyPurchase = $this->purchaseReceiptRepository->getTotalPurchase($startOfMonth, $endOfMonth);
 
-        // Lợi nhuận gộp (ước tính)
-        $grossProfit = $monthlyRevenue * 0.2; // Tạm tính 20% lợi nhuận
+        // Lợi nhuận gộp
+        $cogs = $this->journalEntryDetailRepository->getTotalCOGS($startOfMonth, $endOfMonth);
+        $grossProfit = $monthlyRevenue - $cogs;
 
         // Đếm số lượng
-        $totalCustomers = $this->customerRepository->findByCondition(
-            [['publish', '=', 1]],
-            true,
-            [],
-            [],
-            [DB::raw('COUNT(*) as total')]
-        )->first()->total ?? 0;
+        $totalCustomers = $this->customerRepository->countActiveCustomers();
+        $totalSuppliers = $this->supplierRepository->countActiveSuppliers();
+        $totalProducts = $this->productVariantRepository->countActiveProducts();
 
-        $totalSuppliers = $this->supplierRepository->findByCondition(
-            [['publish', '=', 1]],
-            true,
-            [],
-            [],
-            [DB::raw('COUNT(*) as total')]
-        )->first()->total ?? 0;
-
-        $totalProducts = $this->productVariantRepository->findByCondition(
-            [['publish', '=', 1]],
-            true,
-            [],
-            [],
-            [DB::raw('COUNT(*) as total')]
-        )->first()->total ?? 0;
-
-        // Tồn kho
-        $inventoryValue = DB::table('product_variants')
-            ->select(DB::raw('COALESCE(SUM(quantity * base_price), 0) as total'))
-            ->first()->total ?? 0;
+        // Giá trị tồn kho
+        $inventoryValue = $this->productVariantRepository->getTotalInventoryValue();
 
         // Tỷ lệ tăng trưởng so với tháng trước
         $lastMonthStart = $startOfMonth->copy()->subMonth();
         $lastMonthEnd = $endOfMonth->copy()->subMonth();
 
-        $lastMonthRevenue = $this->salesReceiptRepository->findByCondition(
-            [
-                ['receipt_date', '>=', $lastMonthStart],
-                ['receipt_date', '<=', $lastMonthEnd],
-                ['status', '=', 'confirmed']
-            ],
-            true,
-            [],
-            [],
-            [DB::raw('COALESCE(SUM(grand_total), 0) as total')]
-        )->first()->total ?? 0;
+        $lastMonthRevenue = $this->salesReceiptRepository->getTotalRevenue($lastMonthStart, $lastMonthEnd);
 
         $revenueGrowth = $lastMonthRevenue > 0
             ? round(($monthlyRevenue - $lastMonthRevenue) / $lastMonthRevenue * 100, 2)
-            : 100;
+            : ($monthlyRevenue > 0 ? 100 : 0);
 
         return [
             'monthly_revenue' => (float)$monthlyRevenue,
             'yearly_revenue' => (float)$yearlyRevenue,
             'monthly_purchase' => (float)$monthlyPurchase,
-            'gross_profit' => (float)$grossProfit,
+            'gross_profit' => (float)($grossProfit > 0 ? $grossProfit : $monthlyRevenue * 0.2), // Fallback 20%
             'total_customers' => (int)$totalCustomers,
             'total_suppliers' => (int)$totalSuppliers,
             'total_products' => (int)$totalProducts,
             'inventory_value' => (float)$inventoryValue,
             'revenue_growth' => $revenueGrowth,
-            'profit_margin' => $monthlyRevenue > 0 ? round($grossProfit / $monthlyRevenue * 100, 2) : 0,
+            'profit_margin' => $monthlyRevenue > 0 ? round(($grossProfit > 0 ? $grossProfit : $monthlyRevenue * 0.2) / $monthlyRevenue * 100, 2) : 0,
         ];
     }
 
@@ -217,20 +165,7 @@ class DashboardService extends BaseService
         $months = [];
 
         for ($i = 1; $i <= 12; $i++) {
-            $start = Carbon::createFromDate($year, $i, 1)->startOfDay();
-            $end = $start->copy()->endOfMonth();
-
-            $revenue = $this->salesReceiptRepository->findByCondition(
-                [
-                    ['receipt_date', '>=', $start],
-                    ['receipt_date', '<=', $end],
-                    ['status', '=', 'confirmed']
-                ],
-                true,
-                [],
-                [],
-                [DB::raw('COALESCE(SUM(grand_total), 0) as total')]
-            )->first()->total ?? 0;
+            $revenue = $this->salesReceiptRepository->getMonthlyRevenue($year, $i);
 
             $months[] = [
                 'month' => $i,
@@ -243,127 +178,19 @@ class DashboardService extends BaseService
     }
 
     /**
-     * Top sản phẩm bán chạy
-     */
-    protected function getTopProducts($startDate, $endDate, $limit = 10): array
-    {
-        $topProducts = DB::table('sales_receipt_items as sri')
-            ->join('sales_receipts as sr', 'sr.id', '=', 'sri.sales_receipt_id')
-            ->join('product_variants as pv', 'pv.id', '=', 'sri.product_variant_id')
-            ->leftJoin('product_variant_languages as pvl', function ($join) {
-                $join->on('pvl.product_variant_id', 'pv.id')
-                    ->where('pvl.language_id', '=', 1);
-            })
-            ->leftJoin('units as u', 'u.id', '=', 'pv.unit_id')
-            ->whereBetween('sr.receipt_date', [$startDate, $endDate])
-            ->where('sr.status', 'confirmed')
-            ->select(
-                'pv.id',
-                'pvl.name as product_name',
-                'u.name as unit_name',
-                DB::raw('SUM(sri.quantity) as total_quantity'),
-                DB::raw('SUM(sri.quantity * sri.price) as total_revenue'),
-                DB::raw('COUNT(DISTINCT sr.id) as order_count')
-            )
-            ->groupBy('pv.id', 'pvl.name', 'u.name')
-            ->orderBy('total_quantity', 'DESC')
-            ->limit($limit)
-            ->get();
-
-        return $topProducts->toArray();
-    }
-
-    /**
      * Dữ liệu công nợ
      */
     protected function getDebtData(): array
     {
-        // Công nợ phải thu (131)
-        $receivable = DB::table('journal_entry_details as jed')
-            ->join('journal_entries as je', 'je.id', '=', 'jed.journal_entry_id')
-            ->join('accounting_accounts as aa', 'aa.id', '=', 'jed.account_id')
-            ->where('aa.account_code', self::ACCOUNT_RECEIVABLE)
-            ->select(
-                DB::raw('COALESCE(SUM(jed.debit), 0) as total_debit'),
-                DB::raw('COALESCE(SUM(jed.credit), 0) as total_credit')
-            )
-            ->first();
-
-        $receivableBalance = ($receivable->total_debit ?? 0) - ($receivable->total_credit ?? 0);
-
-        // Công nợ phải trả (331)
-        $payable = DB::table('journal_entry_details as jed')
-            ->join('journal_entries as je', 'je.id', '=', 'jed.journal_entry_id')
-            ->join('accounting_accounts as aa', 'aa.id', '=', 'jed.account_id')
-            ->where('aa.account_code', self::ACCOUNT_PAYABLE)
-            ->select(
-                DB::raw('COALESCE(SUM(jed.credit), 0) as total_credit'),
-                DB::raw('COALESCE(SUM(jed.debit), 0) as total_debit')
-            )
-            ->first();
-
-        $payableBalance = ($payable->total_credit ?? 0) - ($payable->total_debit ?? 0);
-
-        // Top khách hàng công nợ
-        $topDebtors = DB::table('customer_debts')
-            ->join('customers', 'customers.id', '=', 'customer_debts.customer_id')
-            ->select(
-                'customers.id',
-                'customers.name',
-                DB::raw('COALESCE(SUM(credit - debit), 0) as balance')
-            )
-            ->groupBy('customers.id', 'customers.name')
-            ->having('balance', '>', 0)
-            ->orderBy('balance', 'DESC')
-            ->limit(5)
-            ->get();
+        $customerSummary = $this->customerDebtRepository->getCustomerDebtSummary();
+        $supplierSummary = $this->supplierDebtRepository->getSupplierDebtSummary();
 
         return [
-            'receivable' => (float)$receivableBalance,
-            'payable' => (float)$payableBalance,
-            'net_debt' => (float)($receivableBalance - $payableBalance),
-            'top_debtors' => $topDebtors->toArray(),
-        ];
-    }
-
-    /**
-     * Dữ liệu tồn kho
-     */
-    protected function getInventoryData(): array
-    {
-        // Tổng giá trị tồn kho
-        $totalValue = DB::table('product_variants')
-            ->select(DB::raw('COALESCE(SUM(quantity * base_price), 0) as total'))
-            ->first()->total ?? 0;
-
-        // Số lượng sản phẩm tồn kho
-        $totalItems = DB::table('product_variants')
-            ->select(DB::raw('COALESCE(SUM(quantity), 0) as total'))
-            ->first()->total ?? 0;
-
-        // Sản phẩm sắp hết hàng (tồn < 10)
-        $lowStock = DB::table('product_variants as pv')
-            ->leftJoin('product_variant_languages as pvl', function ($join) {
-                $join->on('pvl.product_variant_id', 'pv.id')
-                    ->where('pvl.language_id', '=', 1);
-            })
-            ->where('pv.quantity', '<', 10)
-            ->where('pv.quantity', '>', 0)
-            ->select('pv.id', 'pvl.name as product_name', 'pv.quantity')
-            ->orderBy('pv.quantity', 'ASC')
-            ->limit(5)
-            ->get();
-
-        // Sản phẩm hết hàng
-        $outOfStock = DB::table('product_variants')
-            ->where('quantity', '<=', 0)
-            ->count();
-
-        return [
-            'total_value' => (float)$totalValue,
-            'total_items' => (float)$totalItems,
-            'low_stock' => $lowStock->toArray(),
-            'out_of_stock' => (int)$outOfStock,
+            'receivable' => $customerSummary['receivable'],
+            'payable' => $supplierSummary['payable'],
+            'net_debt' => $customerSummary['receivable'] - $supplierSummary['payable'],
+            'top_debtors' => $customerSummary['top_debtors'],
+            'top_creditors' => $supplierSummary['top_creditors'],
         ];
     }
 
@@ -450,6 +277,82 @@ class DashboardService extends BaseService
             ];
         }
 
+        // Phiếu thu gần đây
+        $receiptVouchers = $this->receiptVoucherRepository->findByCondition(
+            [],
+            true,
+            [
+                [
+                    'table' => 'customers',
+                    'on' => [['customers.id', 'receipt_vouchers.customer_id']]
+                ]
+            ],
+            ['receipt_vouchers.created_at' => 'DESC'],
+            [
+                'receipt_vouchers.id',
+                'receipt_vouchers.code',
+                'receipt_vouchers.voucher_date',
+                'receipt_vouchers.amount',
+                'receipt_vouchers.status',
+                'receipt_vouchers.created_at',
+                'customers.name as customer_name'
+            ],
+            [],
+            $limit
+        );
+
+        foreach ($receiptVouchers as $voucher) {
+            $activities[] = [
+                'type' => 'receipt_voucher',
+                'type_name' => 'Phiếu thu',
+                'icon' => 'wallet',
+                'code' => $voucher->code,
+                'description' => "Thu tiền từ {$voucher->customer_name}",
+                'amount' => $voucher->amount,
+                'status' => $voucher->status,
+                'date' => $voucher->created_at,
+                'date_formatted' => Carbon::parse($voucher->created_at)->diffForHumans(),
+            ];
+        }
+
+        // Phiếu chi gần đây
+        $paymentVouchers = $this->paymentVoucherRepository->findByCondition(
+            [],
+            true,
+            [
+                [
+                    'table' => 'suppliers',
+                    'on' => [['suppliers.id', 'payment_vouchers.supplier_id']]
+                ]
+            ],
+            ['payment_vouchers.created_at' => 'DESC'],
+            [
+                'payment_vouchers.id',
+                'payment_vouchers.code',
+                'payment_vouchers.voucher_date',
+                'payment_vouchers.amount',
+                'payment_vouchers.status',
+                'payment_vouchers.created_at',
+                'suppliers.name as supplier_name'
+            ],
+            [],
+            $limit
+        );
+
+        foreach ($paymentVouchers as $voucher) {
+            $activities[] = [
+                'type' => 'payment_voucher',
+                'type_name' => 'Phiếu chi',
+                'icon' => 'credit-card',
+                'code' => $voucher->code,
+                'description' => "Chi tiền cho {$voucher->supplier_name}",
+                'amount' => $voucher->amount,
+                'status' => $voucher->status,
+                'date' => $voucher->created_at,
+                'date_formatted' => Carbon::parse($voucher->created_at)->diffForHumans(),
+            ];
+        }
+
         // Sắp xếp theo thời gian
         usort($activities, function ($a, $b) {
             return strtotime($b['date']) - strtotime($a['date']);
@@ -459,48 +362,127 @@ class DashboardService extends BaseService
     }
 
     /**
+     * Top sản phẩm bán chạy
+     */
+    protected function getTopProducts($startDate, $endDate, $limit = 10): array
+    {
+        // Lấy ngôn ngữ hiện tại
+        $currentLanguageId = session('currentLanguage', 1);
+
+        // Lấy danh sách top sản phẩm bán chạy
+        $topProducts = DB::table('sales_receipt_items as sri')
+            ->join('sales_receipts as sr', 'sr.id', '=', 'sri.sales_receipt_id')
+            ->join('product_variants as pv', 'pv.id', '=', 'sri.product_variant_id')
+            ->leftJoin('units as u', 'u.id', '=', 'pv.unit_id')
+            ->whereBetween('sr.receipt_date', [$startDate, $endDate])
+            ->where('sr.status', 'confirmed')
+            ->select(
+                'pv.id',
+                'pv.sku',
+                'pv.barcode',
+                'u.name as unit_name',
+                DB::raw('SUM(sri.quantity) as total_quantity'),
+                DB::raw('SUM(sri.quantity * sri.price) as total_revenue'),
+                DB::raw('COUNT(DISTINCT sr.id) as order_count')
+            )
+            ->groupBy('pv.id', 'pv.sku', 'pv.barcode', 'u.name')
+            ->orderBy('total_quantity', 'DESC')
+            ->limit($limit)
+            ->get();
+
+        // Format kết quả với tên sản phẩm đầy đủ
+        $formattedProducts = [];
+
+        foreach ($topProducts as $product) {
+            // Lấy tên sản phẩm đầy đủ (bao gồm cả tên biến thể)
+            $productName = $this->getProductFullName($product->id, $currentLanguageId);
+
+            $formattedProducts[] = [
+                'id' => $product->id,
+                'sku' => $product->sku,
+                'barcode' => $product->barcode,
+                'product_name' => $productName,
+                'unit_name' => $product->unit_name,
+                'total_quantity' => (float)$product->total_quantity,
+                'total_revenue' => (float)$product->total_revenue,
+                'order_count' => (int)$product->order_count,
+            ];
+        }
+
+        return $formattedProducts;
+    }
+
+    /**
+     * Lấy tên đầy đủ của sản phẩm (bao gồm tên biến thể)
+     */
+    protected function getProductFullName($productVariantId, $languageId): string
+    {
+        try {
+            // Lấy thông tin product variant kèm theo product và translations
+            $variant = $this->productVariantRepository->findByCondition(
+                [
+                    ['product_variants.id', '=', $productVariantId]
+                ],
+                false,
+                [
+                    [
+                        'table' => 'products',
+                        'on' => [['products.id', 'product_variants.product_id']],
+                        'type' => 'inner'
+                    ],
+                    [
+                        'table' => 'product_languages',
+                        'on' => [['product_languages.product_id', 'products.id']],
+                        'type' => 'left'
+                    ],
+                    [
+                        'table' => 'product_variant_languages',
+                        'on' => [['product_variant_languages.product_variant_id', 'product_variants.id']],
+                        'type' => 'left'
+                    ]
+                ],
+                [],
+                [
+                    'product_variants.id',
+                    'product_variants.sku',
+                    'product_languages.name as product_name',
+                    'product_variant_languages.name as variant_name'
+                ]
+            );
+
+            if ($variant) {
+                $productName = $variant->product_name ?? '';
+                $variantName = $variant->variant_name ?? '';
+
+                // Kết hợp tên sản phẩm và tên biến thể
+                $fullName = $productName;
+                if ($variantName) {
+                    $fullName .= ' - ' . $variantName;
+                }
+
+                return $fullName;
+            }
+        } catch (\Exception $e) {
+            Log::error('Error in getProductFullName: ' . $e->getMessage());
+        }
+
+        // Fallback: trả về SKU nếu không tìm thấy tên
+        return 'SP-' . $productVariantId;
+    }
+
+    /**
      * Dữ liệu dòng tiền
      */
     protected function getCashFlowData($startDate, $endDate): array
     {
         // Thu tiền (phiếu thu)
-        $cashIn = $this->receiptVoucherRepository->findByCondition(
-            [
-                ['voucher_date', '>=', $startDate],
-                ['voucher_date', '<=', $endDate],
-                ['status', '=', 'confirmed']
-            ],
-            true,
-            [],
-            [],
-            [DB::raw('COALESCE(SUM(amount), 0) as total')]
-        )->first()->total ?? 0;
+        $cashIn = $this->receiptVoucherRepository->getTotalCashIn($startDate, $endDate);
 
         // Chi tiền (phiếu chi)
-        $cashOut = $this->paymentVoucherRepository->findByCondition(
-            [
-                ['voucher_date', '>=', $startDate],
-                ['voucher_date', '<=', $endDate],
-                ['status', '=', 'confirmed']
-            ],
-            true,
-            [],
-            [],
-            [DB::raw('COALESCE(SUM(amount), 0) as total')]
-        )->first()->total ?? 0;
+        $cashOut = $this->paymentVoucherRepository->getTotalCashOut($startDate, $endDate);
 
         // Số dư tiền mặt và ngân hàng
-        $cashBalance = DB::table('journal_entry_details as jed')
-            ->join('journal_entries as je', 'je.id', '=', 'jed.journal_entry_id')
-            ->join('accounting_accounts as aa', 'aa.id', '=', 'jed.account_id')
-            ->whereIn('aa.account_code', [self::ACCOUNT_CASH, self::ACCOUNT_BANK])
-            ->select(
-                DB::raw('COALESCE(SUM(jed.debit), 0) as total_debit'),
-                DB::raw('COALESCE(SUM(jed.credit), 0) as total_credit')
-            )
-            ->first();
-
-        $balance = ($cashBalance->total_debit ?? 0) - ($cashBalance->total_credit ?? 0);
+        $balance = $this->journalEntryDetailRepository->getCashBalance([self::ACCOUNT_CASH, self::ACCOUNT_BANK]);
 
         return [
             'cash_in' => (float)$cashIn,

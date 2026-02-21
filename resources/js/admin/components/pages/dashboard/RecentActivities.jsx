@@ -1,100 +1,153 @@
 "use client";
 
-import { Badge } from "@/admin/components/ui/badge";
-import { formatCurrency } from "@/admin/utils/helpers";
 import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from "@/admin/components/ui/card";
+import { Badge } from "@/admin/components/ui/badge";
+import {
+    Clock,
     ShoppingCart,
     Package,
-    CreditCard,
     Wallet,
-    CheckCircle,
+    CreditCard,
+    CheckCircle2,
     XCircle,
-    Clock,
 } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 
-const iconMap = {
-    "shopping-cart": ShoppingCart,
-    package: Package,
-    "credit-card": CreditCard,
-    wallet: Wallet,
+const formatCurrency = (amount) => {
+    return new Intl.NumberFormat("vi-VN", {
+        style: "currency",
+        currency: "VND",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(amount || 0);
 };
 
-const statusColors = {
-    confirmed: "bg-green-100 text-green-700 border-green-200",
-    draft: "bg-yellow-100 text-yellow-700 border-yellow-200",
-    cancelled: "bg-red-100 text-red-700 border-red-200",
+const getStatusBadge = (status) => {
+    const statusMap = {
+        draft: {
+            label: "Nháp",
+            className: "bg-yellow-100 text-yellow-700 border-yellow-200",
+            icon: Clock,
+        },
+        confirmed: {
+            label: "Đã xác nhận",
+            className: "bg-green-100 text-green-700 border-green-200",
+            icon: CheckCircle2,
+        },
+        cancelled: {
+            label: "Đã hủy",
+            className: "bg-red-100 text-red-700 border-red-200",
+            icon: XCircle,
+        },
+    };
+    return statusMap[status] || statusMap.draft;
 };
 
-export default function RecentActivities({ activities = [] }) {
-    if (!activities.length) {
-        return (
-            <div className="flex h-40 items-center justify-center text-sm text-slate-500">
-                Chưa có hoạt động
-            </div>
-        );
-    }
-
+export default function RecentActivities({ activities }) {
     return (
-        <div className="space-y-4">
-            {activities.map((activity, index) => {
-                const Icon = iconMap[activity.icon] || Package;
-
-                return (
-                    <div
-                        key={index}
-                        className="flex items-start gap-4 rounded-lg border p-3 transition-all hover:bg-slate-50"
-                    >
-                        <div
-                            className={cn(
-                                "rounded-lg p-2",
-                                activity.type === "sales_receipt"
-                                    ? "bg-green-100"
-                                    : "bg-blue-100",
-                            )}
-                        >
-                            <Icon
-                                className={cn(
-                                    "h-5 w-5",
-                                    activity.type === "sales_receipt"
-                                        ? "text-green-600"
-                                        : "text-blue-600",
-                                )}
-                            />
-                        </div>
-
-                        <div className="flex-1">
-                            <div className="flex items-center justify-between">
-                                <p className="font-medium">{activity.code}</p>
-                                <Badge
-                                    variant="outline"
-                                    className={statusColors[activity.status]}
-                                >
-                                    {activity.status === "confirmed"
-                                        ? "Đã xác nhận"
-                                        : activity.status === "draft"
-                                          ? "Nháp"
-                                          : "Đã hủy"}
-                                </Badge>
-                            </div>
-
-                            <p className="mt-1 text-sm text-slate-600">
-                                {activity.description}
-                            </p>
-
-                            <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-                                <span className="flex items-center gap-1">
-                                    <Clock className="h-3 w-3" />
-                                    {activity.date_formatted}
-                                </span>
-                                <span className="font-medium text-slate-700">
-                                    {formatCurrency(activity.amount)}
-                                </span>
-                            </div>
-                        </div>
+        <Card className="shadow-lg border-slate-200 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center">
+                        <Clock className="h-4 w-4 text-white" />
                     </div>
-                );
-            })}
-        </div>
+                    <div>
+                        <CardTitle>Hoạt động gần đây</CardTitle>
+                        <CardDescription>
+                            Các giao dịch mới nhất
+                        </CardDescription>
+                    </div>
+                </div>
+            </CardHeader>
+            <CardContent className="p-6">
+                <div className="space-y-4">
+                    {activities?.length > 0 ? (
+                        activities.slice(0, 8).map((activity, idx) => {
+                            const status = getStatusBadge(activity.status);
+                            const StatusIcon = status.icon;
+
+                            return (
+                                <div
+                                    key={idx}
+                                    className="flex items-center justify-between p-3 hover:bg-slate-50 rounded-lg transition-colors"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className={cn(
+                                                "h-9 w-9 rounded-lg flex items-center justify-center",
+                                                activity.type ===
+                                                    "sales_receipt"
+                                                    ? "bg-green-100"
+                                                    : activity.type ===
+                                                        "purchase_receipt"
+                                                      ? "bg-blue-100"
+                                                      : activity.type ===
+                                                          "receipt_voucher"
+                                                        ? "bg-purple-100"
+                                                        : "bg-amber-100",
+                                            )}
+                                        >
+                                            {activity.type ===
+                                                "sales_receipt" && (
+                                                <ShoppingCart className="h-4 w-4 text-green-600" />
+                                            )}
+                                            {activity.type ===
+                                                "purchase_receipt" && (
+                                                <Package className="h-4 w-4 text-blue-600" />
+                                            )}
+                                            {activity.type ===
+                                                "receipt_voucher" && (
+                                                <Wallet className="h-4 w-4 text-purple-600" />
+                                            )}
+                                            {activity.type ===
+                                                "payment_voucher" && (
+                                                <CreditCard className="h-4 w-4 text-amber-600" />
+                                            )}
+                                        </div>
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="font-medium text-slate-800 text-sm">
+                                                    {activity.code}
+                                                </span>
+                                                <Badge
+                                                    className={cn(
+                                                        "text-xs py-0 h-5",
+                                                        status.className,
+                                                    )}
+                                                >
+                                                    <StatusIcon className="h-3 w-3 mr-1" />
+                                                    {status.label}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-xs text-slate-500">
+                                                {activity.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="font-semibold text-blue-600 text-sm">
+                                            {formatCurrency(activity.amount)}
+                                        </p>
+                                        <p className="text-xs text-slate-400">
+                                            {activity.date_formatted}
+                                        </p>
+                                    </div>
+                                </div>
+                            );
+                        })
+                    ) : (
+                        <div className="text-center py-8 text-slate-400">
+                            Chưa có hoạt động nào gần đây
+                        </div>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
     );
 }

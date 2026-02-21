@@ -4,6 +4,7 @@ namespace App\Repositories\Voucher;
 
 use App\Repositories\BaseRepository;
 use App\Models\PaymentVoucher;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class PaymentVoucherRepository extends BaseRepository
@@ -14,6 +15,17 @@ class PaymentVoucherRepository extends BaseRepository
     {
         $this->model = $model;
         parent::__construct($model);
+    }
+
+    /**
+     * Lấy tổng số tiền chi trong khoảng thời gian
+     */
+    public function getTotalCashOut(Carbon $startDate, Carbon $endDate): float
+    {
+        return (float) $this->model
+            ->whereBetween('voucher_date', [$startDate, $endDate])
+            ->where('status', 'confirmed')
+            ->sum('amount');
     }
 
     /**
@@ -30,7 +42,7 @@ class PaymentVoucherRepository extends BaseRepository
     public function getBasicInfo(int $id): array
     {
         $voucher = $this->findById($id, ['code', 'note', 'voucher_date']);
-        
+
         if (!$voucher) {
             return [];
         }

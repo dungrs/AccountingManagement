@@ -117,7 +117,7 @@ export default function Home() {
                     parent_id: item.parent_id ?? 0,
                     account_type: item.account_type, // "ASSET", "LIABILITY", etc.
                     normal_balance: item.normal_balance, // "DEBIT", "CREDIT"
-                    active: item.active === true, // true/false
+                    active: item.publish === 1,
                 }));
 
                 setData(mappedData);
