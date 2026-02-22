@@ -10,8 +10,8 @@
         @routes
         @viteReactRefresh
         @vite([
-            'resources/js/Admin/admin.jsx',
-            "resources/js/Admin/Pages/{$page['component']}.jsx"
+            'resources/js/admin/admin.jsx',
+            "resources/js/admin/Pages/{$page['component']}.jsx"
         ])
 
         <!-- ✅ CKFinder -->

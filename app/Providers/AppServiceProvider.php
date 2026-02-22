@@ -5,6 +5,7 @@ namespace App\Providers;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Support\Facades\URL;
 use Inertia\Inertia;
 
 class AppServiceProvider extends ServiceProvider
@@ -30,5 +31,13 @@ class AppServiceProvider extends ServiceProvider
             'sales_receipt' => 'App\Models\SaleReceipt',
             // Thêm các model khác nếu cần
         ]);
+
+        if (app()->environment('production')) {
+            URL::forceScheme('https');
+        }
+
+        if (app()->environment('local')) {
+            URL::forceScheme('https');
+        }
     }
 }

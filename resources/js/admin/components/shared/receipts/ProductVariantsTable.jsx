@@ -841,7 +841,7 @@ export default function ProductVariantsTable({
                                                         e.target.value,
                                                     )
                                                 }
-                                                className="text-right h-8 text-sm w-24 ml-auto border-slate-200 focus:border-purple-500"
+                                                className="text-right h-8 text-sm w-30 ml-auto border-slate-200 focus:border-purple-500"
                                                 min="0"
                                                 step="0.01"
                                             />

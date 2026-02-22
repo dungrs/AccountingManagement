@@ -53,26 +53,76 @@ import {
     Briefcase,
     Sparkles,
     ChevronRight,
+    User,
+    Settings2,
+    BarChart3,
+    UserLock,
+    Heart,
+    Clock,
+    TrendingUp,
 } from "lucide-react";
 
 import { cn } from "@/admin/lib/utils";
 
 // Mapping icon cho các module
 const moduleIcons = {
+    // Hệ thống & Phân quyền
     admin: Shield,
-    user: Users,
+    permission: Key,
+    system: Settings,
+    dashboard: Home,
+    
+    // Hàng hóa
     product: Package,
+    attribute: Settings2,
+    unit: BarChart3,
+    category: Package,
+    
+    // Đối tác
     customer: Users,
     supplier: Truck,
+    
+    // Nhân sự
+    user: UserCog,
+    employee: Briefcase,
+    
+    // Kho hàng
+    inventory: Package,
     receipt: FileText,
+    warehouse: Building2,
+    stock: Package,
+    
+    // Thu chi - Quỹ
     voucher: CreditCard,
-    debt: Wallet,
+    cash: Wallet,
+    fund: Building2,
+    payment: CreditCard,
+    
+    // Công nợ
+    debt: CreditCard,
+    
+    // Kế toán
     accounting: PieChart,
-    system: Settings,
-    permission: Key,
-    dashboard: Home,
+    account: FileText,
+    ledger: FileText,
+    report: TrendingUp,
+    tax: FileText,
+    
+    // Cài đặt & Tiện ích
+    setting: Settings2,
+    config: Settings,
+    bank: Building2,
+    vattax: FileText,
+    pricelist: Package,
+    
+    // Các module khác
     order: ShoppingCart,
-    // Thêm các module khác nếu cần
+    sale: TrendingUp,
+    purchase: ShoppingCart,
+    discount: Sparkles,
+    promotion: Sparkles,
+    notification: Clock,
+    profile: User,
 };
 
 // Màu sắc cho các module
@@ -89,6 +139,26 @@ const moduleColors = {
     system: "from-slate-500 to-slate-600",
     permission: "from-violet-500 to-violet-600",
     dashboard: "from-blue-500 to-purple-500",
+    // Thêm màu cho các module mới
+    attribute: "from-pink-500 to-pink-600",
+    unit: "from-cyan-500 to-cyan-600",
+    inventory: "from-amber-500 to-amber-600",
+    warehouse: "from-slate-500 to-slate-600",
+    cash: "from-green-500 to-green-600",
+    fund: "from-blue-500 to-blue-600",
+    account: "from-teal-500 to-teal-600",
+    report: "from-purple-500 to-purple-600",
+    setting: "from-gray-500 to-gray-600",
+    bank: "from-blue-500 to-blue-600",
+    vattax: "from-orange-500 to-orange-600",
+    pricelist: "from-pink-500 to-pink-600",
+    order: "from-indigo-500 to-indigo-600",
+    sale: "from-green-500 to-green-600",
+    purchase: "from-amber-500 to-amber-600",
+    discount: "from-yellow-500 to-yellow-600",
+    promotion: "from-purple-500 to-purple-600",
+    notification: "from-blue-500 to-blue-600",
+    employee: "from-violet-500 to-violet-600",
 };
 
 export default function Permission() {
