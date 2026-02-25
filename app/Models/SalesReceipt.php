@@ -18,6 +18,13 @@ class SalesReceipt extends Model
         'customer_id',
         'user_id',
         'price_list_id',
+        // Các cột chiết khấu mới
+        'discount_type',
+        'discount_value',
+        'discount_amount',
+        'discount_total',
+        'discount_note',
+        // Các cột hiện có
         'total_amount',
         'vat_amount',
         'grand_total',
@@ -28,6 +35,11 @@ class SalesReceipt extends Model
 
     protected $casts = [
         'receipt_date' => 'date',
+        // Các cột chiết khấu
+        'discount_value' => 'decimal:2',
+        'discount_amount' => 'decimal:2',
+        'discount_total' => 'decimal:2',
+        // Các cột hiện có
         'total_amount' => 'decimal:2',
         'vat_amount' => 'decimal:2',
         'grand_total' => 'decimal:2'

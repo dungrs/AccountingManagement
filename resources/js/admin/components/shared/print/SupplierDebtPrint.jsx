@@ -18,10 +18,8 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
     // Format money - sử dụng dấu chấm như trong ảnh mẫu
     const formatMoney = (value) => {
         if (value === null || value === undefined || value === "") return "";
-
         const num = Number(value);
         if (isNaN(num)) return "";
-
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
@@ -36,23 +34,24 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
     );
 
     // Tính running balance cho từng dòng
+    // Số dư đầu kỳ là dư Có (credit balance) - dương = dư Có, âm = dư Nợ
     let runningBalance = result.opening_balance || 0;
-    const processedJournalEntries = [];
 
+    // Tính running balance cho từng dòng đối ứng
+    // Logic: mỗi dòng đối ứng đóng góp đúng số tiền của CHÍNH NÓ vào số dư 331
+    // - Dòng đối ứng Nợ (item.debit > 0): bút toán ghi Nợ TK đối ứng, Có 331
+    //   → 331 phát sinh Có → số dư Có tăng
+    // - Dòng đối ứng Có (item.credit > 0): bút toán ghi Có TK đối ứng, Nợ 331
+    //   → 331 phát sinh Nợ → số dư Có giảm
     const transactionsWithBalance = filteredTransactions.map((item) => {
-        if (!processedJournalEntries.includes(item.journal_entry_id)) {
-            const payableEntry = result.transactions.find(
-                (t) =>
-                    t.journal_entry_id === item.journal_entry_id &&
-                    t.is_payable_account,
-            );
+        // Dòng nhập hàng: TK đối ứng (156, 133...) ghi Nợ → 331 ghi Có → số dư Có tăng
+        // Dòng thanh toán: TK đối ứng (112, 111...) ghi Có → 331 ghi Nợ → số dư Có giảm
+        const debitAmount = Number(item.debit) || 0;
+        const creditAmount = Number(item.credit) || 0;
 
-            if (payableEntry) {
-                runningBalance =
-                    runningBalance + (payableEntry.credit - payableEntry.debit);
-            }
-            processedJournalEntries.push(item.journal_entry_id);
-        }
+        // Contribution của dòng này vào 331:
+        // TK đối ứng Nợ → 331 Có (+), TK đối ứng Có → 331 Nợ (-)
+        runningBalance = runningBalance + (debitAmount - creditAmount);
 
         return {
             ...item,
@@ -71,7 +70,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
         systems?.contact_address || "123 Đường ABC, Quận 1, TP.HCM";
     const companyWebsite = systems?.contact_website || "www.company.com.vn";
 
-    // Style chung cho th để đảm bảo chữ hiện khi export
+    // Style chung cho th
     const thStyle = {
         border: "1px solid black",
         padding: "6px 4px",
@@ -81,6 +80,13 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
         fontWeight: "bold",
         WebkitPrintColorAdjust: "exact",
         printColorAdjust: "exact",
+    };
+
+    const tdStyle = {
+        border: "1px solid black",
+        padding: "4px",
+        fontSize: "11px",
+        color: "#000000",
     };
 
     return (
@@ -171,7 +177,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
             </div>
 
             {/* Title */}
-            <div style={{ textAlign: "center", marginBottom: "16px" }}>
+            <div style={{ textAlign: "center", marginBottom: "8px" }}>
                 <h1
                     style={{
                         fontSize: "20px",
@@ -214,7 +220,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                 </p>
             </div>
 
-            {/* Opening balance line */}
+            {/* Số dư đầu kỳ - góc phải, theo đúng mẫu */}
             <div
                 style={{
                     textAlign: "right",
@@ -223,8 +229,8 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                     color: "#000000",
                 }}
             >
-                <span style={{ fontWeight: "bold" }}>Số dư nợ đầu kỳ:</span>{" "}
-                <span style={{ fontWeight: "bold" }}>
+                <span>Số dư có đầu kỳ:</span>{" "}
+                <span style={{ fontWeight: "bold", marginLeft: "40px" }}>
                     {formatMoney(result.opening_balance || 0)}
                 </span>
             </div>
@@ -240,7 +246,6 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
             >
                 <thead>
                     <tr>
-                        {/* Chứng từ - gộp 2 cột Ngày + Số */}
                         <th colSpan="2" style={{ ...thStyle, width: "18%" }}>
                             Chứng từ
                         </th>
@@ -258,112 +263,49 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                         </th>
                     </tr>
                     <tr>
-                        {/* Sub-columns của Chứng từ */}
                         <th style={{ ...thStyle, width: "9%" }}>Ngày</th>
                         <th style={{ ...thStyle, width: "9%" }}>Số</th>
-                        {/* Sub-columns của Số phát sinh */}
                         <th style={{ ...thStyle, width: "11%" }}>Nợ</th>
                         <th style={{ ...thStyle, width: "11%" }}>Có</th>
-                        {/* Sub-columns của Số dư */}
                         <th style={{ ...thStyle, width: "11%" }}>Nợ</th>
                         <th style={{ ...thStyle, width: "11%" }}>Có</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {/* Data rows */}
                     {transactionsWithBalance.map((item, index) => (
                         <tr key={item.journal_entry_detail_id || index}>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    textAlign: "center",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.formatted_date || formatDate(item.date)}
                             </td>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    textAlign: "center",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.reference_code || ""}
                             </td>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            <td style={{ ...tdStyle }}>
                                 {item.reference_note || ""}
                             </td>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    textAlign: "center",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.account_code || ""}
                             </td>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    textAlign: "right",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            {/* Nợ phát sinh */}
+                            <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.debit > 0 ? formatMoney(item.debit) : ""}
                             </td>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    textAlign: "right",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            {/* Có phát sinh */}
+                            <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.credit > 0
                                     ? formatMoney(item.credit)
                                     : ""}
                             </td>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    textAlign: "right",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            {/* Số dư Nợ: khi running_balance < 0 (dư Nợ) */}
+                            <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.running_balance < 0
                                     ? formatMoney(
                                           Math.abs(item.running_balance),
                                       )
                                     : ""}
                             </td>
-                            <td
-                                style={{
-                                    border: "1px solid black",
-                                    padding: "4px",
-                                    textAlign: "right",
-                                    fontSize: "11px",
-                                    color: "#000000",
-                                }}
-                            >
+                            {/* Số dư Có: khi running_balance >= 0 (dư Có) */}
+                            <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.running_balance >= 0
                                     ? formatMoney(item.running_balance)
                                     : ""}
@@ -382,6 +324,8 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                                 backgroundColor: "#e9e9e9",
                                 color: "#000000",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             Tổng cộng
@@ -394,6 +338,8 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                                 backgroundColor: "#e9e9e9",
                                 color: "#000000",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             {formatMoney(result.summary?.total_debit || 0)}
@@ -406,10 +352,13 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                                 backgroundColor: "#e9e9e9",
                                 color: "#000000",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             {formatMoney(result.summary?.total_credit || 0)}
                         </td>
+                        {/* Tổng Số dư Nợ cuối kỳ */}
                         <td
                             style={{
                                 border: "1px solid black",
@@ -418,10 +367,15 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                                 backgroundColor: "#e9e9e9",
                                 color: "#000000",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
-                            0
+                            {closingBalance < 0
+                                ? formatMoney(Math.abs(closingBalance))
+                                : "0"}
                         </td>
+                        {/* Tổng Số dư Có cuối kỳ */}
                         <td
                             style={{
                                 border: "1px solid black",
@@ -430,15 +384,19 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                                 backgroundColor: "#e9e9e9",
                                 color: "#000000",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
-                            {formatMoney(closingBalance)}
+                            {closingBalance >= 0
+                                ? formatMoney(closingBalance)
+                                : ""}
                         </td>
                     </tr>
                 </tbody>
             </table>
 
-            {/* Footer note */}
+            {/* Footer note - theo mẫu */}
             <div
                 style={{
                     marginTop: "12px",
@@ -447,17 +405,27 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                 }}
             >
                 <p style={{ margin: "4px 0" }}>
+                    Sổ này có 01 trang, đánh số từ trang sổ 01 đến trang 01
+                </p>
+                <p style={{ margin: "4px 0" }}>
                     Ngày mở sổ: {result.period?.end_date}
                 </p>
             </div>
 
-            {/* Signatures */}
-
-            <div className="text-right mb-8" style={{ fontSize: "14px" }}>
+            {/* Signature date - bên phải theo mẫu */}
+            <div
+                style={{
+                    textAlign: "right",
+                    fontSize: "13px",
+                    marginTop: "8px",
+                }}
+            >
                 <p style={{ margin: "0 0 8px 0", color: "#000000" }}>
                     Ngày.......tháng.......năm.................
                 </p>
             </div>
+
+            {/* Signatures */}
             <div
                 style={{
                     display: "flex",

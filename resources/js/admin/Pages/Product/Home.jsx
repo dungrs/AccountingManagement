@@ -229,67 +229,121 @@ export default function Home() {
             <Head title="Quản Lý Sản phẩm" />
 
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng sản phẩm
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Package className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đang hoạt động
-                            </p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {activeCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                            <TrendingUp className="h-6 w-6 text-green-600" />
+            {/* Header Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {/* Tổng sản phẩm */}
+                <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Tổng sản phẩm
+                                </p>
+                                <p className="text-base font-bold text-blue-600">
+                                    {paginationData.total}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[10px] h-4">
+                                        Tất cả SP
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <Package className="h-4 w-4 text-blue-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Ngừng hoạt động
-                            </p>
-                            <p className="text-2xl font-bold text-red-600">
-                                {inactiveCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                            <TrendingDown className="h-6 w-6 text-red-600" />
+                {/* Đang hoạt động */}
+                <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Đang hoạt động
+                                </p>
+                                <p className="text-base font-bold text-green-600">
+                                    {activeCount}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? (
+                                                  (activeCount /
+                                                      paginationData.total) *
+                                                  100
+                                              ).toFixed(1)
+                                            : 0}
+                                        %
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đã chọn
-                            </p>
-                            <p className="text-2xl font-bold text-purple-600">
-                                {selectedRows.length}
-                            </p>
+                {/* Ngừng hoạt động */}
+                <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Ngừng hoạt động
+                                </p>
+                                <p className="text-base font-bold text-red-600">
+                                    {inactiveCount}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? (
+                                                  (inactiveCount /
+                                                      paginationData.total) *
+                                                  100
+                                              ).toFixed(1)
+                                            : 0}
+                                        %
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <TrendingDown className="h-4 w-4 text-red-600" />
+                            </div>
                         </div>
-                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <ShoppingBag className="h-6 w-6 text-purple-600" />
+                    </CardContent>
+                </Card>
+
+                {/* Đã chọn */}
+                <Card className="border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Đã chọn
+                                </p>
+                                <p className="text-base font-bold text-purple-600">
+                                    {selectedRows.length}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? (
+                                                  (selectedRows.length /
+                                                      paginationData.total) *
+                                                  100
+                                              ).toFixed(1)
+                                            : 0}
+                                        %
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <ShoppingBag className="h-4 w-4 text-purple-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>

@@ -28,10 +28,15 @@ class SupplierDebtController extends Controller
     {
         $this->authorize('modules', 'debt.supplier.index');
 
+        // Mặc định lấy tháng hiện tại
+        $now = now();
+        $startDate = $now->copy()->startOfMonth()->format('Y-m-d');
+        $endDate = $now->copy()->endOfMonth()->format('Y-m-d');
+
         return Inertia::render('SupplierDebt/Home', [
             'initialFilters' => [
-                'month' => now()->month,
-                'year' => now()->year,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'perpage' => 20
             ]
         ]);

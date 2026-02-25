@@ -438,14 +438,14 @@ export default function Home() {
                                 Làm mới
                             </Button>
 
-                            <Button
+                            {/* <Button
                                 onClick={handleExportInventory}
                                 variant="secondary"
                                 className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                             >
                                 <Download className="mr-2 h-4 w-4" />
                                 Xuất Excel
-                            </Button>
+                            </Button> */}
 
                             <Button
                                 onClick={handleImportInventory}

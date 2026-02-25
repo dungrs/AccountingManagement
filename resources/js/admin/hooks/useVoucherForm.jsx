@@ -32,6 +32,8 @@ export function useVoucherForm({ voucher, isEdit = false, type = "payment" }) {
     // Load data từ server khi edit
     useEffect(() => {
         if (voucher && !isInitialized) {
+            console.log("Loading voucher data:", voucher);
+
             let partnerId = "";
             let partnerCode = "";
             let partnerInfo = null;
@@ -46,33 +48,45 @@ export function useVoucherForm({ voucher, isEdit = false, type = "payment" }) {
                 partnerInfo = voucher.customer_info || null;
             }
 
+            // ✅ Xử lý journal entries từ cấu trúc: journal_entries[0].details
             let journalEntries = [];
             if (voucher.journal_entries && voucher.journal_entries.length > 0) {
-                const firstEntry = voucher.journal_entries[0];
-                if (firstEntry?.details && Array.isArray(firstEntry.details)) {
-                    journalEntries = firstEntry.details.map((detail) => ({
-                        account_code: detail.account_code,
+                const firstJournal = voucher.journal_entries[0];
+                console.log("First journal:", firstJournal);
+
+                if (
+                    firstJournal?.details &&
+                    Array.isArray(firstJournal.details)
+                ) {
+                    journalEntries = firstJournal.details.map((detail) => ({
+                        // ✅ Ép kiểu string để match với accountOptions trong SelectCombobox
+                        account_code: String(detail.account_code),
                         debit: parseFloat(detail.debit) || 0,
                         credit: parseFloat(detail.credit) || 0,
                     }));
+                    console.log("Mapped journal entries:", journalEntries);
                 }
             }
 
-            setFormData({
+            const newFormData = {
                 code: voucher.code || "",
                 user_id: voucher.user_id || "",
-                voucher_date:
-                    voucher.voucher_date || voucher.receipt_date || "",
+                voucher_date: voucher.voucher_date || "",
                 note: voucher.note || "",
                 status: voucher.status || "draft",
                 partner_id: partnerId,
+                partner_code: partnerCode,
                 amount: voucher.amount || "",
                 payment_method: voucher.payment_method || "cash",
                 partner_info: partnerInfo,
+                bank_account_id: voucher.bank_account_id || null,
                 journal_entries: journalEntries,
-            });
+            };
 
-            const dateStr = voucher.voucher_date || voucher.receipt_date;
+            console.log("Setting formData:", newFormData);
+            setFormData(newFormData);
+
+            const dateStr = voucher.voucher_date;
             if (dateStr) {
                 setVoucherDate(new Date(dateStr));
             }
@@ -122,16 +136,15 @@ export function useVoucherForm({ voucher, isEdit = false, type = "payment" }) {
         }
     };
 
-    // ✅ Sử dụng useCallback và so sánh để tránh loop
     const handleJournalEntriesChange = useCallback((newEntries) => {
+        console.log("Journal entries changed:", newEntries);
         setFormData((prev) => {
-            // So sánh xem có thay đổi thực sự không
             const isDifferent =
                 JSON.stringify(prev.journal_entries) !==
                 JSON.stringify(newEntries);
 
             if (!isDifferent) {
-                return prev; // Không update nếu giống nhau
+                return prev;
             }
 
             return {

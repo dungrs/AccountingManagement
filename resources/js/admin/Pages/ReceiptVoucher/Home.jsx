@@ -240,120 +240,175 @@ export default function ReceiptVoucherHome() {
         >
             <Head title="Quản Lý Phiếu Thu" /> {/* Đổi title */}
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng phiếu thu {/* Đổi text */}
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Receipt className="h-6 w-6 text-blue-600" />{" "}
-                            {/* Đổi icon */}
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đã xác nhận
-                            </p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {confirmedCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
+            {/* Header Stats - Main */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {/* Tổng phiếu thu */}
+                <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Tổng phiếu thu
+                                </p>
+                                <p className="text-base font-bold text-blue-600">
+                                    {paginationData.total}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[10px] h-4">
+                                        Tổng số
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <Receipt className="h-4 w-4 text-blue-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-yellow-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Nháp
-                            </p>
-                            <p className="text-2xl font-bold text-yellow-600">
-                                {draftCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                            <Clock className="h-6 w-6 text-yellow-600" />
+                {/* Đã xác nhận */}
+                <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Đã xác nhận
+                                </p>
+                                <p className="text-base font-bold text-green-600">
+                                    {confirmedCount}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? (
+                                                  (confirmedCount /
+                                                      paginationData.total) *
+                                                  100
+                                              ).toFixed(1)
+                                            : 0}
+                                        %
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng thu {/* Đổi text */}
-                            </p>
-                            <p className="text-2xl font-bold text-purple-600">
-                                {formatCurrency(totalAmount)}
-                            </p>
+                {/* Nháp */}
+                <Card className="border-l-4 border-l-yellow-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">Nháp</p>
+                                <p className="text-base font-bold text-yellow-600">
+                                    {draftCount}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? (
+                                                  (draftCount /
+                                                      paginationData.total) *
+                                                  100
+                                              ).toFixed(1)
+                                            : 0}
+                                        %
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <Clock className="h-4 w-4 text-yellow-600" />
+                            </div>
                         </div>
-                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <TrendingUp className="h-6 w-6 text-purple-600" />{" "}
-                            {/* Đổi icon */}
+                    </CardContent>
+                </Card>
+
+                {/* Tổng thu */}
+                <Card className="border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Tổng thu
+                                </p>
+                                <p className="text-base font-bold text-purple-600">
+                                    {formatCurrency(totalAmount)}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? confirmedCount +
+                                              "/" +
+                                              paginationData.total
+                                            : "0"}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <TrendingUp className="h-4 w-4 text-purple-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
             </div>
             {/* Payment Method Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center">
-                                <CreditCard className="h-5 w-5 text-blue-700" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                {/* Tiền mặt */}
+                <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-blue-200 flex items-center justify-center">
+                                    <CreditCard className="h-4 w-4 text-blue-700" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-blue-800">
+                                        Tiền mặt
+                                    </p>
+                                    <p className="text-base font-bold text-blue-700">
+                                        {cashCount} phiếu
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm font-medium text-blue-800">
-                                    Tiền mặt
-                                </p>
-                                <p className="text-2xl font-bold text-blue-700">
-                                    {cashCount} phiếu
-                                </p>
-                            </div>
+                            <Badge className="bg-blue-200 text-blue-800 border-blue-300 text-[10px] h-5">
+                                {(
+                                    (cashCount / (data.length || 1)) *
+                                    100
+                                ).toFixed(1)}
+                                %
+                            </Badge>
                         </div>
-                        <Badge className="bg-blue-200 text-blue-800 border-blue-300">
-                            {((cashCount / (data.length || 1)) * 100).toFixed(
-                                1,
-                            )}
-                            %
-                        </Badge>
                     </CardContent>
                 </Card>
 
-                <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-purple-200 flex items-center justify-center">
-                                <Landmark className="h-5 w-5 text-purple-700" />
+                {/* Chuyển khoản */}
+                <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-purple-200 flex items-center justify-center">
+                                    <Landmark className="h-4 w-4 text-purple-700" />
+                                </div>
+                                <div>
+                                    <p className="text-xs font-medium text-purple-800">
+                                        Chuyển khoản
+                                    </p>
+                                    <p className="text-base font-bold text-purple-700">
+                                        {bankCount} phiếu
+                                    </p>
+                                </div>
                             </div>
-                            <div>
-                                <p className="text-sm font-medium text-purple-800">
-                                    Chuyển khoản
-                                </p>
-                                <p className="text-2xl font-bold text-purple-700">
-                                    {bankCount} phiếu
-                                </p>
-                            </div>
+                            <Badge className="bg-purple-200 text-purple-800 border-purple-300 text-[10px] h-5">
+                                {(
+                                    (bankCount / (data.length || 1)) *
+                                    100
+                                ).toFixed(1)}
+                                %
+                            </Badge>
                         </div>
-                        <Badge className="bg-purple-200 text-purple-800 border-purple-300">
-                            {((bankCount / (data.length || 1)) * 100).toFixed(
-                                1,
-                            )}
-                            %
-                        </Badge>
                     </CardContent>
                 </Card>
             </div>

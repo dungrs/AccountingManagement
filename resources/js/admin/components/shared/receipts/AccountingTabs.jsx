@@ -15,7 +15,6 @@ import {
     BookOpen,
     Users,
     DollarSign,
-    Percent,
     CheckCircle2,
     AlertCircle,
 } from "lucide-react";
@@ -24,39 +23,50 @@ import { cn } from "@/admin/lib/utils";
 
 export default function AccountingTabs({
     formData,
-    setFormData,
     accountingAccounts = [],
-    supplierName = "",
-    customerName = "",
     type = "purchase",
     formatCurrency,
-    createdBy = "",
-    receiptDate = "",
     addingRows = [],
     onJournalEntriesChange,
 }) {
     const [activeTab, setActiveTab] = useState("journal");
-    const [editableEntries, setEditableEntries] = useState([]);
-    const isInitializedRef = useRef(false);
+    const [entries, setEntries] = useState([]);
+
+    // ✅ Track trạng thái init
+    const initSourceRef = useRef(null); // "server" | "default" | null
+    const prevPaymentMethod = useRef(formData?.payment_method);
+    const prevAmount = useRef(formData?.amount);
+    const hasInitializedRef = useRef(false); // ✅ Flag để init chỉ 1 lần
 
     const findAccount = useCallback(
-        (code) => accountingAccounts.find((acc) => acc.account_code === code),
+        (code) =>
+            accountingAccounts.find(
+                (acc) => String(acc.account_code) === String(code),
+            ),
         [accountingAccounts],
     );
 
+    // Format danh sách tài khoản
     const accountOptions = useMemo(() => {
         const sorted = [...accountingAccounts].sort((a, b) =>
             a.account_code.localeCompare(b.account_code),
         );
         return sorted.map((acc) => ({
-            value: acc.account_code,
+            value: String(acc.account_code),
             label: `${acc.account_code} - ${acc.name}`,
         }));
     }, [accountingAccounts]);
 
-    const defaultJournalEntries = useMemo(() => {
-        const entries = [];
+    const getAccountName = useCallback(
+        (code) => {
+            const account = findAccount(code);
+            return account?.name || code;
+        },
+        [findAccount],
+    );
 
+    // Tính toán số liệu
+    const calculationData = useMemo(() => {
         const validAddingRows = (addingRows || []).filter(
             (row) =>
                 row.product_variant_id &&
@@ -65,11 +75,10 @@ export default function AccountingTabs({
         );
 
         const allProducts = [
-            ...(formData.product_variants || []),
+            ...(formData?.product_variants || []),
             ...validAddingRows,
         ];
 
-        // Doanh thu thuần (chưa VAT) = qty × giá bán
         const totalAmount = allProducts.reduce(
             (sum, item) =>
                 sum +
@@ -77,229 +86,377 @@ export default function AccountingTabs({
             0,
         );
 
-        // Tiền VAT đầu ra
-        const vatAmount = allProducts.reduce(
-            (sum, item) => sum + parseFloat(item.vat_amount || 0),
-            0,
-        );
+        const vatRate = 0.1;
+        const vatAmount =
+            allProducts.reduce(
+                (sum, item) => sum + parseFloat(item.vat_amount || 0),
+                0,
+            ) || totalAmount * vatRate;
 
-        // Tổng phải thu = doanh thu + VAT
-        const grandTotal = totalAmount + vatAmount;
+        const originalGrandTotal = totalAmount + vatAmount;
+        const discountAmount = parseFloat(formData?.discount_amount || 0);
+        const actualGrandTotal = originalGrandTotal - discountAmount;
 
-        // Giá vốn hàng xuất = qty × cost_price (giá nhập kho)
-        const totalCost = allProducts.reduce(
-            (sum, item) =>
-                sum +
-                parseFloat(item.quantity || 0) *
-                    parseFloat(item.cost_price || 0),
-            0,
-        );
+        let discountExcludingVat = 0;
+        let vatOnDiscount = 0;
 
-        // ─── PURCHASE ───────────────────────────────────────────────────────
-        if (type === "purchase") {
-            if (allProducts.length === 0) return entries;
-
-            // Nợ 156 - Hàng hóa (giá trị hàng nhập, chưa VAT)
-            const inventoryAccount = findAccount("156");
-            if (inventoryAccount && totalAmount > 0) {
-                entries.push({
-                    id: "default_156",
-                    account_code: inventoryAccount.account_code,
-                    account_name: inventoryAccount.name,
-                    debit: totalAmount,
-                    credit: 0,
-                });
-            }
-
-            // Nợ 1331 - Thuế GTGT được khấu trừ
-            const vatInputAccount = findAccount("1331");
-            if (vatInputAccount && vatAmount > 0) {
-                entries.push({
-                    id: "default_1331",
-                    account_code: vatInputAccount.account_code,
-                    account_name: vatInputAccount.name,
-                    debit: vatAmount,
-                    credit: 0,
-                });
-            }
-
-            // Có 331 - Phải trả nhà cung cấp (tổng thanh toán)
-            const payableAccount = findAccount("331");
-            if (payableAccount && grandTotal > 0) {
-                entries.push({
-                    id: "default_331",
-                    account_code: payableAccount.account_code,
-                    account_name: payableAccount.name,
-                    debit: 0,
-                    credit: grandTotal,
-                });
-            }
+        if (discountAmount > 0 && originalGrandTotal > 0) {
+            const vatRate_actual = vatAmount / totalAmount || vatRate;
+            discountExcludingVat = discountAmount / (1 + vatRate_actual);
+            vatOnDiscount = discountAmount - discountExcludingVat;
         }
 
-        // ─── SALE ────────────────────────────────────────────────────────────
+        return {
+            totalAmount,
+            vatAmount,
+            originalGrandTotal,
+            discountAmount,
+            discountExcludingVat,
+            vatOnDiscount,
+            actualGrandTotal,
+            allProducts,
+            vatRate,
+        };
+    }, [addingRows, formData?.product_variants, formData?.discount_amount]);
+
+    // ✅ Tạo entries mặc định
+    const createDefaultJournalEntries = useCallback(() => {
+        const entries = [];
+        const {
+            totalAmount,
+            vatAmount,
+            originalGrandTotal,
+            discountAmount,
+            discountExcludingVat,
+            vatOnDiscount,
+            allProducts,
+        } = calculationData;
+
+        if (allProducts.length === 0) return entries;
+
+        const isCashPayment =
+            formData?.payment_method === "cash" ||
+            formData?.payment_method === "bank";
+
         if (type === "sale") {
-            // ── Bút toán 1: Ghi nhận doanh thu bán hàng ──
-            // Nợ 131 - Phải thu khách hàng = doanh thu + VAT
-            const receivableAccount = findAccount("131");
+            let receivableOrCashAccount;
+            if (isCashPayment) {
+                const cashAccountCode =
+                    formData?.payment_method === "bank" ? "112" : "111";
+                receivableOrCashAccount = findAccount(cashAccountCode);
+            } else {
+                receivableOrCashAccount = findAccount("131");
+            }
+
+            const defaultAccountCode = isCashPayment
+                ? formData?.payment_method === "bank"
+                    ? "112"
+                    : "111"
+                : "131";
+            const defaultAccountName = isCashPayment
+                ? "Tiền mặt"
+                : "Phải thu của khách hàng";
+
             entries.push({
-                id: "default_131",
-                account_code: receivableAccount?.account_code || "131",
+                id: `default_receivable_${Date.now()}_1`,
+                account_code:
+                    receivableOrCashAccount?.account_code || defaultAccountCode,
                 account_name:
-                    receivableAccount?.name || "Phải thu của khách hàng",
-                debit: grandTotal, // ✅ Tổng tiền KH phải trả (gồm VAT)
+                    receivableOrCashAccount?.name || defaultAccountName,
+                debit: originalGrandTotal,
                 credit: 0,
             });
 
-            // Có 5111 - Doanh thu bán hàng hóa = giá bán chưa VAT
-            const revenueAccount = findAccount("5111");
+            const revenueAccount = findAccount("511");
             entries.push({
-                id: "default_5111",
-                account_code: revenueAccount?.account_code || "5111",
+                id: `default_511_${Date.now()}`,
+                account_code: revenueAccount?.account_code || "511",
                 account_name: revenueAccount?.name || "Doanh thu bán hàng hóa",
                 debit: 0,
-                credit: totalAmount, // ✅ Chỉ doanh thu thuần, không gồm VAT
+                credit: totalAmount,
             });
 
-            // Có 3331 - Thuế GTGT phải nộp
             const vatOutputAccount = findAccount("3331");
             entries.push({
-                id: "default_3331",
+                id: `default_3331_${Date.now()}`,
                 account_code: vatOutputAccount?.account_code || "3331",
-                account_name:
-                    vatOutputAccount?.name || "Thuế giá trị gia tăng phải nộp",
+                account_name: vatOutputAccount?.name || "Thuế GTGT phải nộp",
                 debit: 0,
-                credit: vatAmount, // ✅ Chỉ phần VAT đầu ra
+                credit: vatAmount,
             });
 
-            // 632 và 156 tạm thời bỏ - không tự động tạo
-        }
+            if (discountAmount > 0) {
+                const discountAccount = findAccount("521");
 
-        return entries;
-    }, [addingRows, formData.product_variants, findAccount, type]);
+                entries.push({
+                    id: `default_521_${Date.now()}`,
+                    account_code: discountAccount?.account_code || "521",
+                    account_name:
+                        discountAccount?.name || "Chiết khấu thương mại",
+                    debit: discountExcludingVat,
+                    credit: 0,
+                });
 
-    // ✅ Khởi tạo một lần - ưu tiên server data, fallback về default
-    useEffect(() => {
-        if (isInitializedRef.current) return;
+                if (vatOnDiscount > 0) {
+                    entries.push({
+                        id: `default_3331_discount_${Date.now()}`,
+                        account_code: vatOutputAccount?.account_code || "3331",
+                        account_name:
+                            vatOutputAccount?.name || "Thuế GTGT phải nộp",
+                        debit: vatOnDiscount,
+                        credit: 0,
+                    });
+                }
 
-        let initialEntries = [];
-
-        if (formData.journal_entries && formData.journal_entries.length > 0) {
-            const firstEntry = formData.journal_entries[0];
-
-            if (firstEntry?.account_code) {
-                initialEntries = formData.journal_entries.map(
-                    (entry, index) => {
-                        const account = findAccount(entry.account_code);
-                        return {
-                            id: entry.id || `server_${index}`,
-                            account_code: entry.account_code,
-                            account_name: account?.name || entry.account_code,
-                            debit: parseFloat(entry.debit) || 0,
-                            credit: parseFloat(entry.credit) || 0,
-                        };
-                    },
-                );
-            } else if (
-                firstEntry?.details &&
-                Array.isArray(firstEntry.details)
-            ) {
-                initialEntries = firstEntry.details.map((detail, index) => {
-                    const account = findAccount(detail.account_code);
-                    return {
-                        id: detail.id || `server_${index}`,
-                        account_code: detail.account_code,
-                        account_name: account?.name || detail.account_code,
-                        debit: parseFloat(detail.debit) || 0,
-                        credit: parseFloat(detail.credit) || 0,
-                    };
+                entries.push({
+                    id: `default_receivable_discount_${Date.now()}`,
+                    account_code:
+                        receivableOrCashAccount?.account_code ||
+                        defaultAccountCode,
+                    account_name:
+                        receivableOrCashAccount?.name || defaultAccountName,
+                    debit: 0,
+                    credit: discountAmount,
                 });
             }
         }
 
-        if (initialEntries.length > 0) {
-            setEditableEntries(initialEntries);
-            isInitializedRef.current = true;
-        } else if (defaultJournalEntries.length > 0) {
-            setEditableEntries(defaultJournalEntries);
-            isInitializedRef.current = true;
-        } else if (type === "sale") {
-            // Với sale: ngay cả khi chưa có sản phẩm, vẫn hiển thị 5 dòng rỗng
-            const blankSaleEntries = [
-                {
-                    id: "default_131",
-                    account_code: findAccount("131")?.account_code || "131",
+        if (type === "purchase") {
+            let cashOrPayableAccount;
+            if (isCashPayment) {
+                const cashAccountCode =
+                    formData?.payment_method === "bank" ? "112" : "111";
+                cashOrPayableAccount = findAccount(cashAccountCode);
+            } else {
+                cashOrPayableAccount = findAccount("331");
+            }
+
+            const defaultAccountCode = isCashPayment
+                ? formData?.payment_method === "bank"
+                    ? "112"
+                    : "111"
+                : "331";
+            const defaultAccountName = isCashPayment
+                ? "Tiền mặt"
+                : "Phải trả người bán";
+
+            const inventoryAccount = findAccount("156");
+            entries.push({
+                id: `default_156_${Date.now()}`,
+                account_code: inventoryAccount?.account_code || "156",
+                account_name: inventoryAccount?.name || "Hàng hóa",
+                debit: totalAmount,
+                credit: 0,
+            });
+
+            const vatInputAccount = findAccount("133");
+            entries.push({
+                id: `default_133_${Date.now()}`,
+                account_code: vatInputAccount?.account_code || "133",
+                account_name:
+                    vatInputAccount?.name || "Thuế GTGT được khấu trừ",
+                debit: vatAmount,
+                credit: 0,
+            });
+
+            entries.push({
+                id: `default_payable_${Date.now()}`,
+                account_code:
+                    cashOrPayableAccount?.account_code || defaultAccountCode,
+                account_name: cashOrPayableAccount?.name || defaultAccountName,
+                debit: 0,
+                credit: originalGrandTotal,
+            });
+
+            if (discountAmount > 0) {
+                entries.push({
+                    id: `default_payable_discount_${Date.now()}`,
+                    account_code:
+                        cashOrPayableAccount?.account_code ||
+                        defaultAccountCode,
                     account_name:
-                        findAccount("131")?.name || "Phải thu của khách hàng",
-                    debit: 0,
+                        cashOrPayableAccount?.name || defaultAccountName,
+                    debit: discountAmount,
                     credit: 0,
-                },
-                {
-                    id: "default_5111",
-                    account_code: findAccount("5111")?.account_code || "5111",
-                    account_name:
-                        findAccount("5111")?.name || "Doanh thu bán hàng hóa",
+                });
+
+                entries.push({
+                    id: `default_156_discount_${Date.now()}`,
+                    account_code: inventoryAccount?.account_code || "156",
+                    account_name: inventoryAccount?.name || "Hàng hóa",
                     debit: 0,
-                    credit: 0,
-                },
-                {
-                    id: "default_3331",
-                    account_code: findAccount("3331")?.account_code || "3331",
-                    account_name:
-                        findAccount("3331")?.name ||
-                        "Thuế giá trị gia tăng phải nộp",
-                    debit: 0,
-                    credit: 0,
-                },
-                // 632 và 156 tạm thời bỏ
-            ];
-            setEditableEntries(blankSaleEntries);
-            isInitializedRef.current = true;
+                    credit: discountExcludingVat,
+                });
+
+                if (vatOnDiscount > 0) {
+                    entries.push({
+                        id: `default_133_discount_${Date.now()}`,
+                        account_code: vatInputAccount?.account_code || "133",
+                        account_name:
+                            vatInputAccount?.name || "Thuế GTGT được khấu trừ",
+                        debit: 0,
+                        credit: vatOnDiscount,
+                    });
+                }
+            }
         }
-    }, [formData.journal_entries, defaultJournalEntries, findAccount, type]);
 
-    // Cập nhật số tiền khi sản phẩm thay đổi, giữ nguyên tài khoản user đã chọn
+        return entries;
+    }, [calculationData, findAccount, type, formData?.payment_method]);
+
+    // ✅ Init entries từ server hoặc default - CHỈ LẦN ĐẦU khi có accountingAccounts
     useEffect(() => {
-        if (!isInitializedRef.current) return;
+        // Chưa sẵn sàng
+        if (accountingAccounts.length === 0) return;
+        if (hasInitializedRef.current) return; // ✅ Chỉ init 1 lần
 
-        const allDefault = editableEntries.every((e) =>
-            String(e.id).startsWith("default_"),
-        );
+        console.log("[AccountingTabs] Initializing entries...", {
+            hasJournalEntries:
+                formData?.journal_entries &&
+                formData.journal_entries.length > 0,
+            hasProducts:
+                formData?.product_variants &&
+                formData.product_variants.length > 0,
+        });
 
-        if (allDefault && defaultJournalEntries.length > 0) {
-            setEditableEntries(defaultJournalEntries);
-        } else if (allDefault && type === "sale") {
-            setEditableEntries((prev) =>
-                prev.map((entry) => {
-                    const matched = defaultJournalEntries.find(
-                        (d) => d.id === entry.id,
-                    );
-                    return matched
-                        ? {
-                              ...entry,
-                              debit: matched.debit,
-                              credit: matched.credit,
-                          }
-                        : entry;
+        // ✅ Nếu có journal_entries từ server → ưu tiên dùng
+        if (formData?.journal_entries && formData.journal_entries.length > 0) {
+            const mappedEntries = formData.journal_entries.map(
+                (detail, index) => ({
+                    id: `server_${index}_${String(detail.account_code)}`,
+                    account_code: String(detail.account_code),
+                    account_name: getAccountName(detail.account_code),
+                    debit: parseFloat(detail.debit) || 0,
+                    credit: parseFloat(detail.credit) || 0,
                 }),
             );
-        }
-    }, [defaultJournalEntries]);
 
-    // Notify parent
-    useEffect(() => {
-        if (onJournalEntriesChange) {
-            onJournalEntriesChange(editableEntries);
+            console.log("[AccountingTabs] Init from server:", mappedEntries);
+            setEntries(mappedEntries);
+            initSourceRef.current = "server";
+            prevPaymentMethod.current = formData?.payment_method;
+            prevAmount.current = formData?.amount;
+            hasInitializedRef.current = true;
+            return;
         }
-    }, [editableEntries, onJournalEntriesChange]);
+
+        // ✅ Tạo default entries nếu có sản phẩm
+        const defaultEntries = createDefaultJournalEntries();
+        if (defaultEntries.length > 0) {
+            console.log(
+                "[AccountingTabs] Init default entries:",
+                defaultEntries,
+            );
+            setEntries(defaultEntries);
+            initSourceRef.current = "default";
+            prevPaymentMethod.current = formData?.payment_method;
+            prevAmount.current = formData?.amount;
+            hasInitializedRef.current = true;
+        }
+    }, [
+        accountingAccounts.length,
+        formData?.journal_entries,
+        createDefaultJournalEntries,
+        getAccountName,
+    ]); // ✅ Dependencies chỉ những gì cần thiết
+
+    // Cập nhật tài khoản tiền khi payment_method thay đổi (sau khi đã init)
+    useEffect(() => {
+        if (!initSourceRef.current) return;
+        if (entries.length === 0) return;
+        if (prevPaymentMethod.current === formData?.payment_method) return;
+
+        const isCashPayment =
+            formData?.payment_method === "cash" ||
+            formData?.payment_method === "bank";
+        const cashAccountCode = isCashPayment
+            ? formData?.payment_method === "bank"
+                ? "112"
+                : "111"
+            : type === "sale"
+              ? "131"
+              : "331";
+
+        setEntries((prev) =>
+            prev.map((entry) => {
+                if (["111", "112", "131", "331"].includes(entry.account_code)) {
+                    return {
+                        ...entry,
+                        account_code: String(cashAccountCode),
+                        account_name: getAccountName(cashAccountCode),
+                    };
+                }
+                return entry;
+            }),
+        );
+
+        prevPaymentMethod.current = formData?.payment_method;
+    }, [formData?.payment_method, getAccountName, type]);
+
+    // Cập nh��t số tiền khi amount thay đổi (chỉ với default entries)
+    useEffect(() => {
+        if (!initSourceRef.current) return;
+        if (entries.length === 0) return;
+        if (prevAmount.current === formData?.amount) return;
+        if (initSourceRef.current !== "default") return;
+
+        const { totalAmount, vatAmount, originalGrandTotal, discountAmount } =
+            calculationData;
+
+        setEntries((prev) =>
+            prev.map((entry) => {
+                if (type === "sale") {
+                    if (["111", "112", "131"].includes(entry.account_code)) {
+                        return { ...entry, debit: originalGrandTotal };
+                    } else if (entry.account_code === "511") {
+                        return { ...entry, credit: totalAmount };
+                    } else if (entry.account_code === "3331") {
+                        return { ...entry, credit: vatAmount };
+                    } else if (
+                        entry.account_code === "521" &&
+                        discountAmount > 0
+                    ) {
+                        const discountExcludingVat =
+                            discountAmount /
+                            (1 + (vatAmount / totalAmount || 0.1));
+                        return { ...entry, debit: discountExcludingVat };
+                    }
+                } else if (type === "purchase") {
+                    if (["111", "112", "331"].includes(entry.account_code)) {
+                        return { ...entry, credit: originalGrandTotal };
+                    } else if (entry.account_code === "156") {
+                        return { ...entry, debit: totalAmount };
+                    } else if (entry.account_code === "133") {
+                        return { ...entry, debit: vatAmount };
+                    }
+                }
+                return entry;
+            }),
+        );
+
+        prevAmount.current = formData?.amount;
+    }, [formData?.amount, calculationData, type]);
+
+    // Notify parent khi entries thay đổi
+    useEffect(() => {
+        if (!initSourceRef.current) return;
+        if (!onJournalEntriesChange) return;
+
+        const formatted = entries.map((entry) => ({
+            account_code: entry.account_code,
+            debit: parseFloat(entry.debit) || 0,
+            credit: parseFloat(entry.credit) || 0,
+        }));
+        onJournalEntriesChange(formatted);
+    }, [entries, onJournalEntriesChange]);
 
     const handleAccountChange = (index, accountCode) => {
-        const account = findAccount(accountCode);
-        setEditableEntries((prev) => {
+        setEntries((prev) => {
             const newEntries = [...prev];
             newEntries[index] = {
                 ...newEntries[index],
-                account_code: accountCode,
-                account_name: account?.name || accountCode,
+                account_code: String(accountCode),
+                account_name: getAccountName(accountCode),
             };
             return newEntries;
         });
@@ -307,7 +464,7 @@ export default function AccountingTabs({
 
     const handleAmountChange = (index, field, value) => {
         const numValue = parseFloat(value) || 0;
-        setEditableEntries((prev) => {
+        setEntries((prev) => {
             const newEntries = [...prev];
             newEntries[index] = { ...newEntries[index], [field]: numValue };
             return newEntries;
@@ -315,10 +472,10 @@ export default function AccountingTabs({
     };
 
     const handleAddEntry = () => {
-        setEditableEntries((prev) => [
+        setEntries((prev) => [
             ...prev,
             {
-                id: `new_${Date.now()}`,
+                id: `new_${Date.now()}_${prev.length}`,
                 account_code: "",
                 account_name: "",
                 debit: 0,
@@ -328,77 +485,19 @@ export default function AccountingTabs({
     };
 
     const handleRemoveEntry = (index) => {
-        if (editableEntries.length <= 1) return;
-        setEditableEntries((prev) => prev.filter((_, i) => i !== index));
+        if (entries.length <= 1) return;
+        setEntries((prev) => prev.filter((_, i) => i !== index));
     };
 
-    // Tính toán công nợ
-    const debtInfo = useMemo(() => {
-        const validAddingRows = (addingRows || []).filter(
-            (row) =>
-                row.product_variant_id &&
-                parseFloat(row.quantity) > 0 &&
-                parseFloat(row.price) > 0,
-        );
-
-        const allProducts = [
-            ...(formData.product_variants || []),
-            ...validAddingRows,
-        ];
-
-        if (allProducts.length === 0) {
-            return {
-                total: 0,
-                partnerName: "",
-                totalDebit: 0,
-                totalCredit: 0,
-                balance: 0,
-                totalAmount: 0,
-                vatAmount: 0,
-            };
-        }
-
-        const totalAmount = allProducts.reduce(
-            (sum, item) =>
-                sum +
-                parseFloat(item.quantity || 0) * parseFloat(item.price || 0),
-            0,
-        );
-
-        const vatAmount = allProducts.reduce(
-            (sum, item) => sum + parseFloat(item.vat_amount || 0),
-            0,
-        );
-
-        const totalDebt = totalAmount + vatAmount;
-
-        return {
-            total: totalDebt,
-            totalAmount,
-            vatAmount,
-            partnerName: type === "purchase" ? supplierName : customerName,
-            totalDebit: type === "purchase" ? 0 : totalDebt,
-            totalCredit: type === "purchase" ? totalDebt : 0,
-            balance: totalDebt,
-        };
-    }, [
-        addingRows,
-        formData.product_variants,
-        supplierName,
-        customerName,
-        type,
-    ]);
-
-    const totalDebitJournal = editableEntries.reduce(
+    const totalDebitJournal = entries.reduce(
         (sum, e) => sum + (e.debit || 0),
         0,
     );
-    const totalCreditJournal = editableEntries.reduce(
+    const totalCreditJournal = entries.reduce(
         (sum, e) => sum + (e.credit || 0),
         0,
     );
-    const isBalanced =
-        Math.abs(totalDebitJournal - totalCreditJournal) < 0.0001;
+    const isBalanced = Math.abs(totalDebitJournal - totalCreditJournal) < 0.01;
 
     return (
         <Card className="border-slate-200 shadow-lg overflow-hidden">
@@ -425,9 +524,9 @@ export default function AccountingTabs({
                                 )}
                             />
                             Hạch toán
-                            {editableEntries.length > 0 && (
+                            {entries.length > 0 && (
                                 <Badge className="bg-blue-100 text-blue-700 border-blue-200 ml-1">
-                                    {editableEntries.length}
+                                    {entries.length}
                                 </Badge>
                             )}
                         </div>
@@ -456,11 +555,6 @@ export default function AccountingTabs({
                             {type === "purchase"
                                 ? "nhà cung cấp"
                                 : "khách hàng"}
-                            {debtInfo.total > 0 && (
-                                <Badge className="bg-purple-100 text-purple-700 border-purple-200 ml-1">
-                                    {formatCurrency(debtInfo.total)}
-                                </Badge>
-                            )}
                         </div>
                     </button>
                 </nav>
@@ -484,7 +578,7 @@ export default function AccountingTabs({
                                 </p>
                             </div>
 
-                            {editableEntries.length > 0 && (
+                            {entries.length > 0 && (
                                 <div className="flex items-center gap-3">
                                     <Badge
                                         className={cn(
@@ -517,7 +611,7 @@ export default function AccountingTabs({
                             )}
                         </div>
 
-                        {editableEntries.length > 0 ? (
+                        {entries.length > 0 ? (
                             <div className="overflow-x-auto border border-slate-200 rounded-lg shadow-sm">
                                 <table className="w-full">
                                     <thead className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
@@ -549,16 +643,17 @@ export default function AccountingTabs({
                                     </thead>
 
                                     <tbody className="divide-y divide-slate-200">
-                                        {editableEntries.map((entry, index) => (
+                                        {entries.map((entry, index) => (
                                             <tr
                                                 key={entry.id}
                                                 className="hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all duration-200"
                                             >
                                                 <td className="py-2 px-4">
                                                     <SelectCombobox
-                                                        value={
-                                                            entry.account_code
-                                                        }
+                                                        value={String(
+                                                            entry.account_code ||
+                                                                "",
+                                                        )}
                                                         onChange={(value) =>
                                                             handleAccountChange(
                                                                 index,
@@ -589,6 +684,8 @@ export default function AccountingTabs({
                                                         }
                                                         placeholder="0"
                                                         className="w-full text-right border-slate-200 focus:border-green-500 focus:ring-green-500"
+                                                        step="0.01"
+                                                        min="0"
                                                     />
                                                 </td>
                                                 <td className="py-2 px-4">
@@ -606,11 +703,12 @@ export default function AccountingTabs({
                                                         }
                                                         placeholder="0"
                                                         className="w-full text-right border-slate-200 focus:border-purple-500 focus:ring-purple-500"
+                                                        step="0.01"
+                                                        min="0"
                                                     />
                                                 </td>
                                                 <td className="py-2 px-4 text-center">
-                                                    {editableEntries.length >
-                                                        1 && (
+                                                    {entries.length > 1 && (
                                                         <Button
                                                             type="button"
                                                             variant="ghost"
@@ -629,7 +727,6 @@ export default function AccountingTabs({
                                             </tr>
                                         ))}
 
-                                        {/* Tổng cộng */}
                                         <tr className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 font-semibold border-t-2 border-slate-200">
                                             <td className="py-3 px-4 text-sm font-medium text-slate-800">
                                                 Tổng cộng
@@ -656,8 +753,8 @@ export default function AccountingTabs({
                                         <BookOpen className="h-8 w-8 text-blue-600/50" />
                                     </div>
                                     <p className="text-slate-600 font-medium">
-                                        {addingRows.length > 0 ||
-                                        (formData.product_variants || [])
+                                        {addingRows?.length > 0 ||
+                                        (formData?.product_variants || [])
                                             .length > 0
                                             ? "Đang tính toán bút toán..."
                                             : "Chưa có bút toán nào"}
@@ -670,7 +767,7 @@ export default function AccountingTabs({
                             </div>
                         )}
 
-                        {!isBalanced && editableEntries.length > 0 && (
+                        {!isBalanced && entries.length > 0 && (
                             <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                                 <div className="flex items-start gap-2">
                                     <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -681,126 +778,17 @@ export default function AccountingTabs({
                                 </div>
                             </div>
                         )}
-
-                        {/* Ghi chú kế toán bán hàng */}
-                        {type === "sale" && editableEntries.length > 0 && (
-                            <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                <p className="text-xs text-blue-700">
-                                    💡 <strong>Lưu ý:</strong> Bút toán bán hàng
-                                    gồm 2 phần độc lập — (1) Ghi nhận doanh thu:{" "}
-                                    <strong>Nợ 131 = Có 5111 + Có 3331</strong>{" "}
-                                    | (2) Xuất kho giá vốn:{" "}
-                                    <strong>Nợ 632 = Có 156</strong> (theo giá
-                                    nhập kho). Vì vậy tổng Nợ ≠ tổng Có là bình
-                                    thường nếu giá vốn ≠ doanh thu.
-                                </p>
-                            </div>
-                        )}
                     </div>
                 )}
 
                 {/* Debt Tab */}
                 {activeTab === "debt" && (
-                    <div>
-                        <h4 className="text-sm font-semibold text-slate-800 flex items-center gap-2 mb-4">
-                            <Users className="h-4 w-4 text-purple-600" />
-                            Thông tin công nợ
-                        </h4>
-
-                        {debtInfo.total > 0 ? (
-                            <div className="space-y-4">
-                                <div className="bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg p-4">
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div>
-                                            <p className="text-xs text-slate-500 mb-1 flex items-center gap-1">
-                                                <Users className="h-3 w-3" />
-                                                {type === "purchase"
-                                                    ? "Nhà cung cấp"
-                                                    : "Khách hàng"}
-                                            </p>
-                                            <p className="font-medium text-slate-800">
-                                                {debtInfo.partnerName ||
-                                                    "Chưa chọn"}
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <p className="text-xs text-slate-500 mb-1 flex items-center gap-1">
-                                                <DollarSign className="h-3 w-3" />
-                                                Công nợ phát sinh
-                                            </p>
-                                            <p className="font-bold text-blue-600 text-lg">
-                                                {formatCurrency(debtInfo.total)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                                    <div className="bg-gradient-to-r from-purple-600/5 to-blue-600/5 px-4 py-2 border-b border-slate-200">
-                                        <h5 className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                                            <Percent className="h-4 w-4 text-purple-600" />
-                                            Chi tiết công nợ
-                                        </h5>
-                                    </div>
-                                    <div className="p-4 space-y-3">
-                                        <div className="flex items-center justify-between py-2">
-                                            <span className="text-sm text-slate-600">
-                                                Tiền hàng
-                                            </span>
-                                            <span className="text-sm font-medium text-slate-800">
-                                                {formatCurrency(
-                                                    debtInfo.totalAmount || 0,
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center justify-between py-2">
-                                            <span className="text-sm text-slate-600">
-                                                Tiền thuế (VAT)
-                                            </span>
-                                            <span className="text-sm font-medium text-orange-600">
-                                                {formatCurrency(
-                                                    debtInfo.vatAmount || 0,
-                                                )}
-                                            </span>
-                                        </div>
-                                        <div className="border-t border-slate-200 pt-3">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-semibold text-slate-800">
-                                                    Tổng{" "}
-                                                    {type === "purchase"
-                                                        ? "phải trả"
-                                                        : "phải thu"}
-                                                </span>
-                                                <span className="font-bold text-lg text-blue-600">
-                                                    {formatCurrency(
-                                                        debtInfo.total,
-                                                    )}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="text-center py-12 text-slate-500">
-                                <div className="flex flex-col items-center justify-center">
-                                    <div className="h-16 w-16 rounded-full bg-gradient-to-r from-purple-100 to-blue-100 flex items-center justify-center mb-4">
-                                        <Users className="h-8 w-8 text-purple-600/50" />
-                                    </div>
-                                    <p className="text-slate-600 font-medium">
-                                        {addingRows.length > 0 ||
-                                        (formData.product_variants || [])
-                                            .length > 0
-                                            ? "Đang tính toán công nợ..."
-                                            : "Chưa có công nợ nào"}
-                                    </p>
-                                    <p className="text-sm text-slate-400 mt-1">
-                                        Vui lòng thêm sản phẩm vào phiếu để tính
-                                        công nợ
-                                    </p>
-                                </div>
-                            </div>
-                        )}
+                    <div className="py-8 text-center text-slate-500">
+                        <Users className="h-12 w-12 mx-auto mb-3 text-slate-300" />
+                        <p className="font-medium">Thông tin công nợ</p>
+                        <p className="text-sm text-slate-400 mt-1">
+                            Đang phát triển...
+                        </p>
                     </div>
                 )}
             </div>

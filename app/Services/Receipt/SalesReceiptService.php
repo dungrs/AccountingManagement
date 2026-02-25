@@ -97,12 +97,19 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
             // Lấy items từ request
             $items = $request->input('product_variants', []);
 
-            // Tính toán từ product_variants
+            // Tính toán từ product_variants (bao gồm chiết khấu)
             $calculation = $this->calculateTotals($items);
 
             $payload['total_amount'] = $calculation['total_amount'];
             $payload['vat_amount']   = $calculation['vat_amount'];
             $payload['grand_total']  = $calculation['grand_total'];
+
+            // THÊM: Gán các giá trị chiết khấu từ calculation
+            $payload['discount_type'] = $request->input('discount_type');
+            $payload['discount_value'] = $request->input('discount_value', 0);
+            $payload['discount_amount'] = $calculation['total_discount'] ?? 0;
+            $payload['discount_total'] = $calculation['total_discount'] ?? 0;
+            $payload['discount_note'] = $request->input('discount_note');
 
             // Tạo mã nếu không có code từ request
             if (empty($payload['code'])) {
@@ -190,6 +197,13 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 $payload['total_amount'] = $calculation['total_amount'];
                 $payload['vat_amount']   = $calculation['vat_amount'];
                 $payload['grand_total']  = $calculation['grand_total'];
+
+                // THÊM: Cập nhật các giá trị chiết khấu
+                $payload['discount_type'] = $request->input('discount_type');
+                $payload['discount_value'] = $request->input('discount_value', 0);
+                $payload['discount_amount'] = $calculation['total_discount'] ?? 0;
+                $payload['discount_total'] = $calculation['total_discount'] ?? 0;
+                $payload['discount_note'] = $request->input('discount_note');
 
                 // Không cho phép sửa code khi update
                 unset($payload['code']);
@@ -379,7 +393,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 'discount_percent'    => $item['discount_percent'] ?? 0,
                 'output_tax_id'       => $item['vat_id'] ?? null,
                 'vat_amount'          => $item['vat_amount'] ?? 0,
-                'subtotal'            => $item['subtotal'] ?? ($item['quantity'] * $item['price']),
+                'subtotal'            => $item['subtotal'] ?? ($item['quantity'] * $item['price'] - ($item['discount_amount'] ?? 0)),
                 'created_at'          => now(),
                 'updated_at'          => now(),
             ];
@@ -474,6 +488,8 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                     'sku'                => $item->productVariant?->sku,
                     'quantity'           => $item->quantity,
                     'price'              => $item->price,
+                    'discount_amount'    => $discountAmount,
+                    'discount_percent'   => $item->discount_percent ?? 0,
                     'vat_amount'         => $item->vat_amount,
                     'subtotal'           => $item->subtotal,
                     'amount'             => $amount,
@@ -508,7 +524,6 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                     'details'     => $journal->details->map(function ($detail) {
                         return [
                             'account_code' => $detail->account?->account_code,
-                            'account_name' => $detail->account?->name,
                             'debit'        => (float)$detail->debit,
                             'credit'       => (float)$detail->credit,
                         ];
@@ -535,7 +550,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
         $salesReceipt->debt = [
             'total_debit'  => $totalDebit,
             'total_credit' => $totalCredit,
-            'balance'      => $totalCredit - $totalDebit, // Công nợ phải thu = credit - debit
+            'balance'      => $totalDebit - $totalCredit, // Công nợ phải thu = debit - credit
             'details'      => $salesReceipt->customerDebts->isNotEmpty()
                 ? $salesReceipt->customerDebts->map(function ($debt) {
                     return [
@@ -550,11 +565,22 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 : []
         ];
 
+        // THÊM: Thông tin chiết khấu
+        $salesReceipt->discount_info = [
+            'discount_type' => $salesReceipt->discount_type,
+            'discount_value' => $salesReceipt->discount_value,
+            'discount_amount' => $salesReceipt->discount_amount,
+            'discount_total' => $salesReceipt->discount_total,
+            'discount_note' => $salesReceipt->discount_note,
+            'discount_text' => $this->getDiscountText($salesReceipt),
+        ];
+
         // Thêm thông tin tổng hợp
         $salesReceipt->summary = [
             'total_quantity' => $salesReceipt->items->sum('quantity'),
             'total_items'    => $salesReceipt->items->count(),
             'total_discount' => $salesReceipt->items->sum('discount_amount'),
+            'total_discount_receipt' => $salesReceipt->discount_amount ?? 0,
             'created_by_name' => $salesReceipt->created_by ? optional($salesReceipt->user)->name : null,
         ];
 
@@ -569,10 +595,14 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
         return $salesReceipt;
     }
 
+    /**
+     * THÊM: Tính tổng chiết khấu từ items
+     */
     private function calculateTotals($items)
     {
         $totalAmount = 0;
         $totalVat = 0;
+        $totalDiscount = 0;
         $formattedItems = [];
 
         foreach ($items as $item) {
@@ -581,6 +611,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
             // Tính chiết khấu nếu có
             $discountAmount = $item['discount_amount'] ?? 0;
             $afterDiscount = $subtotal - $discountAmount;
+            $totalDiscount += $discountAmount;
 
             // Tính VAT nếu có
             $vatAmount = $item['vat_amount'] ?? 0;
@@ -608,11 +639,28 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
         }
 
         return [
-            'items'        => $formattedItems,
-            'total_amount' => $totalAmount,
-            'vat_amount'   => $totalVat,
-            'grand_total'  => $totalAmount + $totalVat,
+            'items'           => $formattedItems,
+            'total_amount'    => $totalAmount,
+            'vat_amount'      => $totalVat,
+            'grand_total'     => $totalAmount + $totalVat,
+            'total_discount'  => $totalDiscount,
         ];
+    }
+
+    /**
+     * THÊM: Lấy text hiển thị chiết khấu
+     */
+    private function getDiscountText($receipt)
+    {
+        if (!$receipt->discount_type) {
+            return 'Không chiết khấu';
+        }
+
+        if ($receipt->discount_type === 'percentage') {
+            return "Chiết khấu {$receipt->discount_value}%";
+        } else {
+            return "Chiết khấu " . number_format($receipt->discount_value) . "đ";
+        }
     }
 
     /**
@@ -659,6 +707,11 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
             'total_amount',
             'vat_amount',
             'grand_total',
+            'discount_type',
+            'discount_value',
+            'discount_amount',
+            'discount_total',
+            'discount_note',
             'status',
             'note',
             'price_list_id',

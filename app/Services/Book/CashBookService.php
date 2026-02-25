@@ -24,15 +24,15 @@ class CashBookService extends BaseService implements CashBookServiceInterface
     }
 
     /**
-     * Lấy dữ liệu sổ quỹ theo tháng
+     * Lấy dữ liệu sổ quỹ theo khoảng thời gian
      */
     public function getCashBook(Request $request): array
     {
         $periodData = $this->preparePeriodData($request);
         $paymentMethod = $request->input('payment_method', 'cash'); // cash hoặc bank
 
-        // Lấy tất cả giao dịch trong tháng
-        $transactions = $this->getMonthlyTransactions(
+        // Lấy tất cả giao dịch trong khoảng thời gian
+        $transactions = $this->getPeriodTransactions(
             $periodData['start_date'],
             $periodData['end_date'],
             $paymentMethod
@@ -55,8 +55,8 @@ class CashBookService extends BaseService implements CashBookServiceInterface
             'payment_method_name' => $this->getPaymentMethodName($paymentMethod),
             'account_code' => $paymentMethod === 'cash' ? '111' : '112',
             'account_name' => $paymentMethod === 'cash' ? 'Tiền mặt' : 'Tiền gửi ngân hàng',
-            'year' => $periodData['year'],
-            'month' => $periodData['month'],
+            'start_date' => $periodData['start_date']->format('d/m/Y'),
+            'end_date' => $periodData['end_date']->format('d/m/Y'),
             'opening_balance' => $openingBalance,
             'closing_balance' => $openingBalance + $summary['total_receipt'] - $summary['total_payment'],
             'data' => $formattedData,
@@ -66,9 +66,9 @@ class CashBookService extends BaseService implements CashBookServiceInterface
     }
 
     /**
-     * Lấy tất cả giao dịch trong tháng
+     * Lấy tất cả giao dịch trong khoảng thời gian
      */
-    protected function getMonthlyTransactions(Carbon $startDate, Carbon $endDate, string $paymentMethod): Collection
+    protected function getPeriodTransactions(Carbon $startDate, Carbon $endDate, string $paymentMethod): Collection
     {
         $condition = [
             ['voucher_date', '>=', $startDate],
@@ -162,7 +162,7 @@ class CashBookService extends BaseService implements CashBookServiceInterface
             'is_opening' => true,
             'voucher_date' => null,
             'code' => null,
-            'description' => 'Số dư đầu tháng',
+            'description' => 'Số dư đầu kỳ',
             'receipt_amount' => null,
             'payment_amount' => null,
             'balance' => $openingBalance,
@@ -254,28 +254,34 @@ class CashBookService extends BaseService implements CashBookServiceInterface
     }
 
     /**
-     * Chuẩn bị dữ liệu kỳ báo cáo
+     * Chuẩn bị dữ liệu kỳ báo cáo theo khoảng thời gian
      */
     protected function preparePeriodData(Request $request): array
     {
-        $month = (int)($request->input('month') ?? now()->month);
-        $year = (int)($request->input('year') ?? now()->year);
+        // Lấy start_date và end_date từ request
+        $startDateStr = $request->input('start_date');
+        $endDateStr = $request->input('end_date');
 
-        $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
-        $endDate = $startDate->copy()->endOfMonth();
+        // Nếu không có start_date và end_date, mặc định lấy tháng hiện tại
+        if (!$startDateStr || !$endDateStr) {
+            $startDate = Carbon::now()->startOfMonth()->startOfDay();
+            $endDate = Carbon::now()->endOfMonth()->endOfDay();
+        } else {
+            $startDate = Carbon::createFromFormat('Y-m-d', $startDateStr)->startOfDay();
+            $endDate = Carbon::createFromFormat('Y-m-d', $endDateStr)->endOfDay();
+        }
+
         $previousPeriodEnd = $startDate->copy()->subDay()->endOfDay();
 
         return [
-            'month' => $month,
-            'year' => $year,
             'start_date' => $startDate,
             'end_date' => $endDate,
             'previous_period_end' => $previousPeriodEnd,
             'period' => [
-                'month' => $month,
-                'year' => $year,
                 'start_date' => $startDate->format('d/m/Y'),
-                'end_date' => $endDate->format('d/m/Y')
+                'end_date' => $endDate->format('d/m/Y'),
+                'start_date_raw' => $startDate->format('Y-m-d'),
+                'end_date_raw' => $endDate->format('Y-m-d')
             ]
         ];
     }

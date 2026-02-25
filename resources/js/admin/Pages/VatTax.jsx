@@ -253,116 +253,163 @@ export default function Home() {
         >
             <Head title="Quản Lý Thuế VAT" />
 
+            <Head title="Quản Lý Thuế VAT" />
+
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng thuế
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Receipt className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Thuế suất TB
-                            </p>
-                            <p className="text-2xl font-bold text-purple-600">
-                                {averageRate}%
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <Percent className="h-6 w-6 text-purple-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đang hoạt động
-                            </p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {activeCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Ngừng hoạt động
-                            </p>
-                            <p className="text-2xl font-bold text-red-600">
-                                {inactiveCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                            <XCircle className="h-6 w-6 text-red-600" />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {[
+                    {
+                        title: "Tổng thuế",
+                        value: paginationData.total,
+                        icon: Receipt,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                        badge: "Tất cả thuế",
+                    },
+                    {
+                        title: "Thuế suất TB",
+                        value: `${averageRate}%`,
+                        icon: Percent,
+                        color: "purple",
+                        bgColor: "bg-purple-100",
+                        textColor: "text-purple-600",
+                        badge: `TB ${averageRate}%`,
+                    },
+                    {
+                        title: "Đang hoạt động",
+                        value: activeCount,
+                        icon: CheckCircle2,
+                        color: "green",
+                        bgColor: "bg-green-100",
+                        textColor: "text-green-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (
+                                      (activeCount / paginationData.total) *
+                                      100
+                                  ).toFixed(1)
+                                : 0,
+                    },
+                    {
+                        title: "Ngừng hoạt động",
+                        value: inactiveCount,
+                        icon: XCircle,
+                        color: "red",
+                        bgColor: "bg-red-100",
+                        textColor: "text-red-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (
+                                      (inactiveCount / paginationData.total) *
+                                      100
+                                  ).toFixed(1)
+                                : 0,
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-slate-500">
+                                        {stat.title}
+                                    </p>
+                                    <p
+                                        className={`text-base font-bold ${stat.textColor}`}
+                                    >
+                                        {stat.value}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        {stat.badge ? (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.badge}
+                                            </Badge>
+                                        ) : (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.percent}%
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                                <div
+                                    className={`h-8 w-8 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                >
+                                    <stat.icon
+                                        className={`h-4 w-4 ${stat.textColor}`}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             {/* Direction Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <ArrowDownRight className="h-5 w-5 text-blue-600" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                {[
+                    {
+                        title: "Đầu vào",
+                        value: `${inputCount} thuế`,
+                        subText: "Mua hàng",
+                        icon: ArrowDownRight,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                        badgeColor: "bg-blue-100 text-blue-700 border-blue-200",
+                    },
+                    {
+                        title: "Đầu ra",
+                        value: `${outputCount} thuế`,
+                        subText: "Bán hàng",
+                        icon: ArrowUpRight,
+                        color: "purple",
+                        bgColor: "bg-purple-100",
+                        textColor: "text-purple-600",
+                        badgeColor:
+                            "bg-purple-100 text-purple-700 border-purple-200",
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                    <div
+                                        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full ${stat.bgColor} flex items-center justify-center flex-shrink-0`}
+                                    >
+                                        <stat.icon
+                                            className={`h-4 w-4 sm:h-5 sm:w-5 ${stat.textColor}`}
+                                        />
+                                    </div>
+                                    <div>
+                                        <p className="text-xs sm:text-sm text-slate-500">
+                                            {stat.title}
+                                        </p>
+                                        <p
+                                            className={`text-base sm:text-lg font-bold ${stat.textColor}`}
+                                        >
+                                            {stat.value}
+                                        </p>
+                                    </div>
+                                </div>
+                                <Badge
+                                    className={`${stat.badgeColor} text-[10px] sm:text-xs h-5 sm:h-6`}
+                                >
+                                    {stat.subText}
+                                </Badge>
                             </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">
-                                    Đầu vào
-                                </p>
-                                <p className="text-xl font-bold text-blue-600">
-                                    {inputCount} thuế
-                                </p>
-                            </div>
-                        </div>
-                        <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                            Mua hàng
-                        </Badge>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                <ArrowUpRight className="h-5 w-5 text-purple-600" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-muted-foreground">
-                                    Đầu ra
-                                </p>
-                                <p className="text-xl font-bold text-purple-600">
-                                    {outputCount} thuế
-                                </p>
-                            </div>
-                        </div>
-                        <Badge className="bg-purple-100 text-purple-700 border-purple-200">
-                            Bán hàng
-                        </Badge>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">

@@ -88,6 +88,7 @@ class ReceiptVoucherController extends Controller
         // Lấy thông tin công ty lập phiếu
         $systems = $this->systemService->getSystemDetails();
 
+        // dd($receiptVoucher);
         $system_languages = $systems
             ->where('language_id', 1)
             ->pluck('content', 'keyword')

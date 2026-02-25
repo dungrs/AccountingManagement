@@ -31,10 +31,15 @@ class GeneralLedgerController extends Controller
         // Lấy danh sách tài khoản
         $accounts = $this->generalLedgerService->getAccounts(request());
 
+        // Mặc định lấy tháng hiện tại
+        $now = now();
+        $startDate = $now->copy()->startOfMonth()->format('Y-m-d');
+        $endDate = $now->copy()->endOfMonth()->format('Y-m-d');
+
         return Inertia::render('GeneralLedger/Home', [
             'initialFilters' => [
-                'month' => now()->month,
-                'year' => now()->year,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'account_code' => '111'
             ],
             'accounts' => $accounts

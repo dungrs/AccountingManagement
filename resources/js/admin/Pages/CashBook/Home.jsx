@@ -46,15 +46,19 @@ import useFlashToast from "@/admin/hooks/useFlashToast";
 import { formatCurrency } from "@/admin/utils/helpers";
 import { useReactToPrint } from "react-to-print";
 import CashBookPrint from "@/admin/components/shared/print/CashBookPrint";
+import { RangeDatePicker } from "@/admin/components/ui/date-picker";
 
-export default function CashBookIndex() {
+export default function CashBookIndex({ initialFilters }) {
     useFlashToast();
 
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [month, setMonth] = useState(new Date().getMonth() + 1);
-    const [year, setYear] = useState(new Date().getFullYear());
-    const [paymentMethod, setPaymentMethod] = useState("cash"); // cash hoặc bank
+    const [startDate, setStartDate] = useState("2025-01-01");
+    const [endDate, setEndDate] = useState("2026-01-31");
+
+    const [paymentMethod, setPaymentMethod] = useState(
+        initialFilters?.payment_method || "cash",
+    );
     const [summary, setSummary] = useState({
         total_receipt: 0,
         total_payment: 0,
@@ -64,8 +68,6 @@ export default function CashBookIndex() {
     const [openingBalance, setOpeningBalance] = useState(0);
     const [closingBalance, setClosingBalance] = useState(0);
     const [period, setPeriod] = useState({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
         start_date: "",
         end_date: "",
     });
@@ -87,12 +89,57 @@ export default function CashBookIndex() {
         { value: "bank", label: "Chuyển khoản", icon: Landmark },
     ];
 
+    // Các tùy chọn khoảng thời gian nhanh
+    const quickRanges = [
+        { label: "Hôm nay", days: 0 },
+        { label: "7 ngày qua", days: 7 },
+        { label: "30 ngày qua", days: 30 },
+        { label: "Tháng này", type: "month" },
+        { label: "Tháng trước", type: "prevMonth" },
+        { label: "Quý này", type: "quarter" },
+        { label: "Năm nay", type: "year" },
+    ];
+
+    // Xử lý chọn khoảng thời gian nhanh
+    const handleQuickRange = (range) => {
+        const today = new Date();
+        let start = new Date();
+        let end = new Date();
+
+        if (range.type === "month") {
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        } else if (range.type === "prevMonth") {
+            start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            end = new Date(today.getFullYear(), today.getMonth(), 0);
+        } else if (range.type === "quarter") {
+            const quarter = Math.floor(today.getMonth() / 3);
+            start = new Date(today.getFullYear(), quarter * 3, 1);
+            end = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
+        } else if (range.type === "year") {
+            start = new Date(today.getFullYear(), 0, 1);
+            end = new Date(today.getFullYear(), 11, 31);
+        } else if (range.days === 0) {
+            // Hôm nay
+            start = today;
+            end = today;
+        } else {
+            // days ago
+            start = new Date(today);
+            start.setDate(today.getDate() - range.days);
+            end = today;
+        }
+
+        setStartDate(start.toISOString().split("T")[0]);
+        setEndDate(end.toISOString().split("T")[0]);
+    };
+
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const params = {
-                month,
-                year,
+                start_date: startDate,
+                end_date: endDate,
                 payment_method: paymentMethod,
             };
 
@@ -154,7 +201,7 @@ export default function CashBookIndex() {
         } finally {
             setLoading(false);
         }
-    }, [month, year, paymentMethod]);
+    }, [startDate, endDate, paymentMethod]);
 
     useEffect(() => {
         fetchData();
@@ -165,15 +212,10 @@ export default function CashBookIndex() {
         toast.success("Đã làm mới dữ liệu");
     };
 
-    const handleExport = () => {
-        toast.success("Đang xuất báo cáo...");
-        // Implement export functionality
-    };
-
     // Xử lý in trực tiếp
     const handlePrint = useReactToPrint({
         contentRef: printRef,
-        documentTitle: `So-quy-${accountInfo.payment_method}-thang-${month}-${year}`,
+        documentTitle: `So-quy-${accountInfo.payment_method}-${startDate}-${endDate}`,
         pageStyle: `
             @page {
                 size: A4 landscape;
@@ -206,13 +248,6 @@ export default function CashBookIndex() {
         },
     });
 
-    // Tạo danh sách tháng và năm
-    const months = Array.from({ length: 12 }, (_, i) => i + 1);
-    const years = Array.from(
-        { length: 5 },
-        (_, i) => new Date().getFullYear() - 2 + i,
-    );
-
     return (
         <AdminLayout
             breadcrumb={[
@@ -236,8 +271,8 @@ export default function CashBookIndex() {
                         payment_method_name: accountInfo.payment_method_name,
                         account_code: accountInfo.account_code,
                         account_name: accountInfo.account_name,
-                        month: period.month,
-                        year: period.year,
+                        start_date: period.start_date,
+                        end_date: period.end_date,
                         period: period,
                         opening_balance: openingBalance,
                         closing_balance: closingBalance,
@@ -261,8 +296,7 @@ export default function CashBookIndex() {
                                 KHOẢN {accountInfo.account_code}
                             </h2>
                             <p className="text-white/80 text-sm mt-1">
-                                Tháng {period.month} - Năm {period.year} | Từ
-                                ngày {period.start_date} đến ngày{" "}
+                                Từ ngày {period.start_date} đến ngày{" "}
                                 {period.end_date}
                             </p>
                         </div>
@@ -275,82 +309,77 @@ export default function CashBookIndex() {
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                Số dư đầu kỳ
-                            </p>
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                <DollarSign className="h-4 w-4 text-blue-600" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {[
+                    {
+                        title: "Số dư đầu kỳ",
+                        value: openingBalance,
+                        date: period.start_date,
+                        icon: DollarSign,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                        subText: `Tại ngày ${period.start_date}`,
+                    },
+                    {
+                        title: "Tổng thu",
+                        value: summary.total_receipt,
+                        count: summary.receipt_count,
+                        icon: TrendingUp,
+                        color: "green",
+                        bgColor: "bg-green-100",
+                        textColor: "text-green-600",
+                        subText: `${summary.receipt_count} giao dịch`,
+                    },
+                    {
+                        title: "Tổng chi",
+                        value: summary.total_payment,
+                        count: summary.payment_count,
+                        icon: TrendingDown,
+                        color: "red",
+                        bgColor: "bg-red-100",
+                        textColor: "text-red-600",
+                        subText: `${summary.payment_count} giao dịch`,
+                    },
+                    {
+                        title: "Số dư cuối kỳ",
+                        value: closingBalance,
+                        date: period.end_date,
+                        icon: DollarSign,
+                        color: "purple",
+                        bgColor: "bg-purple-100",
+                        textColor: "text-purple-600",
+                        subText: `Tại ngày ${period.end_date}`,
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-start justify-between mb-1">
+                                <p className="text-xs text-slate-500">
+                                    {stat.title}
+                                </p>
+                                <div
+                                    className={`h-6 w-6 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                >
+                                    <stat.icon
+                                        className={`h-3 w-3 ${stat.textColor}`}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <p className="text-2xl font-bold text-blue-600">
-                            {formatCurrency(openingBalance)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Đến ngày {period.start_date}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                Tổng thu
+                            <p
+                                className={`text-base font-bold ${stat.textColor}`}
+                            >
+                                {formatCurrency(stat.value)}
                             </p>
-                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold text-green-600">
-                            {formatCurrency(summary.total_receipt)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            {summary.receipt_count} giao dịch
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                Tổng chi
+                            <p className="text-[10px] text-slate-400 mt-1">
+                                {stat.subText}
                             </p>
-                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                                <TrendingDown className="h-4 w-4 text-red-600" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold text-red-600">
-                            {formatCurrency(summary.total_payment)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            {summary.payment_count} giao dịch
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                Số dư cuối kỳ
-                            </p>
-                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                                <DollarSign className="h-4 w-4 text-purple-600" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold text-purple-600">
-                            {formatCurrency(closingBalance)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Đến ngày {period.end_date}
-                        </p>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             {/* Cash Flow Trend */}
@@ -363,7 +392,7 @@ export default function CashBookIndex() {
                         <p className="text-sm font-medium text-slate-700 mb-1">
                             Biến động dòng tiền
                         </p>
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-slate-500">
                                     Đầu kỳ:
@@ -455,15 +484,6 @@ export default function CashBookIndex() {
                             </Button>
 
                             <Button
-                                onClick={handleExport}
-                                variant="secondary"
-                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Xuất Excel
-                            </Button>
-
-                            <Button
                                 onClick={handlePrint}
                                 variant="secondary"
                                 className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
@@ -481,50 +501,58 @@ export default function CashBookIndex() {
                 </div>
 
                 <CardContent className="p-6 space-y-4">
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                        <Filter className="h-4 w-4 text-slate-400" />
+                    {/* Filter Section */}
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="flex-1">
+                                    <label className="text-sm font-medium text-slate-700 mb-1 block">
+                                        Khoảng thời gian
+                                    </label>
+                                    <RangeDatePicker
+                                        startDate={startDate}
+                                        endDate={endDate}
+                                        onStartDateChange={setStartDate}
+                                        onEndDateChange={setEndDate}
+                                        placeholder="Chọn khoảng thời gian"
+                                        clearable={true}
+                                        minDate="2020-01-01" // Giới hạn tối thiểu
+                                        maxDate="2030-12-31" // Giới hạn tối đa
+                                    />
+                                </div>
+                            </div>
 
-                        {/* Month Filter */}
-                        <Select
-                            value={month.toString()}
-                            onValueChange={(value) => setMonth(parseInt(value))}
-                        >
-                            <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-blue-500">
-                                <SelectValue placeholder="Tháng" />
-                            </SelectTrigger>
-                            <SelectContent className="dropdown-premium-content">
-                                {months.map((m) => (
-                                    <SelectItem
-                                        key={m}
-                                        value={m.toString()}
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        Tháng {m}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            <Button
+                                onClick={fetchData}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 min-w-[120px]"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Filter className="w-4 h-4 mr-2" />
+                                )}
+                                {loading ? "Đang lọc..." : "Lọc dữ liệu"}
+                            </Button>
+                        </div>
 
-                        {/* Year Filter */}
-                        <Select
-                            value={year.toString()}
-                            onValueChange={(value) => setYear(parseInt(value))}
-                        >
-                            <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-purple-500">
-                                <SelectValue placeholder="Năm" />
-                            </SelectTrigger>
-                            <SelectContent className="dropdown-premium-content">
-                                {years.map((y) => (
-                                    <SelectItem
-                                        key={y}
-                                        value={y.toString()}
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        Năm {y}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {/* Quick Range Buttons */}
+                        <div className="flex flex-wrap gap-2 mt-4">
+                            <span className="text-sm text-slate-500 py-1">
+                                Nhanh:
+                            </span>
+                            {quickRanges.map((range, index) => (
+                                <Button
+                                    key={index}
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleQuickRange(range)}
+                                    className="text-xs hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                                >
+                                    {range.label}
+                                </Button>
+                            ))}
+                        </div>
                     </div>
 
                     <CashBookTable

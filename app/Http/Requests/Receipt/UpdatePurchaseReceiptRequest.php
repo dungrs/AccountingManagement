@@ -33,7 +33,7 @@ class UpdatePurchaseReceiptRequest extends FormRequest
             'user_id'       => ['required', 'exists:users,id'],
             'supplier_id'   => ['required', 'exists:suppliers,id'],
             'receipt_date'  => ['required', 'date'],
-            'status'        => ['required', 'in:draft,confirmed,cancel'],
+            'status'        => ['required', 'in:draft,confirmed,cancelled'],
             'note'          => ['nullable', 'string', 'max:1000'],
             'code'          => ['nullable', 'string', 'max:50'],
         ];

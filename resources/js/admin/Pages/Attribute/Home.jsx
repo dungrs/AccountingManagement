@@ -48,6 +48,7 @@ import { useEventBus } from "@/EventBus";
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
 import useFlashToast from "@/admin/hooks/useFlashToast";
 import { cn } from "@/admin/lib/utils";
+import { Badge } from "@/admin/components/ui/badge";
 
 export default function Home() {
     useFlashToast();
@@ -237,70 +238,97 @@ export default function Home() {
             <Head title="Quản Lý Thuộc Tính" />
 
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng thuộc tính
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Tag className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đang hoạt động
-                            </p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {activeCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Ngừng hoạt động
-                            </p>
-                            <p className="text-2xl font-bold text-red-600">
-                                {inactiveCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                            <XCircle className="h-6 w-6 text-red-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-amber-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Có ảnh
-                            </p>
-                            <p className="text-2xl font-bold text-amber-600">
-                                {withImageCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-amber-100 flex items-center justify-center">
-                            <ImageIcon className="h-6 w-6 text-amber-600" />
-                        </div>
-                    </CardContent>
-                </Card>
+            {/* Header Stats - Dùng mảng */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {[
+                    {
+                        title: "Tổng thuộc tính",
+                        value: paginationData.total,
+                        icon: Tag,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                        badge: "Tất cả",
+                    },
+                    {
+                        title: "Đang hoạt động",
+                        value: activeCount,
+                        icon: CheckCircle2,
+                        color: "green",
+                        bgColor: "bg-green-100",
+                        textColor: "text-green-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (activeCount / paginationData.total) * 100
+                                : 0,
+                    },
+                    {
+                        title: "Ngừng hoạt động",
+                        value: inactiveCount,
+                        icon: XCircle,
+                        color: "red",
+                        bgColor: "bg-red-100",
+                        textColor: "text-red-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (inactiveCount / paginationData.total) * 100
+                                : 0,
+                    },
+                    {
+                        title: "Có ảnh",
+                        value: withImageCount,
+                        icon: ImageIcon,
+                        color: "amber",
+                        bgColor: "bg-amber-100",
+                        textColor: "text-amber-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (withImageCount / paginationData.total) * 100
+                                : 0,
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-slate-500">
+                                        {stat.title}
+                                    </p>
+                                    <p
+                                        className={`text-base font-bold ${stat.textColor}`}
+                                    >
+                                        {stat.value}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        {stat.badge ? (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.badge}
+                                            </Badge>
+                                        ) : (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.percent.toFixed(1)}%
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                                <div
+                                    className={`h-8 w-8 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                >
+                                    <stat.icon
+                                        className={`h-4 w-4 ${stat.textColor}`}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">

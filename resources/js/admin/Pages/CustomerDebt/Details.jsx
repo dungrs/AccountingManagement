@@ -48,18 +48,13 @@ import {
     Loader2,
     Eye,
     BookOpen,
-    ArrowLeft,
-    ArrowRight,
     User,
     Users,
 } from "lucide-react";
 import CustomerDebtPrint from "@/admin/components/shared/print/CustomerDebtPrint";
-import { createPortal } from "react-dom";
 import { cn } from "@/admin/lib/utils";
 
-// Hàm dùng chung để render element ẩn và xuất PDF
 const generatePDF = async (element, fileName) => {
-    // Lưu style gốc
     const originalStyles = {
         position: element.style.position,
         left: element.style.left,
@@ -69,7 +64,6 @@ const generatePDF = async (element, fileName) => {
         width: element.style.width,
     };
 
-    // Tạm thời đưa element ra màn hình để html2canvas capture được
     element.style.position = "fixed";
     element.style.left = "0";
     element.style.top = "0";
@@ -78,10 +72,8 @@ const generatePDF = async (element, fileName) => {
     element.style.width = "297mm";
     element.style.backgroundColor = "white";
 
-    // Đợi render
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    // Tạo canvas với chất lượng cao
     const canvas = await html2canvas(element, {
         scale: 3,
         useCORS: true,
@@ -90,7 +82,6 @@ const generatePDF = async (element, fileName) => {
         backgroundColor: "#ffffff",
         windowWidth: 1200,
         onclone: (_clonedDoc, clonedElement) => {
-            // Đảm bảo tất cả th/td đều có màu chữ đen rõ ràng
             const allTh = clonedElement.getElementsByTagName("th");
             for (let th of allTh) {
                 th.style.color = "#000000";
@@ -113,14 +104,13 @@ const generatePDF = async (element, fileName) => {
         },
     });
 
-    // Khôi phục style gốc
     Object.assign(element.style, originalStyles);
 
     if (!canvas || canvas.width === 0 || canvas.height === 0) {
         throw new Error("Canvas không hợp lệ");
     }
 
-    const pdfWidth = 297; // mm landscape
+    const pdfWidth = 297;
     const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
     const pdf = new jsPDF({
@@ -146,14 +136,6 @@ export default function CustomerDebtPreview() {
     const [isExporting, setIsExporting] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
 
-    // Lọc bỏ các tài khoản 131 và chỉ lấy các tài khoản đối ứng
-    const filteredTransactions = useMemo(() => {
-        return result.transactions.filter(
-            (item) => !item.is_receivable_account,
-        );
-    }, [result.transactions]);
-
-    // Lấy thông tin công ty từ systems
     const companyInfo = useMemo(
         () => ({
             name: systems?.homepage_company || "CÔNG TY TNHH ABC",
@@ -166,7 +148,6 @@ export default function CustomerDebtPreview() {
         [systems],
     );
 
-    // Format số tiền
     const formatMoney = (amount) => {
         if (amount === null || amount === undefined) return "";
         return new Intl.NumberFormat("vi-VN", {
@@ -175,48 +156,87 @@ export default function CustomerDebtPreview() {
         }).format(amount);
     };
 
-    // Tính số dư cuối kỳ: Dư cuối = Dư đầu + Phát sinh Nợ - Phát sinh Có
-    const closingBalance = useMemo(() => {
-        return (
-            result.opening_balance +
-            result.summary.total_debit -
-            result.summary.total_credit
-        );
-    }, [result.opening_balance, result.summary]);
+    // Sắp xếp và lọc chỉ các dòng đối ứng (không phải dòng 131)
+    const sortedFilteredTransactions = useMemo(() => {
+        if (!result.transactions || !Array.isArray(result.transactions)) {
+            return [];
+        }
 
-    // Tính running balance cho từng dòng
-    const transactionsWithBalance = useMemo(() => {
-        let runningBalance = result.opening_balance;
-        const processedJournalEntries = [];
-
-        return filteredTransactions.map((item) => {
-            if (!processedJournalEntries.includes(item.journal_entry_id)) {
-                const receivableEntry = result.transactions.find(
-                    (t) =>
-                        t.journal_entry_id === item.journal_entry_id &&
-                        t.is_receivable_account,
-                );
-
-                if (receivableEntry) {
-                    runningBalance =
-                        runningBalance +
-                        (receivableEntry.debit - receivableEntry.credit);
+        return [...result.transactions]
+            .filter((item) => !item.is_receivable_account)
+            .sort((a, b) => {
+                if (a.formatted_date !== b.formatted_date) {
+                    const dateA = a.formatted_date
+                        .split("/")
+                        .reverse()
+                        .join("-");
+                    const dateB = b.formatted_date
+                        .split("/")
+                        .reverse()
+                        .join("-");
+                    return dateA.localeCompare(dateB);
                 }
-                processedJournalEntries.push(item.journal_entry_id);
-            }
+                if (a.journal_entry_id !== b.journal_entry_id) {
+                    return a.journal_entry_id - b.journal_entry_id;
+                }
+                return a.journal_entry_detail_id - b.journal_entry_detail_id;
+            });
+    }, [result.transactions]);
+
+    // Tính running balance per-row
+    // TK 131 là tài khoản phải thu, số dư bên Nợ:
+    // - TK đối ứng ghi Có (doanh thu, thuế: 511, 333...) → 131 ghi Nợ → số dư Nợ tăng: +credit
+    // - TK đối ứng ghi Nợ (thu tiền: 112, 111...) → 131 ghi Có → số dư Nợ giảm: -debit
+    const transactionsWithBalance = useMemo(() => {
+        if (!sortedFilteredTransactions.length) return [];
+
+        let runningBalance = result.opening_balance || 0;
+
+        return sortedFilteredTransactions.map((item) => {
+            const debitAmount = Number(item.debit) || 0;
+            const creditAmount = Number(item.credit) || 0;
+
+            runningBalance = runningBalance + (creditAmount - debitAmount);
 
             return {
                 ...item,
                 running_balance: runningBalance,
             };
         });
-    }, [filteredTransactions, result.transactions, result.opening_balance]);
+    }, [sortedFilteredTransactions, result.opening_balance]);
 
-    // Tạo tên file PDF
-    const getPdfFileName = () =>
-        `So-chi-tiet-cong-no-131-${result.customer.customer_id}-thang-${result.period.month}-${result.period.year}.pdf`;
+    // Số dư cuối kỳ = running balance của dòng cuối
+    const closingBalance = useMemo(() => {
+        if (transactionsWithBalance.length > 0) {
+            return transactionsWithBalance[transactionsWithBalance.length - 1]
+                .running_balance;
+        }
+        return result.opening_balance || 0;
+    }, [transactionsWithBalance, result.opening_balance]);
 
-    // Xuất PDF
+    // Tổng phát sinh Nợ/Có: chỉ tính từ các dòng 131
+    const totals = useMemo(() => {
+        const receivableTransactions = (result.transactions || []).filter(
+            (item) => item.is_receivable_account,
+        );
+        return {
+            total_debit: receivableTransactions.reduce(
+                (sum, item) => sum + (Number(item.debit) || 0),
+                0,
+            ),
+            total_credit: receivableTransactions.reduce(
+                (sum, item) => sum + (Number(item.credit) || 0),
+                0,
+            ),
+        };
+    }, [result.transactions]);
+
+    const getPdfFileName = () => {
+        const startDate = result.period?.start_date?.replace(/\//g, "-") || "";
+        const endDate = result.period?.end_date?.replace(/\//g, "-") || "";
+        return `So-chi-tiet-cong-no-131-${result.customer?.customer_id || ""}-${startDate}-${endDate}.pdf`;
+    };
+
     const exportToPDF = async () => {
         if (!printRef.current) {
             alert("Không tìm thấy nội dung cần xuất!");
@@ -233,7 +253,6 @@ export default function CustomerDebtPreview() {
         }
     };
 
-    // Hàm in trực tiếp (mở hộp thoại in của trình duyệt)
     const handlePrint = () => {
         if (!printRef.current) {
             alert("Không tìm thấy nội dung cần in!");
@@ -243,10 +262,7 @@ export default function CustomerDebtPreview() {
         setIsPrinting(true);
 
         try {
-            // Lấy nội dung cần in
             const printContent = printRef.current.innerHTML;
-
-            // Tạo cửa sổ in mới
             const printWindow = window.open("", "_blank");
 
             if (!printWindow) {
@@ -257,12 +273,10 @@ export default function CustomerDebtPreview() {
                 return;
             }
 
-            // Lấy styles từ document hiện tại
             const styles = document.querySelectorAll(
                 'style, link[rel="stylesheet"]',
             );
             let stylesHTML = "";
-
             styles.forEach((style) => {
                 if (style.tagName === "STYLE") {
                     stylesHTML += style.outerHTML;
@@ -274,7 +288,6 @@ export default function CustomerDebtPreview() {
                 }
             });
 
-            // Viết nội dung vào cửa sổ in
             printWindow.document.write(`
                 <!DOCTYPE html>
                 <html>
@@ -284,43 +297,21 @@ export default function CustomerDebtPreview() {
                     <meta name="viewport" content="width=device-width, initial-scale=1.0">
                     ${stylesHTML}
                     <style>
-                        /* Đảm bảo in ấn tốt */
                         @media print {
-                            body {
-                                margin: 0;
-                                padding: 0;
-                                background: white;
-                            }
-                            * {
-                                print-color-adjust: exact;
-                                -webkit-print-color-adjust: exact;
-                            }
+                            body { margin: 0; padding: 0; background: white; }
+                            * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
                         }
-                        body {
-                            background: white;
-                            margin: 0;
-                            padding: 20px;
-                            font-family: system-ui, -apple-system, sans-serif;
-                        }
-                        /* Điều chỉnh kích thước cho in */
-                        .print-container {
-                            width: 297mm;
-                            margin: 0 auto;
-                            background: white;
-                        }
+                        body { background: white; margin: 0; padding: 20px; font-family: system-ui, -apple-system, sans-serif; }
+                        .print-container { width: 297mm; margin: 0 auto; background: white; }
                     </style>
                 </head>
                 <body>
-                    <div class="print-container">
-                        ${printContent}
-                    </div>
+                    <div class="print-container">${printContent}</div>
                     <script>
                         window.onload = function() {
                             setTimeout(function() {
                                 window.print();
-                                window.onafterprint = function() {
-                                    window.close();
-                                };
+                                window.onafterprint = function() { window.close(); };
                             }, 500);
                         };
                     <\/script>
@@ -341,18 +332,13 @@ export default function CustomerDebtPreview() {
         <AdminLayout
             breadcrumb={[
                 { label: "Dashboard", link: route("admin.dashboard.index") },
-                {
-                    label: "Công nợ",
-                    link: route("admin.debt.customer.index"),
-                },
-                {
-                    label: "Xem trước sổ chi tiết công nợ",
-                },
+                { label: "Công nợ", link: route("admin.debt.customer.index") },
+                { label: "Xem trước sổ chi tiết công nợ" },
             ]}
         >
             <Head title="Xem trước sổ chi tiết công nợ khách hàng TK 131" />
 
-            {/* Print component - Ẩn bằng cách đưa ra ngoài màn hình */}
+            {/* Print component - ẩn ngoài màn hình */}
             <div
                 ref={printRef}
                 style={{
@@ -368,7 +354,7 @@ export default function CustomerDebtPreview() {
                 <CustomerDebtPrint result={result} systems={systems} />
             </div>
 
-            {/* Header với actions */}
+            {/* Header */}
             <div className="mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div className="h-12 w-12 rounded-xl bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center shadow-lg">
@@ -539,8 +525,8 @@ export default function CustomerDebtPreview() {
                                         </span>
                                     </div>
                                     <p className="text-sm font-semibold text-slate-800">
-                                        {result.period.start_date} -{" "}
-                                        {result.period.end_date}
+                                        {result.period?.start_date} -{" "}
+                                        {result.period?.end_date}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -564,13 +550,11 @@ export default function CustomerDebtPreview() {
                                     <div className="flex items-center gap-2 text-green-600 mb-1">
                                         <TrendingUp className="h-4 w-4" />
                                         <span className="text-xs font-medium">
-                                            PHÁT SINH NỢ
+                                            PHÁT SINH NỢ (131)
                                         </span>
                                     </div>
                                     <p className="text-lg font-bold text-green-600">
-                                        {formatMoney(
-                                            result.summary.total_debit,
-                                        )}
+                                        {formatMoney(totals.total_debit)}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -580,13 +564,11 @@ export default function CustomerDebtPreview() {
                                     <div className="flex items-center gap-2 text-red-600 mb-1">
                                         <TrendingDown className="h-4 w-4" />
                                         <span className="text-xs font-medium">
-                                            PHÁT SINH CÓ
+                                            PHÁT SINH CÓ (131)
                                         </span>
                                     </div>
                                     <p className="text-lg font-bold text-red-600">
-                                        {formatMoney(
-                                            result.summary.total_credit,
-                                        )}
+                                        {formatMoney(totals.total_credit)}
                                     </p>
                                 </CardContent>
                             </Card>
@@ -615,7 +597,6 @@ export default function CustomerDebtPreview() {
                         <div className="overflow-x-auto">
                             <Table>
                                 <TableHeader className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
-                                    {/* Hàng 1: nhóm cột */}
                                     <TableRow>
                                         <TableHead
                                             colSpan={2}
@@ -649,16 +630,15 @@ export default function CustomerDebtPreview() {
                                         </TableHead>
                                         <TableHead
                                             rowSpan={2}
-                                            className="text-right w-28 align-middle font-semibold text-slate-700"
+                                            className="text-right w-32 align-middle font-semibold text-slate-700"
                                         >
-                                            Số dư
+                                            Số dư Nợ
                                             <br />
                                             <span className="text-xs font-normal">
                                                 (Khách nợ)
                                             </span>
                                         </TableHead>
                                     </TableRow>
-                                    {/* Hàng 2: sub-column */}
                                     <TableRow>
                                         <TableHead className="text-center border-r w-20 font-semibold text-slate-700">
                                             Ngày
@@ -672,7 +652,7 @@ export default function CustomerDebtPreview() {
                                             </span>
                                             <br />
                                             <span className="text-xs font-normal">
-                                                (Tăng nợ)
+                                                (TK đối ứng)
                                             </span>
                                         </TableHead>
                                         <TableHead className="text-center w-28 font-semibold text-slate-700">
@@ -681,7 +661,7 @@ export default function CustomerDebtPreview() {
                                             </span>
                                             <br />
                                             <span className="text-xs font-normal">
-                                                (Giảm nợ)
+                                                (TK đối ứng)
                                             </span>
                                         </TableHead>
                                     </TableRow>
@@ -689,13 +669,10 @@ export default function CustomerDebtPreview() {
                                 <TableBody>
                                     {/* Dòng số dư đầu kỳ */}
                                     <TableRow className="bg-gradient-to-r from-blue-50 to-purple-50">
-                                        <TableCell className="text-center"></TableCell>
-                                        <TableCell className="text-center"></TableCell>
-                                        <TableCell className="text-center"></TableCell>
-                                        <TableCell
-                                            className="font-medium"
-                                            colSpan={2}
-                                        >
+                                        <TableCell className="text-center" />
+                                        <TableCell className="text-center" />
+                                        <TableCell className="text-center" />
+                                        <TableCell colSpan={2}>
                                             <div className="flex items-center gap-2">
                                                 <Info className="h-4 w-4 text-blue-600" />
                                                 <span className="font-semibold text-slate-800">
@@ -703,8 +680,8 @@ export default function CustomerDebtPreview() {
                                                 </span>
                                             </div>
                                         </TableCell>
-                                        <TableCell className="text-right"></TableCell>
-                                        <TableCell className="text-right"></TableCell>
+                                        <TableCell className="text-right" />
+                                        <TableCell className="text-right" />
                                         <TableCell className="text-right font-bold text-blue-600 text-base">
                                             {formatMoney(
                                                 result.opening_balance,
@@ -712,122 +689,157 @@ export default function CustomerDebtPreview() {
                                         </TableCell>
                                     </TableRow>
 
-                                    {/* Các dòng phát sinh */}
+                                    {/* Các dòng phát sinh (chỉ dòng đối ứng) */}
                                     {transactionsWithBalance.map(
-                                        (item, index) => (
-                                            <TableRow
-                                                key={
-                                                    item.journal_entry_detail_id
-                                                }
-                                                className={cn(
-                                                    "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5",
-                                                    index % 2 === 0
-                                                        ? "bg-white"
-                                                        : "bg-slate-50/50",
-                                                )}
-                                            >
-                                                <TableCell className="text-center text-sm text-slate-600">
-                                                    {item.formatted_date}
-                                                </TableCell>
-                                                <TableCell className="text-center text-sm font-mono">
-                                                    {item.reference_code}
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <Badge
-                                                        className={cn(
-                                                            "text-xs",
-                                                            item.reference_type_label ===
-                                                                "PXK"
-                                                                ? "bg-blue-100 text-blue-700 border-blue-200"
-                                                                : "bg-purple-100 text-purple-700 border-purple-200",
+                                        (item, index) => {
+                                            const balance =
+                                                item.running_balance;
+                                            return (
+                                                <TableRow
+                                                    key={
+                                                        item.journal_entry_detail_id ||
+                                                        index
+                                                    }
+                                                    className={cn(
+                                                        "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5",
+                                                        index % 2 === 0
+                                                            ? "bg-white"
+                                                            : "bg-slate-50/50",
+                                                    )}
+                                                >
+                                                    <TableCell className="text-center text-sm text-slate-600">
+                                                        {item.formatted_date}
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-sm font-mono">
+                                                        {item.reference_code}
+                                                    </TableCell>
+                                                    <TableCell className="text-center">
+                                                        <Badge
+                                                            className={cn(
+                                                                "text-xs",
+                                                                item.reference_type_label ===
+                                                                    "PXK"
+                                                                    ? "bg-blue-100 text-blue-700 border-blue-200"
+                                                                    : "bg-purple-100 text-purple-700 border-purple-200",
+                                                            )}
+                                                        >
+                                                            {item.reference_type_label ===
+                                                            "PXK" ? (
+                                                                <Receipt className="h-3 w-3 mr-1" />
+                                                            ) : (
+                                                                <CreditCard className="h-3 w-3 mr-1" />
+                                                            )}
+                                                            {
+                                                                item.reference_type_label
+                                                            }
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-sm text-slate-600">
+                                                        {item.reference_note ||
+                                                            ""}
+                                                        {item.is_tax_account && (
+                                                            <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
+                                                                Thuế
+                                                            </span>
                                                         )}
-                                                    >
-                                                        {item.reference_type_label ===
-                                                        "PXK" ? (
-                                                            <Receipt className="h-3 w-3 mr-1" />
+                                                    </TableCell>
+                                                    <TableCell className="text-center text-sm font-medium text-purple-600">
+                                                        {item.account_code}
+                                                    </TableCell>
+                                                    {/* Nợ của TK đối ứng */}
+                                                    <TableCell className="text-right text-sm">
+                                                        {item.debit > 0 ? (
+                                                            <span className="text-green-600 font-medium">
+                                                                {formatMoney(
+                                                                    item.debit,
+                                                                )}
+                                                            </span>
                                                         ) : (
-                                                            <CreditCard className="h-3 w-3 mr-1" />
+                                                            ""
                                                         )}
-                                                        {
-                                                            item.reference_type_label
-                                                        }
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="text-sm text-slate-600">
-                                                    {item.reference_note || ""}
-                                                    {item.is_tax_account && (
-                                                        <span className="ml-2 text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
-                                                            Thuế
-                                                        </span>
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-center text-sm font-medium text-purple-600">
-                                                    {item.account_code}
-                                                </TableCell>
-                                                <TableCell className="text-right text-sm">
-                                                    {item.debit > 0 ? (
-                                                        <span className="text-green-600 font-medium">
-                                                            {formatMoney(
-                                                                item.debit,
-                                                            )}
-                                                        </span>
-                                                    ) : (
-                                                        ""
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right text-sm">
-                                                    {item.credit > 0 ? (
-                                                        <span className="text-red-600 font-medium">
-                                                            {formatMoney(
-                                                                item.credit,
-                                                            )}
-                                                        </span>
-                                                    ) : (
-                                                        ""
-                                                    )}
-                                                </TableCell>
-                                                <TableCell className="text-right text-sm font-bold text-blue-600">
-                                                    {formatMoney(
-                                                        item.running_balance,
-                                                    )}
-                                                </TableCell>
-                                            </TableRow>
-                                        ),
+                                                    </TableCell>
+                                                    {/* Có của TK đối ứng */}
+                                                    <TableCell className="text-right text-sm">
+                                                        {item.credit > 0 ? (
+                                                            <span className="text-red-600 font-medium">
+                                                                {formatMoney(
+                                                                    item.credit,
+                                                                )}
+                                                            </span>
+                                                        ) : (
+                                                            ""
+                                                        )}
+                                                    </TableCell>
+                                                    {/* Số dư Nợ sau dòng này */}
+                                                    <TableCell className="text-right text-sm font-bold">
+                                                        {balance >= 0 ? (
+                                                            <span className="text-blue-600">
+                                                                {formatMoney(
+                                                                    balance,
+                                                                )}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-red-600">
+                                                                (
+                                                                {formatMoney(
+                                                                    Math.abs(
+                                                                        balance,
+                                                                    ),
+                                                                )}
+                                                                )
+                                                            </span>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        },
                                     )}
 
-                                    {/* Dòng tổng cộng */}
+                                    {/* Tổng cộng phát sinh (từ dòng 131) */}
                                     <TableRow className="bg-gradient-to-r from-slate-100 to-slate-200 font-bold">
                                         <TableCell
-                                            className="text-center font-semibold"
                                             colSpan={5}
+                                            className="text-center font-semibold"
                                         >
                                             Tổng cộng phát sinh
                                         </TableCell>
                                         <TableCell className="text-right text-green-600">
-                                            {formatMoney(
-                                                result.summary.total_debit,
-                                            )}
+                                            {formatMoney(totals.total_debit)}
                                         </TableCell>
                                         <TableCell className="text-right text-red-600">
-                                            {formatMoney(
-                                                result.summary.total_credit,
-                                            )}
+                                            {formatMoney(totals.total_credit)}
                                         </TableCell>
-                                        <TableCell className="text-right"></TableCell>
+                                        <TableCell className="text-right" />
                                     </TableRow>
 
-                                    {/* Dòng số dư cuối kỳ */}
+                                    {/* Số dư cuối kỳ */}
                                     <TableRow className="bg-gradient-to-r from-blue-100 to-purple-100 font-bold">
                                         <TableCell
-                                            className="text-center font-semibold"
                                             colSpan={5}
+                                            className="text-center font-semibold"
                                         >
                                             Số dư cuối kỳ
                                         </TableCell>
-                                        <TableCell className="text-right"></TableCell>
-                                        <TableCell className="text-right"></TableCell>
-                                        <TableCell className="text-right text-blue-600 text-lg">
-                                            {formatMoney(closingBalance)}
+                                        <TableCell className="text-right" />
+                                        <TableCell className="text-right" />
+                                        <TableCell className="text-right text-lg">
+                                            {closingBalance >= 0 ? (
+                                                <span className="text-blue-600">
+                                                    {formatMoney(
+                                                        closingBalance,
+                                                    )}
+                                                </span>
+                                            ) : (
+                                                <span className="text-red-600">
+                                                    (
+                                                    {formatMoney(
+                                                        Math.abs(
+                                                            closingBalance,
+                                                        ),
+                                                    )}
+                                                    )
+                                                </span>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 </TableBody>
@@ -841,7 +853,7 @@ export default function CustomerDebtPreview() {
                         </div>
                         <div className="flex items-center gap-2">
                             <User className="h-3 w-3" />
-                            Người in: {result.customer.customer_name}
+                            Người in: {result.customer?.customer_name || ""}
                         </div>
                     </CardFooter>
                 </Card>

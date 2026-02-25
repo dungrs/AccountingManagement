@@ -8,6 +8,11 @@ import { useReactToPrint } from "react-to-print";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { Badge } from "@/admin/components/ui/badge";
+import { Label } from "@/admin/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/admin/components/ui/radio-group";
+import { Input } from "@/admin/components/ui/input";
+import { Button } from "@/admin/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/admin/components/ui/card";
 
 import { useReceiptForm } from "@/admin/hooks/useReceiptForm";
 import { useProductVariants } from "@/admin/hooks/useProductVariants";
@@ -15,12 +20,12 @@ import { useProductVariants } from "@/admin/hooks/useProductVariants";
 import ReceiptGeneralInfo from "@/admin/components/shared/receipts/ReceiptGeneralInfo";
 import ProductVariantsTable from "@/admin/components/shared/receipts/ProductVariantsTable";
 import AccountingTabs from "@/admin/components/shared/receipts/AccountingTabs";
-import { Button } from "@/admin/components/ui/button";
-import { Card, CardContent } from "@/admin/components/ui/card";
 import SalesReceiptPrint from "@/admin/components/shared/print/SalesReceiptPrint";
+import PriceListSelect from "@/admin/components/pages/sales-receipt/PriceListSelect";
 
 import { calculateTotals, getVariantInfo } from "@/admin/utils/receiptUtils";
 import { formatCurrency } from "@/admin/utils/helpers";
+import { cn } from "@/admin/lib/utils";
 
 import {
     Save,
@@ -38,9 +43,8 @@ import {
     XCircle,
     Clock,
     ShoppingCart,
+    Percent,
 } from "lucide-react";
-import { cn } from "@/admin/lib/utils";
-import PriceListSelect from "@/admin/components/pages/sales-receipt/PriceListSelect";
 
 const generatePDF = async (element, fileName) => {
     if (!element) throw new Error("Không tìm thấy nội dung cần xuất!");
@@ -107,8 +111,6 @@ export default function SalesReceiptForm() {
     const isEdit = !!sales_receipt;
     const [isExportingPDF, setIsExportingPDF] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
-    const [addingRows, setAddingRows] = useState([]);
-    const [editingIndexes, setEditingIndexes] = useState([]);
 
     const getDefaultVatTax = () =>
         vat_taxes?.find((tax) => parseFloat(tax.rate) === 10) || vat_taxes?.[0];
@@ -123,6 +125,10 @@ export default function SalesReceiptForm() {
         setReceiptDate,
         openReceiptDate,
         setOpenReceiptDate,
+        addingRows,
+        setAddingRows,
+        editingIndexes,
+        setEditingIndexes,
         handleChange,
         handleSubmit: baseHandleSubmit,
         handleJournalEntriesChange,
@@ -205,7 +211,57 @@ export default function SalesReceiptForm() {
         }
     };
 
+    // Xử lý chiết khấu cấp phiếu
+    const handleDiscountTypeChange = (value) => {
+        setFormData((prev) => ({
+            ...prev,
+            discount_type: value,
+            discount_value: 0,
+            discount_amount: 0,
+            discount_total: 0,
+        }));
+    };
+
+    const handleDiscountValueChange = (e) => {
+        const value = parseFloat(e.target.value) || 0;
+        setFormData((prev) => {
+            const newData = { ...prev, discount_value: value };
+            const totalAmount = totals?.totalAmount || 0;
+            let discountAmount = 0;
+
+            if (prev.discount_type === "percentage") {
+                discountAmount = (totalAmount * value) / 100;
+            } else if (prev.discount_type === "fixed") {
+                discountAmount = value;
+            }
+
+            newData.discount_amount = discountAmount;
+            newData.discount_total = discountAmount;
+            return newData;
+        });
+    };
+
     const totals = calculateTotals(formData.product_variants || []);
+
+    useEffect(() => {
+        if (formData.discount_type && formData.discount_value) {
+            const totalAmount = totals?.totalAmount || 0;
+            let discountAmount = 0;
+
+            if (formData.discount_type === "percentage") {
+                discountAmount = (totalAmount * formData.discount_value) / 100;
+            } else if (formData.discount_type === "fixed") {
+                discountAmount = formData.discount_value;
+            }
+
+            setFormData((prev) => ({
+                ...prev,
+                discount_amount: discountAmount,
+                discount_total: discountAmount,
+            }));
+        }
+    }, [totals?.totalAmount, formData.discount_type, formData.discount_value]);
+
     const currentCustomer = customers?.find(
         (c) => c.id === formData.customer_id,
     );
@@ -215,13 +271,9 @@ export default function SalesReceiptForm() {
     const currentUser = users?.find((u) => u.id === formData.user_id);
     const canPrint = isEdit && sales_receipt?.status !== "draft";
 
-    // ✅ FIX 1: Wrap getVariantInfo để bind đúng product_variants từ page props
-    // Component chỉ cần gọi getVariantInfo(variantId) là đủ
     const getVariantInfoBound = (variantId) =>
         getVariantInfo(product_variants, variantId);
 
-    // ✅ FIX 2: Lấy mảng variants từ bảng giá - đây là array từ Laravel Collection đã serialize
-    // Cấu trúc mỗi item: { product_variant_id, sale_price, output_tax_id, sku, barcode, name }
     const priceListVariants = Array.isArray(
         formData.price_list_info?.product_variants,
     )
@@ -250,6 +302,11 @@ export default function SalesReceiptForm() {
     };
     const statusBadge = getStatusBadge(formData.status);
 
+    const finalTotalAfterDiscount =
+        (totals?.totalAmount || 0) - (formData.discount_amount || 0);
+    const grandTotalWithDiscount =
+        finalTotalAfterDiscount + (totals?.vatAmount || 0);
+
     return (
         <AdminLayout
             breadcrumb={[
@@ -275,8 +332,8 @@ export default function SalesReceiptForm() {
 
             <div className="space-y-6">
                 {/* Header Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
-                    <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <Card className="border-l-4 border-l-blue-500 shadow-md">
                         <CardContent className="p-4 flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-muted-foreground">
@@ -291,14 +348,14 @@ export default function SalesReceiptForm() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+                    <Card className="border-l-4 border-l-purple-500 shadow-md">
                         <CardContent className="p-4 flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-muted-foreground">
                                     Tổng tiền
                                 </p>
                                 <p className="text-lg font-bold text-purple-600">
-                                    {formatCurrency(totals.totalAfterTax)}
+                                    {formatCurrency(grandTotalWithDiscount)}
                                 </p>
                             </div>
                             <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
@@ -306,7 +363,7 @@ export default function SalesReceiptForm() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
+                    <Card className="border-l-4 border-l-green-500 shadow-md">
                         <CardContent className="p-4 flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-muted-foreground">
@@ -321,7 +378,7 @@ export default function SalesReceiptForm() {
                             </div>
                         </CardContent>
                     </Card>
-                    <Card className="border-l-4 border-l-amber-500 shadow-md hover:shadow-lg transition-shadow">
+                    <Card className="border-l-4 border-l-amber-500 shadow-md">
                         <CardContent className="p-4 flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-muted-foreground">
@@ -407,11 +464,6 @@ export default function SalesReceiptForm() {
                             <Badge className="bg-white/20 text-white border-0">
                                 Bảng giá: {currentPriceList.name}
                             </Badge>
-                            {currentPriceList.start_date && (
-                                <span>
-                                    (Áp dụng từ {currentPriceList.start_date})
-                                </span>
-                            )}
                         </div>
                     )}
                 </div>
@@ -459,12 +511,160 @@ export default function SalesReceiptForm() {
                                     Tổng VAT
                                 </p>
                                 <p className="font-medium text-slate-700">
-                                    {formatCurrency(totals.totalVat)}
+                                    {formatCurrency(totals?.vatAmount || 0)}
                                 </p>
                             </div>
                         </CardContent>
                     </Card>
                 </div>
+
+                {/* Card chiết khấu */}
+                <Card className="border-slate-200 shadow-md overflow-hidden">
+                    <CardHeader className="bg-gradient-to-r from-orange-600/5 to-red-600/5 border-b border-slate-200 py-3">
+                        <CardTitle className="text-base font-medium flex items-center gap-2 text-slate-800">
+                            <Percent className="w-4 h-4 text-orange-600" />
+                            Chiết khấu theo phiếu
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700">
+                                    Loại chiết khấu
+                                </Label>
+                                <RadioGroup
+                                    value={formData.discount_type || ""}
+                                    onValueChange={handleDiscountTypeChange}
+                                    className="flex gap-4"
+                                >
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem
+                                            value="percentage"
+                                            id="percentage"
+                                        />
+                                        <Label
+                                            htmlFor="percentage"
+                                            className="text-sm cursor-pointer"
+                                        >
+                                            Theo %
+                                        </Label>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <RadioGroupItem
+                                            value="fixed"
+                                            id="fixed"
+                                        />
+                                        <Label
+                                            htmlFor="fixed"
+                                            className="text-sm cursor-pointer"
+                                        >
+                                            Số tiền cố định
+                                        </Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700">
+                                    {formData.discount_type === "percentage"
+                                        ? "Phần trăm (%)"
+                                        : "Số tiền chiết khấu"}
+                                </Label>
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        value={formData.discount_value || ""}
+                                        onChange={handleDiscountValueChange}
+                                        placeholder={
+                                            formData.discount_type ===
+                                            "percentage"
+                                                ? "Nhập % chiết khấu"
+                                                : "Nhập số tiền"
+                                        }
+                                        className="pl-8"
+                                        min="0"
+                                        step={
+                                            formData.discount_type ===
+                                            "percentage"
+                                                ? "1"
+                                                : "1000"
+                                        }
+                                        disabled={!formData.discount_type}
+                                    />
+                                    {formData.discount_type === "percentage" ? (
+                                        <Percent className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    ) : (
+                                        <DollarSign className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700">
+                                    Tiền chiết khấu
+                                </Label>
+                                <div className="h-10 px-3 py-2 bg-slate-50 border border-slate-200 rounded-md text-right font-medium text-orange-600">
+                                    {formatCurrency(
+                                        formData.discount_amount || 0,
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label className="text-sm font-medium text-slate-700">
+                                    Ghi chú chiết khấu
+                                </Label>
+                                <Input
+                                    type="text"
+                                    value={formData.discount_note || ""}
+                                    onChange={(e) =>
+                                        handleChange(
+                                            "discount_note",
+                                            e.target.value,
+                                        )
+                                    }
+                                    placeholder="Nhập ghi chú (nếu có)"
+                                />
+                            </div>
+                        </div>
+
+                        {formData.discount_amount > 0 && (
+                            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                                <div className="flex items-center justify-between text-sm">
+                                    <span className="text-orange-700 font-medium">
+                                        Tổng tiền hàng:
+                                    </span>
+                                    <span className="text-slate-700">
+                                        {formatCurrency(
+                                            totals?.totalAmount || 0,
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm mt-1">
+                                    <span className="text-orange-700 font-medium">
+                                        Chiết khấu:
+                                    </span>
+                                    <span className="text-red-600">
+                                        -
+                                        {formatCurrency(
+                                            formData.discount_amount,
+                                        )}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between text-sm font-semibold mt-2 pt-2 border-t border-orange-200">
+                                    <span className="text-orange-800">
+                                        Tổng sau chiết khấu:
+                                    </span>
+                                    <span className="text-blue-600">
+                                        {formatCurrency(
+                                            finalTotalAfterDiscount,
+                                        )}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     <ReceiptGeneralInfo
@@ -482,7 +682,6 @@ export default function SalesReceiptForm() {
                         users={users}
                         isEdit={isEdit}
                     >
-                        {/* PriceListSelect nằm trong children của ReceiptGeneralInfo */}
                         <PriceListSelect
                             formData={formData}
                             setFormData={setFormData}
@@ -490,8 +689,6 @@ export default function SalesReceiptForm() {
                             priceLists={price_lists}
                             errors={errors}
                             onPriceListChange={(priceListData) => {
-                                // Nếu hook có hàm updatePricesFromPriceList, gọi để cập nhật
-                                // các sản phẩm đã có trong phiếu
                                 if (
                                     priceListData?.product_variants &&
                                     typeof productVariantHandlers.updatePricesFromPriceList ===
@@ -542,7 +739,10 @@ export default function SalesReceiptForm() {
                             productVariantHandlers.handleAddProductRow
                         }
                         formatCurrency={formatCurrency}
-                        totals={totals}
+                        totals={{
+                            ...totals,
+                            grandTotal: grandTotalWithDiscount,
+                        }}
                         type="sale"
                         priceListVariants={priceListVariants}
                         priceListData={formData.price_list_info}
@@ -598,18 +798,42 @@ export default function SalesReceiptForm() {
                 <div style={{ display: "none" }}>
                     <SalesReceiptPrint
                         ref={printRef}
-                        receipt={formData}
-                        totals={totals}
+                        receipt={{
+                            ...formData,
+                            discount_info: {
+                                discount_type: formData.discount_type,
+                                discount_value: formData.discount_value,
+                                discount_amount: formData.discount_amount,
+                                discount_total: formData.discount_total,
+                                discount_note: formData.discount_note,
+                            },
+                            final_total_after_discount: finalTotalAfterDiscount,
+                        }}
+                        totals={{
+                            ...totals,
+                            grandTotal: grandTotalWithDiscount,
+                        }}
                         user={currentUser}
                         customer={currentCustomer}
                         system_languages={system_languages}
                     />
-                </div>
-                <div style={{ display: "none" }}>
                     <SalesReceiptPrint
                         ref={pdfRef}
-                        receipt={formData}
-                        totals={totals}
+                        receipt={{
+                            ...formData,
+                            discount_info: {
+                                discount_type: formData.discount_type,
+                                discount_value: formData.discount_value,
+                                discount_amount: formData.discount_amount,
+                                discount_total: formData.discount_total,
+                                discount_note: formData.discount_note,
+                            },
+                            final_total_after_discount: finalTotalAfterDiscount,
+                        }}
+                        totals={{
+                            ...totals,
+                            grandTotal: grandTotalWithDiscount,
+                        }}
                         user={currentUser}
                         customer={currentCustomer}
                         system_languages={system_languages}

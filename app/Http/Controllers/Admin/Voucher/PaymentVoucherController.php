@@ -88,7 +88,6 @@ class PaymentVoucherController extends Controller
         // Lấy thông tin công ty lập phiếu
         $systems = $this->systemService->getSystemDetails();
 
-        // dd($paymentVoucher);
         $system_languages = $systems
             ->where('language_id', 1)
             ->pluck('content', 'keyword')

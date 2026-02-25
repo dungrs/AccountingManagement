@@ -386,7 +386,6 @@ class PaymentVoucherService extends BaseService implements PaymentVoucherService
                     'details'    => $journal->details->map(function ($detail) {
                         return [
                             'account_code' => $detail->account?->account_code,
-                            'account_name' => $detail->account?->name,
                             'debit'        => (float)$detail->debit,
                             'credit'       => (float)$detail->credit,
                         ];

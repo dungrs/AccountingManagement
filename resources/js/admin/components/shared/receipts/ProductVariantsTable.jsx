@@ -426,17 +426,6 @@ export default function ProductVariantsTable({
                                     `SP #${item.product_variant_id}`;
                                 const displaySku = variant?.sku || item?.sku;
 
-                                console.log("Variant:", variant);
-                                console.log("Item:", item);
-                                console.log(
-                                    "Display name from variant:",
-                                    variant?.name,
-                                );
-                                console.log(
-                                    "Display name from item:",
-                                    item?.name,
-                                );
-
                                 return (
                                     <TableRow
                                         key={index}
@@ -1086,16 +1075,6 @@ export default function ProductVariantsTable({
                                     <span className="font-medium text-slate-800">
                                         {formatCurrency(
                                             totals?.totalAmount || 0,
-                                        )}
-                                    </span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-slate-600">
-                                        Tổng chiết khấu:
-                                    </span>
-                                    <span className="font-medium text-red-500">
-                                        {formatCurrency(
-                                            totals?.totalDiscount || 0,
                                         )}
                                     </span>
                                 </div>

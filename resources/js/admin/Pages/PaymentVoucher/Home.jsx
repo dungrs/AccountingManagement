@@ -239,121 +239,175 @@ export default function Home() {
             <Head title="Quản Lý Phiếu Chi" />
 
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng phiếu chi
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <FileText className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đã xác nhận
-                            </p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {confirmedCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-yellow-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Nháp
-                            </p>
-                            <p className="text-2xl font-bold text-yellow-600">
-                                {draftCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                            <Clock className="h-6 w-6 text-yellow-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng chi
-                            </p>
-                            <p className="text-2xl font-bold text-purple-600">
-                                {formatCurrency(totalAmount)}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <TrendingDown className="h-6 w-6 text-purple-600" />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {[
+                    {
+                        title: "Tổng phiếu chi",
+                        value: paginationData.total,
+                        icon: FileText,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                        badge: "Tất cả phiếu",
+                    },
+                    {
+                        title: "Đã xác nhận",
+                        value: confirmedCount,
+                        icon: CheckCircle2,
+                        color: "green",
+                        bgColor: "bg-green-100",
+                        textColor: "text-green-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (
+                                      (confirmedCount / paginationData.total) *
+                                      100
+                                  ).toFixed(1)
+                                : 0,
+                    },
+                    {
+                        title: "Nháp",
+                        value: draftCount,
+                        icon: Clock,
+                        color: "yellow",
+                        bgColor: "bg-yellow-100",
+                        textColor: "text-yellow-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (
+                                      (draftCount / paginationData.total) *
+                                      100
+                                  ).toFixed(1)
+                                : 0,
+                    },
+                    {
+                        title: "Tổng chi",
+                        value: formatCurrency(totalAmount),
+                        icon: TrendingDown,
+                        color: "purple",
+                        bgColor: "bg-purple-100",
+                        textColor: "text-purple-600",
+                        badge:
+                            formatCurrency(
+                                paginationData.total > 0
+                                    ? totalAmount / paginationData.total
+                                    : 0,
+                            ) + "/phiếu",
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-slate-500">
+                                        {stat.title}
+                                    </p>
+                                    <p
+                                        className={`text-base font-bold ${stat.textColor}`}
+                                    >
+                                        {stat.value}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        {stat.badge ? (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.badge}
+                                            </Badge>
+                                        ) : (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.percent}%
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                                <div
+                                    className={`h-8 w-8 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                >
+                                    <stat.icon
+                                        className={`h-4 w-4 ${stat.textColor}`}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             {/* Payment Method Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <Card className="bg-gradient-to-r from-blue-50 to-blue-100 border-blue-200">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-blue-200 flex items-center justify-center">
-                                <CreditCard className="h-5 w-5 text-blue-700" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+                {[
+                    {
+                        title: "Tiền mặt",
+                        count: cashCount,
+                        icon: CreditCard,
+                        color: "blue",
+                        bgGradient: "from-blue-50 to-blue-100",
+                        borderColor: "border-blue-200",
+                        iconBg: "bg-blue-200",
+                        iconColor: "text-blue-700",
+                        badgeColor: "bg-blue-200 text-blue-800 border-blue-300",
+                        total: data.length,
+                    },
+                    {
+                        title: "Chuyển khoản",
+                        count: bankCount,
+                        icon: Landmark,
+                        color: "purple",
+                        bgGradient: "from-purple-50 to-purple-100",
+                        borderColor: "border-purple-200",
+                        iconBg: "bg-purple-200",
+                        iconColor: "text-purple-700",
+                        badgeColor:
+                            "bg-purple-200 text-purple-800 border-purple-300",
+                        total: data.length,
+                    },
+                ].map((method, index) => (
+                    <Card
+                        key={index}
+                        className={`bg-gradient-to-r ${method.bgGradient} ${method.borderColor} shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 sm:gap-3">
+                                    <div
+                                        className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full ${method.iconBg} flex items-center justify-center flex-shrink-0`}
+                                    >
+                                        <method.icon
+                                            className={`h-4 w-4 sm:h-5 sm:w-5 ${method.iconColor}`}
+                                        />
+                                    </div>
+                                    <div>
+                                        <p
+                                            className={`text-xs sm:text-sm font-medium ${method.iconColor}`}
+                                        >
+                                            {method.title}
+                                        </p>
+                                        <p
+                                            className={`text-base sm:text-lg font-bold ${method.iconColor}`}
+                                        >
+                                            {method.count} phiếu
+                                        </p>
+                                    </div>
+                                </div>
+                                <Badge
+                                    className={`${method.badgeColor} text-[10px] sm:text-xs h-5 sm:h-6`}
+                                >
+                                    {(
+                                        (method.count / (method.total || 1)) *
+                                        100
+                                    ).toFixed(1)}
+                                    %
+                                </Badge>
                             </div>
-                            <div>
-                                <p className="text-sm font-medium text-blue-800">
-                                    Tiền mặt
-                                </p>
-                                <p className="text-2xl font-bold text-blue-700">
-                                    {cashCount} phiếu
-                                </p>
-                            </div>
-                        </div>
-                        <Badge className="bg-blue-200 text-blue-800 border-blue-300">
-                            {((cashCount / (data.length || 1)) * 100).toFixed(
-                                1,
-                            )}
-                            %
-                        </Badge>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-gradient-to-r from-purple-50 to-purple-100 border-purple-200">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <div className="h-10 w-10 rounded-full bg-purple-200 flex items-center justify-center">
-                                <Landmark className="h-5 w-5 text-purple-700" />
-                            </div>
-                            <div>
-                                <p className="text-sm font-medium text-purple-800">
-                                    Chuyển khoản
-                                </p>
-                                <p className="text-2xl font-bold text-purple-700">
-                                    {bankCount} phiếu
-                                </p>
-                            </div>
-                        </div>
-                        <Badge className="bg-purple-200 text-purple-800 border-purple-300">
-                            {((bankCount / (data.length || 1)) * 100).toFixed(
-                                1,
-                            )}
-                            %
-                        </Badge>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">

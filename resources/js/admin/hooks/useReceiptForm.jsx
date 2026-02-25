@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { router } from "@inertiajs/react";
 import { useEventBus } from "@/EventBus";
 import { format } from "date-fns";
@@ -14,8 +14,10 @@ export function useReceiptForm({
 
     const [errors, setErrors] = useState({});
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isInitialized, setIsInitialized] = useState(false);
-    const [journalEntriesFromTab, setJournalEntriesFromTab] = useState([]);
+
+    // ✅ Dùng ref để track journal entries
+    const journalEntriesRef = useRef([]);
+    const hasInitializedRef = useRef(false); // ✅ Flag để init chỉ 1 lần
 
     const [formData, setFormData] = useState({
         code: "",
@@ -29,6 +31,14 @@ export function useReceiptForm({
         product_variants: [],
         price_list_id: null,
         price_list_info: null,
+        amount: "",
+        payment_method: "cash",
+        discount_type: null,
+        discount_value: 0,
+        discount_amount: 0,
+        discount_total: 0,
+        discount_note: "",
+        journal_entries: [],
     });
 
     const [receiptDate, setReceiptDate] = useState(null);
@@ -36,90 +46,131 @@ export function useReceiptForm({
     const [addingRows, setAddingRows] = useState([]);
     const [editingIndexes, setEditingIndexes] = useState([]);
 
-    // ─── Init form khi edit ───────────────────────────────────────────────────
+    // ✅ Tính amount - stable function
+    const calculateAmount = useCallback((productVariants) => {
+        return productVariants.reduce(
+            (sum, item) =>
+                sum +
+                parseFloat(item.quantity || 0) * parseFloat(item.price || 0),
+            0,
+        );
+    }, []);
+
+    // Cập nhật amount khi product_variants thay đổi
     useEffect(() => {
-        if (receipt && !isInitialized) {
-            setFormData({
-                code: receipt.code || "",
-                user_id: receipt.user_id || "",
-                receipt_date: receipt.receipt_date || "",
-                supplier_id: receipt.supplier_id || "",
-                supplier_info: receipt.supplier_info || null,
-                customer_id: receipt.customer_id || "",
-                customer_info: receipt.customer_info || null,
-                note: receipt.note || "",
-                journal_note: receipt.journal_entries?.[0]?.note || "",
-                status: receipt.status || "draft",
-                product_variants:
-                    receipt.product_variants?.map((pv) => ({
-                        product_variant_id: pv.product_variant_id,
-                        name: pv.name || "",
-                        sku: pv.sku || "",
-                        quantity: pv.quantity || "",
-                        price: pv.price || "",
-                        list_price: pv.list_price || null,
-                        vat_id: pv.vat_id || defaultVatTax?.id,
-                        vat_amount: pv.vat_amount || "",
-                        subtotal: pv.subtotal || "",
-                        unit: pv.unit || null,
-                        unit_name: pv.unit_name || "",
-                    })) || [],
-                journal_entries: receipt.journal_entries || [],
-                price_list_id: receipt.price_list_id || null,
-                price_list_info: null, // sẽ được load bên dưới
-            });
+        const totalAmount = calculateAmount(formData.product_variants);
+        setFormData((prev) => ({
+            ...prev,
+            amount: totalAmount,
+        }));
+    }, [formData.product_variants, calculateAmount]);
 
-            if (receipt.receipt_date) {
-                setReceiptDate(new Date(receipt.receipt_date));
+    // ✅ Init form khi có receipt - CHỈ LẦN ĐẦU
+    useEffect(() => {
+        if (!receipt || hasInitializedRef.current) return;
+
+        console.log("[useReceiptForm] Loading receipt data:", receipt);
+
+        // Xử lý journal entries từ server
+        let journalEntries = [];
+        if (receipt.journal_entries && receipt.journal_entries.length > 0) {
+            const firstJournal = receipt.journal_entries[0];
+            if (firstJournal?.details && Array.isArray(firstJournal.details)) {
+                journalEntries = firstJournal.details.map((detail) => ({
+                    account_code: String(detail.account_code),
+                    debit: parseFloat(detail.debit) || 0,
+                    credit: parseFloat(detail.credit) || 0,
+                }));
             }
-
-            // ✅ FIX 2: Nếu receipt có price_list_id → gọi getDetails để load lại bảng giá
-            // (cần thiết để auto-fill giá khi user chỉnh sửa sản phẩm trong edit mode)
-            if (receipt.price_list_id) {
-                axios
-                    .post(
-                        route(
-                            "admin.price.list.getDetails",
-                            receipt.price_list_id,
-                        ),
-                    )
-                    .then((response) => {
-                        if (
-                            response.data?.status === "success" &&
-                            response.data?.data
-                        ) {
-                            const priceListData = response.data.data;
-                            const variants = Array.isArray(
-                                priceListData.product_variants,
-                            )
-                                ? priceListData.product_variants
-                                : [];
-
-                            setFormData((prev) => ({
-                                ...prev,
-                                price_list_info: {
-                                    id: priceListData.id,
-                                    name: priceListData.name,
-                                    start_date: priceListData.start_date,
-                                    end_date: priceListData.end_date,
-                                    product_variants: variants,
-                                },
-                            }));
-                        }
-                    })
-                    .catch((err) => {
-                        console.warn(
-                            "[useReceiptForm] Không thể load bảng giá khi edit:",
-                            err,
-                        );
-                    });
-            }
-
-            setIsInitialized(true);
         }
-    }, [receipt, isInitialized, defaultVatTax]);
 
-    // ─── Sync receipt_date khi chọn calendar ─────────────────────────────────
+        const updatedFormData = {
+            code: receipt.code || "",
+            user_id: receipt.user_id || "",
+            receipt_date: receipt.receipt_date || "",
+            supplier_id: receipt.supplier_id || "",
+            supplier_info: receipt.supplier_info || null,
+            customer_id: receipt.customer_id || "",
+            customer_info: receipt.customer_info || null,
+            note: receipt.note || "",
+            journal_note: receipt.journal_entries?.[0]?.note || "",
+            status: receipt.status || "draft",
+            product_variants:
+                receipt.product_variants?.map((pv) => ({
+                    product_variant_id: pv.product_variant_id,
+                    name: pv.name || "",
+                    sku: pv.sku || "",
+                    quantity: pv.quantity || "",
+                    price: pv.price || "",
+                    list_price: pv.list_price || null,
+                    vat_id: pv.vat_id || defaultVatTax?.id,
+                    vat_amount: pv.vat_amount || "",
+                    subtotal: pv.subtotal || "",
+                    unit: pv.unit || null,
+                    unit_name: pv.unit_name || "",
+                })) || [],
+            amount:
+                receipt.amount ||
+                calculateAmount(receipt.product_variants || []),
+            payment_method: receipt.payment_method || "cash",
+            journal_entries: journalEntries,
+            price_list_id: receipt.price_list_id || null,
+            price_list_info: null,
+            discount_type: receipt.discount_type || null,
+            discount_value: receipt.discount_value || 0,
+            discount_amount: receipt.discount_amount || 0,
+            discount_total: receipt.discount_total || 0,
+            discount_note: receipt.discount_note || "",
+        };
+
+        setFormData(updatedFormData);
+        journalEntriesRef.current = journalEntries;
+        hasInitializedRef.current = true;
+
+        if (receipt.receipt_date) {
+            setReceiptDate(new Date(receipt.receipt_date));
+        }
+
+        // Load price list nếu có
+        if (receipt.price_list_id) {
+            axios
+                .post(
+                    route("admin.price.list.getDetails", receipt.price_list_id),
+                )
+                .then((response) => {
+                    if (
+                        response.data?.status === "success" &&
+                        response.data?.data
+                    ) {
+                        const priceListData = response.data.data;
+                        const variants = Array.isArray(
+                            priceListData.product_variants,
+                        )
+                            ? priceListData.product_variants
+                            : [];
+
+                        setFormData((prev) => ({
+                            ...prev,
+                            price_list_info: {
+                                id: priceListData.id,
+                                name: priceListData.name,
+                                start_date: priceListData.start_date,
+                                end_date: priceListData.end_date,
+                                product_variants: variants,
+                            },
+                        }));
+                    }
+                })
+                .catch((err) => {
+                    console.warn(
+                        "[useReceiptForm] Không thể load bảng giá:",
+                        err,
+                    );
+                });
+        }
+    }, [receipt]); // ✅ Chỉ depend vào receipt
+
+    // Sync receipt_date
     useEffect(() => {
         if (receiptDate) {
             setFormData((prev) => ({
@@ -134,11 +185,17 @@ export function useReceiptForm({
         setErrors((prev) => ({ ...prev, [field]: null }));
     };
 
+    // ✅ Cập nhật cả state và ref khi journal entries thay đổi
     const handleJournalEntriesChange = useCallback((entries) => {
-        setJournalEntriesFromTab(entries);
+        console.log("[useReceiptForm] Journal entries changed:", entries);
+        setFormData((prev) => ({
+            ...prev,
+            journal_entries: entries,
+        }));
+        journalEntriesRef.current = entries;
     }, []);
 
-    // ─── Submit ───────────────────────────────────────────────────────────────
+    // Submit
     const handleSubmit = (e, submitRoute, submitMethod = "post") => {
         e.preventDefault();
         if (isSubmitting) return;
@@ -167,8 +224,38 @@ export function useReceiptForm({
             return;
         }
 
+        // Validate cân đối kế toán
+        const latestEntries = journalEntriesRef.current;
+        if (latestEntries.length > 0) {
+            const totalDebit = latestEntries.reduce(
+                (sum, entry) => sum + (parseFloat(entry.debit) || 0),
+                0,
+            );
+            const totalCredit = latestEntries.reduce(
+                (sum, entry) => sum + (parseFloat(entry.credit) || 0),
+                0,
+            );
+
+            if (Math.abs(totalDebit - totalCredit) > 0.01) {
+                emit("toast:error", "Tổng nợ và tổng có phải bằng nhau!");
+                return;
+            }
+        }
+
         setErrors({});
         setIsSubmitting(true);
+
+        // Tính toán lại discount_amount
+        let discountAmount = formData.discount_amount;
+        if (formData.discount_type && formData.discount_value) {
+            const totalAmount = calculateAmount(formData.product_variants);
+
+            if (formData.discount_type === "percentage") {
+                discountAmount = (totalAmount * formData.discount_value) / 100;
+            } else if (formData.discount_type === "fixed") {
+                discountAmount = formData.discount_value;
+            }
+        }
 
         const submitData = {
             code: formData.code,
@@ -177,6 +264,13 @@ export function useReceiptForm({
             journal_note: formData.journal_note,
             status: formData.status,
             user_id: formData.user_id,
+            amount: formData.amount,
+            payment_method: formData.payment_method,
+            discount_type: formData.discount_type,
+            discount_value: formData.discount_value,
+            discount_amount: discountAmount,
+            discount_total: discountAmount,
+            discount_note: formData.discount_note,
             ...(formData.price_list_id && {
                 price_list_id: formData.price_list_id,
             }),
@@ -195,76 +289,39 @@ export function useReceiptForm({
             submitData.customer_id = formData.customer_id;
         }
 
-        // ─── Journal entries ──────────────────────────────────────────────────
-        // ✅ FIX 3: Ưu tiên entries từ AccountingTabs (user có thể đã chỉnh),
-        //           fallback tự tính nếu chưa có
-        if (journalEntriesFromTab.length > 0) {
-            submitData.journal_entries = journalEntriesFromTab.map((entry) => ({
-                account_code: entry.account_code,
-                debit: entry.debit || 0,
-                credit: entry.credit || 0,
-            }));
-        } else {
-            const totalAmount = formData.product_variants.reduce(
-                (sum, item) =>
-                    sum +
-                    parseFloat(item.quantity || 0) *
-                        parseFloat(item.price || 0),
-                0,
-            );
-            const vatAmount = formData.product_variants.reduce(
-                (sum, item) => sum + parseFloat(item.vat_amount || 0),
-                0,
-            );
-            const grandTotal = totalAmount + vatAmount;
-
-            // Tính tổng giá vốn (cost) từ các sản phẩm nếu có
-            const totalCost = formData.product_variants.reduce(
-                (sum, item) => sum + parseFloat(item.cost_amount || 0),
-                0,
-            );
-
-            if (type === "purchase") {
-                submitData.journal_entries = [
-                    { account_code: "156", debit: totalAmount, credit: 0 },
-                    { account_code: "1331", debit: vatAmount, credit: 0 },
-                    { account_code: "331", debit: 0, credit: grandTotal },
-                ];
-            } else if (type === "sale") {
-                submitData.journal_entries = [
-                    { account_code: "131", debit: grandTotal, credit: 0 },
-                    { account_code: "5111", debit: 0, credit: totalAmount },
-                    { account_code: "3331", debit: 0, credit: vatAmount },
-                    // ✅ FIX 3: 2 bút toán giá vốn hàng bán (chỉ thêm nếu có cost)
-                    ...(totalCost > 0
-                        ? [
-                              {
-                                  account_code: "632",
-                                  debit: totalCost,
-                                  credit: 0,
-                              },
-                              {
-                                  account_code: "156",
-                                  debit: 0,
-                                  credit: totalCost,
-                              },
-                          ]
-                        : []),
-                ];
-            }
+        // ✅ Lấy journal entries từ ref
+        if (latestEntries.length > 0) {
+            submitData.journal_entries = latestEntries
+                .filter(
+                    (entry) =>
+                        entry.account_code && entry.account_code.trim() !== "",
+                )
+                .map((entry) => ({
+                    account_code: entry.account_code,
+                    debit: parseFloat(entry.debit) || 0,
+                    credit: parseFloat(entry.credit) || 0,
+                }));
         }
+
+        console.log("[useReceiptForm] Submitting:", submitData);
 
         router[submitMethod](submitRoute, submitData, {
             preserveScroll: true,
             preserveState: true,
-            onSuccess: () => setErrors({}),
+            onSuccess: () => {
+                setErrors({});
+                setIsSubmitting(false);
+            },
             onError: (errors) => {
                 setErrors(errors);
                 if (Object.keys(errors).length > 0) {
                     emit("toast:error", "Vui lòng kiểm tra lại thông tin!");
                 }
+                setIsSubmitting(false);
             },
-            onFinish: () => setIsSubmitting(false),
+            onFinish: () => {
+                setIsSubmitting(false);
+            },
         });
     };
 

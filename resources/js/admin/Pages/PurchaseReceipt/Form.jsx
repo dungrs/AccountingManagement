@@ -40,15 +40,11 @@ import {
     CheckCircle2,
     XCircle,
     Clock,
-    Info,
 } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 
-// Hàm xuất PDF - giữ nguyên logic nhưng không thay đổi form
 const generatePDF = async (element, fileName) => {
-    if (!element) {
-        throw new Error("Không tìm thấy nội dung cần xuất!");
-    }
+    if (!element) throw new Error("Không tìm thấy nội dung cần xuất!");
 
     const tempContainer = document.createElement("div");
     tempContainer.style.position = "fixed";
@@ -69,9 +65,6 @@ const generatePDF = async (element, fileName) => {
             allowTaint: false,
             logging: false,
             backgroundColor: "#ffffff",
-            onclone: (_clonedDoc, clonedElement) => {
-                console.log("Cloning for PDF export");
-            },
         });
 
         if (!canvas || canvas.width === 0 || canvas.height === 0) {
@@ -86,9 +79,7 @@ const generatePDF = async (element, fileName) => {
         });
 
         const pdfWidth = 210;
-        const imgWidth = pdfWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
+        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
         const imgData = canvas.toDataURL("image/jpeg", 1.0);
 
         if (!imgData || imgData === "data:,") {
@@ -100,17 +91,14 @@ const generatePDF = async (element, fileName) => {
             "JPEG",
             0,
             0,
-            imgWidth,
+            pdfWidth,
             imgHeight,
             undefined,
             "FAST",
         );
         pdf.save(fileName);
-    } catch (error) {
-        console.error("Lỗi khi xuất PDF:", error);
-        throw error;
     } finally {
-        if (tempContainer && tempContainer.parentNode) {
+        if (tempContainer?.parentNode) {
             document.body.removeChild(tempContainer);
         }
     }
@@ -129,10 +117,6 @@ export default function PurchaseReceiptForm() {
         errors: serverErrors,
     } = usePage().props;
 
-    useEffect(() => {
-        console.log(accounting_accounts);
-    }, []);
-
     const printRef = useRef(null);
     const pdfRef = useRef(null);
     const { emit } = useEventBus();
@@ -140,17 +124,8 @@ export default function PurchaseReceiptForm() {
     const [isExportingPDF, setIsExportingPDF] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
 
-    // ─── State cho addingRows và editingIndexes ───────────────────────────────
-    const [addingRows, setAddingRows] = useState([]);
-    const [editingIndexes, setEditingIndexes] = useState([]);
-
-    // Get default VAT tax
-    const getDefaultVatTax = () => {
-        return (
-            vat_taxes?.find((tax) => parseFloat(tax.rate) === 10) ||
-            vat_taxes?.[0]
-        );
-    };
+    const getDefaultVatTax = () =>
+        vat_taxes?.find((tax) => parseFloat(tax.rate) === 10) || vat_taxes?.[0];
 
     const {
         formData,
@@ -162,18 +137,21 @@ export default function PurchaseReceiptForm() {
         setReceiptDate,
         openReceiptDate,
         setOpenReceiptDate,
+        // ✅ Dùng addingRows/editingIndexes từ hook, không khai báo riêng ở component
+        addingRows,
+        setAddingRows,
+        editingIndexes,
+        setEditingIndexes,
         handleChange,
         handleSubmit: baseHandleSubmit,
-        handleJournalEntriesChange, // ✅ Giờ hook đã export, dòng này hoạt động
+        handleJournalEntriesChange,
     } = useReceiptForm({
-        // ✅ Đổi từ usePu sang useReceiptForm
         receipt: purchase_receipt,
         defaultVatTax: getDefaultVatTax(),
         isEdit,
         type: "purchase",
     });
 
-    // Product variants hook
     const productVariantHandlers = useProductVariants({
         formData,
         setFormData,
@@ -185,13 +163,13 @@ export default function PurchaseReceiptForm() {
         receipt: purchase_receipt,
     });
 
-    // Handle flash messages
+    // Flash messages
     useEffect(() => {
         if (flash?.success) emit("toast:success", flash.success);
         if (flash?.error) emit("toast:error", flash.error);
     }, [flash, emit]);
 
-    // Handle server errors
+    // Server errors
     useEffect(() => {
         if (serverErrors && Object.keys(serverErrors).length > 0) {
             setErrors(serverErrors);
@@ -199,7 +177,6 @@ export default function PurchaseReceiptForm() {
         }
     }, [serverErrors, setErrors, emit]);
 
-    // Submit handler
     const handleSubmit = (e) => {
         if (addingRows.length > 0) {
             e.preventDefault();
@@ -218,25 +195,16 @@ export default function PurchaseReceiptForm() {
         baseHandleSubmit(e, submitRoute, submitMethod);
     };
 
-    // Xử lý in
     const handlePrint = useReactToPrint({
         contentRef: printRef,
         documentTitle: `Phieu-nhap-kho-${formData.code || "Moi"}`,
         pageStyle: `
-            @page {
-                size: A4;
-                margin: 10mm;
-            }
+            @page { size: A4; margin: 10mm; }
             @media print {
-                body {
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
         `,
-        onBeforeGetContent: async () => {
-            setIsPrinting(true);
-        },
+        onBeforeGetContent: async () => setIsPrinting(true),
         onAfterPrint: () => {
             setIsPrinting(false);
             emit("toast:success", "Đã gửi lệnh in thành công!");
@@ -248,13 +216,11 @@ export default function PurchaseReceiptForm() {
         },
     });
 
-    // Xử lý xuất PDF
     const handleExportPDF = async () => {
         if (!pdfRef.current) {
             alert("Không tìm thấy nội dung cần xuất!");
             return;
         }
-
         setIsExportingPDF(true);
         try {
             await generatePDF(
@@ -270,21 +236,13 @@ export default function PurchaseReceiptForm() {
         }
     };
 
-    // Calculate totals
     const totals = calculateTotals(formData.product_variants || []);
-
-    // Get current supplier
     const currentSupplier = suppliers?.find(
         (s) => s.id === formData.supplier_id,
     );
-
-    // Get current user
     const currentUser = users?.find((u) => u.id === formData.user_id);
-
-    // Kiểm tra có thể in không
     const canPrint = isEdit && purchase_receipt?.status !== "draft";
 
-    // Get status badge
     const getStatusBadge = (status) => {
         const statusMap = {
             draft: {
@@ -405,7 +363,7 @@ export default function PurchaseReceiptForm() {
                     </Card>
                 </div>
 
-                {/* Header với gradient */}
+                {/* Header gradient */}
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-6 text-white shadow-lg">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -429,7 +387,6 @@ export default function PurchaseReceiptForm() {
                             </div>
                         </div>
 
-                        {/* Action Buttons */}
                         {canPrint && (
                             <div className="flex gap-2">
                                 <Button
@@ -467,7 +424,7 @@ export default function PurchaseReceiptForm() {
                     </div>
                 </div>
 
-                {/* Quick Info Card */}
+                {/* Quick Info */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <Card className="border-slate-200 shadow-sm">
                         <CardContent className="p-4 flex items-center gap-3">
@@ -520,7 +477,6 @@ export default function PurchaseReceiptForm() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    {/* Thông tin chung */}
                     <ReceiptGeneralInfo
                         formData={formData}
                         errors={errors}
@@ -534,9 +490,8 @@ export default function PurchaseReceiptForm() {
                         suppliers={suppliers}
                         users={users}
                         isEdit={isEdit}
-                    ></ReceiptGeneralInfo>
+                    />
 
-                    {/* Danh sách sản phẩm */}
                     <ProductVariantsTable
                         formData={formData}
                         setFormData={setFormData}
@@ -579,7 +534,9 @@ export default function PurchaseReceiptForm() {
                         totals={totals}
                     />
 
-                    {/* Hạch toán và Công nợ */}
+                    {/* ✅ AccountingTabs nhận handleJournalEntriesChange từ hook
+                        → khi user đổi TK, ref trong hook được cập nhật ngay,
+                        handleSubmit sẽ đọc đúng giá trị mới nhất */}
                     <AccountingTabs
                         formData={formData}
                         setFormData={setFormData}
@@ -590,10 +547,9 @@ export default function PurchaseReceiptForm() {
                         createdBy={purchase_receipt?.created_by || ""}
                         receiptDate={formData.receipt_date}
                         addingRows={addingRows}
-                        onJournalEntriesChange={handleJournalEntriesChange} // ✅ Dùng từ useReceiptForm
+                        onJournalEntriesChange={handleJournalEntriesChange}
                     />
 
-                    {/* Nút lưu/cập nhật */}
                     <div className="flex justify-end gap-3 pt-6 border-t">
                         <Button
                             type="button"

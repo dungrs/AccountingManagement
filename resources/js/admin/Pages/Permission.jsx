@@ -194,56 +194,87 @@ export default function UserCatalogue() {
         >
             <Head title="Quản Lý Quyền" />
 
+            <Head title="Quản Lý Quyền" />
+
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng quyền
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Shield className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đang hiển thị
-                            </p>
-                            <p className="text-2xl font-bold text-purple-600">
-                                {data.length}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <Key className="h-6 w-6 text-purple-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-indigo-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Trang hiện tại
-                            </p>
-                            <p className="text-2xl font-bold text-indigo-600">
-                                {paginationData.current_page}/
-                                {paginationData.last_page}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <Lock className="h-6 w-6 text-indigo-600" />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                {[
+                    {
+                        title: "Tổng quyền",
+                        value: paginationData.total,
+                        icon: Shield,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                        badge: "Tất cả quyền",
+                    },
+                    {
+                        title: "Đang hiển thị",
+                        value: data.length,
+                        icon: Key,
+                        color: "purple",
+                        bgColor: "bg-purple-100",
+                        textColor: "text-purple-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (
+                                      (data.length / paginationData.total) *
+                                      100
+                                  ).toFixed(1)
+                                : 0,
+                    },
+                    {
+                        title: "Trang hiện tại",
+                        value: `${paginationData.current_page}/${paginationData.last_page}`,
+                        icon: Lock,
+                        color: "indigo",
+                        bgColor: "bg-indigo-100",
+                        textColor: "text-indigo-600",
+                        badge: `Trang ${paginationData.current_page}`,
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-slate-500">
+                                        {stat.title}
+                                    </p>
+                                    <p
+                                        className={`text-base font-bold ${stat.textColor}`}
+                                    >
+                                        {stat.value}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        {stat.badge ? (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.badge}
+                                            </Badge>
+                                        ) : (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.percent}%
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                                <div
+                                    className={`h-8 w-8 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                >
+                                    <stat.icon
+                                        className={`h-4 w-4 ${stat.textColor}`}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">

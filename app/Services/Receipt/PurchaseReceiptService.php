@@ -436,7 +436,6 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                     'details'     => $journal->details->map(function ($detail) {
                         return [
                             'account_code' => $detail->account?->account_code,
-                            'account_name' => $detail->account?->name,
                             'debit'        => $detail->debit,
                             'credit'       => $detail->credit,
                         ];

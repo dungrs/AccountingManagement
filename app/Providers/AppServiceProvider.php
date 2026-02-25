@@ -28,15 +28,11 @@ class AppServiceProvider extends ServiceProvider
             'payment_voucher' => 'App\Models\PaymentVoucher',
             'purchase_receipt' => 'App\Models\PurchaseReceipt',
             'receipt_voucher' => 'App\Models\ReceiptVoucher',
-            'sales_receipt' => 'App\Models\SaleReceipt',
+            'sales_receipt' => 'App\Models\SalesReceipt',
             // Thêm các model khác nếu cần
         ]);
 
         if (app()->environment('production')) {
-            URL::forceScheme('https');
-        }
-
-        if (app()->environment('local')) {
             URL::forceScheme('https');
         }
     }

@@ -233,67 +233,114 @@ export default function Home() {
             <Head title="Quản Lý Nhóm Sản Phẩm" />
 
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng nhóm
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <FolderTree className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Cấp độ cao nhất
-                            </p>
-                            <p className="text-2xl font-bold text-purple-600">
-                                {maxLevel}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <Layers className="h-6 w-6 text-purple-600" />
+            {/* Header Stats */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {/* Tổng nhóm */}
+                <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Tổng nhóm
+                                </p>
+                                <p className="text-base font-bold text-blue-600">
+                                    {paginationData.total}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[10px] h-4">
+                                        Tổng số
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <FolderTree className="h-4 w-4 text-blue-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đang hiển thị
-                            </p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {activeCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
+                {/* Cấp độ cao nhất */}
+                <Card className="border-l-4 border-l-purple-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Cấp độ cao nhất
+                                </p>
+                                <p className="text-base font-bold text-purple-600">
+                                    {maxLevel}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-purple-100 text-purple-700 border-purple-200 text-[10px] h-4">
+                                        Cấp {maxLevel}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <Layers className="h-4 w-4 text-purple-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đang ẩn
-                            </p>
-                            <p className="text-2xl font-bold text-red-600">
-                                {inactiveCount}
-                            </p>
+                {/* Đang hiển thị */}
+                <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Đang hiển thị
+                                </p>
+                                <p className="text-base font-bold text-green-600">
+                                    {activeCount}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-green-100 text-green-700 border-green-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? (
+                                                  (activeCount /
+                                                      paginationData.total) *
+                                                  100
+                                              ).toFixed(1)
+                                            : 0}
+                                        %
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            </div>
                         </div>
-                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                            <XCircle className="h-6 w-6 text-red-600" />
+                    </CardContent>
+                </Card>
+
+                {/* Đang ẩn */}
+                <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs text-slate-500">
+                                    Đang ẩn
+                                </p>
+                                <p className="text-base font-bold text-red-600">
+                                    {inactiveCount}
+                                </p>
+                                <div className="flex items-center gap-1">
+                                    <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] h-4">
+                                        {paginationData.total > 0
+                                            ? (
+                                                  (inactiveCount /
+                                                      paginationData.total) *
+                                                  100
+                                              ).toFixed(1)
+                                            : 0}
+                                        %
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <XCircle className="h-4 w-4 text-red-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -301,58 +348,66 @@ export default function Home() {
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
                 {/* HEADER - Gradient Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-4 sm:px-6 py-3 sm:py-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <CardTitle className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
-                                <FolderTree className="h-6 w-6" />
-                                Quản Lý Nhóm Sản Phẩm
+                        <div className="min-w-0">
+                            <CardTitle className="text-xl sm:text-2xl font-bold text-white mb-1 flex items-center gap-2">
+                                <FolderTree className="h-5 w-5 sm:h-6 sm:w-6 flex-shrink-0" />
+                                <span className="truncate">
+                                    Quản Lý Nhóm Sản Phẩm
+                                </span>
                             </CardTitle>
-                            <CardDescription className="text-white/80">
+                            <CardDescription className="text-white/80 text-xs sm:text-sm hidden sm:block">
                                 Quản lý nhóm sản phẩm theo cấp bậc, hỗ trợ lọc
                                 và hiển thị sản phẩm theo nhóm.
                             </CardDescription>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
                             <Button
                                 onClick={handleRefresh}
                                 variant="secondary"
-                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                                size="sm"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md text-xs sm:text-sm px-2 sm:px-3"
                             >
-                                <RefreshCw className="mr-2 h-4 w-4" />
-                                Làm mới
+                                <RefreshCw className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="hidden xs:inline">
+                                    Làm mới
+                                </span>
                             </Button>
 
                             <Button
-                                className="btn-gradient-premium rounded-md shadow-lg"
+                                size="sm"
+                                className="btn-gradient-premium rounded-md shadow-lg text-xs sm:text-sm px-2 sm:px-3"
                                 onClick={() =>
                                     router.visit(
                                         route("admin.product.catalogue.create"),
                                     )
                                 }
                             >
-                                <Plus className="mr-2 h-4 w-4" />
-                                Thêm nhóm sản phẩm
+                                <Plus className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                                <span className="hidden xs:inline">Thêm</span>
+                                <span className="xs:hidden">Tạo</span>
                             </Button>
 
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                     <Button
                                         variant="secondary"
-                                        className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                                        size="sm"
+                                        className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md h-8 sm:h-9 w-8 sm:w-9 p-0"
                                     >
-                                        <MoreHorizontal className="h-4 w-4" />
+                                        <MoreHorizontal className="h-3 w-3 sm:h-4 sm:w-4" />
                                     </Button>
                                 </DropdownMenuTrigger>
 
                                 <DropdownMenuContent
                                     align="end"
-                                    className="dropdown-premium-content rounded-md w-56"
+                                    className="dropdown-premium-content rounded-md w-48 sm:w-56"
                                 >
                                     <DropdownMenuItem
                                         className={cn(
-                                            "cursor-pointer dropdown-premium-item",
+                                            "cursor-pointer dropdown-premium-item text-sm",
                                             selectedRows.length === 0 &&
                                                 "opacity-50 cursor-not-allowed",
                                         )}
@@ -366,14 +421,12 @@ export default function Home() {
                                         }
                                     >
                                         <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                                        <span className="text-slate-700">
-                                            Xuất bản
-                                        </span>
+                                        <span>Xuất bản</span>
                                     </DropdownMenuItem>
 
                                     <DropdownMenuItem
                                         className={cn(
-                                            "cursor-pointer dropdown-premium-item",
+                                            "cursor-pointer dropdown-premium-item text-sm",
                                             selectedRows.length === 0 &&
                                                 "opacity-50 cursor-not-allowed",
                                         )}
@@ -387,9 +440,7 @@ export default function Home() {
                                         }
                                     >
                                         <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                                        <span className="text-slate-700">
-                                            Không xuất bản
-                                        </span>
+                                        <span>Không xuất bản</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -402,38 +453,29 @@ export default function Home() {
                         keyword={keyword}
                         setKeyword={setKeyword}
                         placeholder="Tìm kiếm theo tên nhóm sản phẩm..."
-                        className="bg-white"
+                        className="bg-white flex-col sm:flex-row"
                     >
-                        <div className="flex items-center gap-2">
-                            <Filter className="h-4 w-4 text-slate-400" />
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <Filter className="h-4 w-4 text-slate-400 flex-shrink-0" />
                             <Select
                                 value={statusFilter}
                                 onValueChange={setStatusFilter}
                             >
-                                <SelectTrigger className="w-full sm:w-[200px] rounded-md border-slate-200 focus:ring-blue-500">
+                                <SelectTrigger className="w-full sm:w-[180px] md:w-[200px] rounded-md border-slate-200 focus:ring-blue-500 text-sm">
                                     <SelectValue placeholder="Trạng thái" />
                                 </SelectTrigger>
 
                                 <SelectContent className="dropdown-premium-content">
-                                    <SelectItem
-                                        value="all"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
+                                    <SelectItem value="all" className="text-sm">
                                         Tất cả
                                     </SelectItem>
-                                    <SelectItem
-                                        value="1"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
+                                    <SelectItem value="1" className="text-sm">
                                         <span className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-green-500"></span>
                                             Đang hiển thị
                                         </span>
                                     </SelectItem>
-                                    <SelectItem
-                                        value="0"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
+                                    <SelectItem value="0" className="text-sm">
                                         <span className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-red-500"></span>
                                             Đang ẩn

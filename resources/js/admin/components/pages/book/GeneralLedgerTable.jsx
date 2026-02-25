@@ -59,87 +59,6 @@ export default function GeneralLedgerTable({
     const balanceTypeLabel =
         accountInfo.normal_balance === "debit" ? "Nợ" : "Có";
 
-    // Helper để hiển thị tài khoản đối ứng
-    const renderContraAccounts = (contraAccounts) => {
-        if (!contraAccounts || contraAccounts.length === 0) {
-            return <span className="text-slate-400 italic">-</span>;
-        }
-
-        // Nếu chỉ có 1 tài khoản đối ứng, hiển thị đơn giản
-        if (contraAccounts.length === 1) {
-            const acc = contraAccounts[0];
-            return (
-                <div className="flex items-center gap-1">
-                    <Badge
-                        variant="outline"
-                        className="bg-purple-50 text-purple-700 border-purple-200 font-mono text-xs"
-                    >
-                        {acc.code}
-                    </Badge>
-                    <TooltipProvider>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Info className="h-3 w-3 text-slate-400 cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                                <p className="text-xs">{acc.name}</p>
-                                {acc.amount > 0 && (
-                                    <p className="text-xs font-medium mt-1">
-                                        Số tiền: {formatCurrency(acc.amount)}
-                                    </p>
-                                )}
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
-                </div>
-            );
-        }
-
-        // Nếu có nhiều tài khoản đối ứng, hiển thị dạng tooltip
-        return (
-            <TooltipProvider>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <div className="flex items-center gap-1 cursor-help">
-                            <Badge
-                                variant="outline"
-                                className="bg-purple-50 text-purple-700 border-purple-200"
-                            >
-                                <ArrowLeftRight className="h-3 w-3 mr-1" />
-                                {contraAccounts.length} TK
-                            </Badge>
-                        </div>
-                    </TooltipTrigger>
-                    <TooltipContent className="w-64 p-2">
-                        <p className="text-sm font-semibold text-purple-700 mb-2">
-                            Tài khoản đối ứng:
-                        </p>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                            {contraAccounts.map((acc, idx) => (
-                                <div
-                                    key={idx}
-                                    className="flex items-center justify-between text-xs border-b border-slate-100 pb-1 last:border-0"
-                                >
-                                    <span className="font-mono bg-purple-500 px-1 rounded">
-                                        {acc.code}
-                                    </span>
-                                    <span className="text-slate-600 truncate ml-2 flex-1">
-                                        {acc.name}
-                                    </span>
-                                    {acc.amount > 0 && (
-                                        <span className="font-medium text-slate-700 ml-2">
-                                            {formatCurrency(acc.amount)}
-                                        </span>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    </TooltipContent>
-                </Tooltip>
-            </TooltipProvider>
-        );
-    };
-
     return (
         <div className="rounded-md border border-slate-200 overflow-hidden bg-white shadow-sm">
             <Table>
@@ -283,9 +202,34 @@ export default function GeneralLedgerTable({
                                     {/* Tài khoản đối ứng */}
                                     <TableCell>
                                         {!isOpeningRow &&
-                                            renderContraAccounts(
-                                                row.contra_accounts,
-                                            )}
+                                        row.contra_account_code ? (
+                                            <div className="flex items-center gap-1">
+                                                <Badge
+                                                    variant="outline"
+                                                    className="bg-purple-50 text-purple-700 border-purple-200 font-mono text-xs"
+                                                >
+                                                    {row.contra_account_code}
+                                                </Badge>
+                                                {row.contra_account_name && (
+                                                    <span
+                                                        className="text-xs text-slate-500 truncate max-w-[80px]"
+                                                        title={
+                                                            row.contra_account_name
+                                                        }
+                                                    >
+                                                        {
+                                                            row.contra_account_name
+                                                        }
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            !isOpeningRow && (
+                                                <span className="text-slate-400 italic">
+                                                    -
+                                                </span>
+                                            )
+                                        )}
                                     </TableCell>
 
                                     {/* Số tiền Nợ */}

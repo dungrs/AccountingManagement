@@ -289,32 +289,6 @@ export default function SalesReceiptHome() {
                     </CardContent>
                 </Card>
             </div>
-            {/* Total Amount Card */}
-            <div className="mb-6">
-                <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                                    <Package className="h-8 w-8 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-white/80 text-sm">
-                                        Tổng giá trị xuất kho {/* Đổi text */}
-                                    </p>
-                                    <p className="text-3xl font-bold mt-1">
-                                        {new Intl.NumberFormat("vi-VN", {
-                                            style: "currency",
-                                            currency: "VND",
-                                        }).format(totalAmount)}
-                                    </p>
-                                </div>
-                            </div>
-                            <TrendingUp className="h-12 w-12 text-white/30" />
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
                 {/* HEADER - Gradient Header */}
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">

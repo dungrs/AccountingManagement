@@ -52,6 +52,7 @@ import UserFormModal from "@/admin/components/pages/user/UserFormModal";
 
 import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
 import { cn } from "@/admin/lib/utils";
+import { Badge } from "@/admin/components/ui/badge";
 
 export default function Home() {
     const [data, setData] = useState([]);
@@ -262,45 +263,96 @@ export default function Home() {
         >
             <Head title="Quản Lý Thành Viên" />
 
+            <Head title="Quản Lý Thành Viên" />
+
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Tổng thành viên</p>
-                            <p className="text-2xl font-bold text-blue-600">{paginationData.total}</p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <Users className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Đang hoạt động</p>
-                            <p className="text-2xl font-bold text-purple-600">
-                                {data.filter(item => item.active).length}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-6 w-6 text-purple-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-indigo-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Đã chọn</p>
-                            <p className="text-2xl font-bold text-indigo-600">{selectedRows.length}</p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-indigo-100 flex items-center justify-center">
-                            <UserPlus className="h-6 w-6 text-indigo-600" />
-                        </div>
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                {[
+                    {
+                        title: "Tổng thành viên",
+                        value: paginationData.total,
+                        icon: Users,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                        badge: "Tất cả TV",
+                    },
+                    {
+                        title: "Đang hoạt động",
+                        value: data.filter((item) => item.active).length,
+                        icon: CheckCircle2,
+                        color: "purple",
+                        bgColor: "bg-purple-100",
+                        textColor: "text-purple-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (
+                                      (data.filter((item) => item.active)
+                                          .length /
+                                          paginationData.total) *
+                                      100
+                                  ).toFixed(1)
+                                : 0,
+                    },
+                    {
+                        title: "Đã chọn",
+                        value: selectedRows.length,
+                        icon: UserPlus,
+                        color: "indigo",
+                        bgColor: "bg-indigo-100",
+                        textColor: "text-indigo-600",
+                        percent:
+                            paginationData.total > 0
+                                ? (
+                                      (selectedRows.length /
+                                          paginationData.total) *
+                                      100
+                                  ).toFixed(1)
+                                : 0,
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-start justify-between">
+                                <div className="space-y-1">
+                                    <p className="text-xs text-slate-500">
+                                        {stat.title}
+                                    </p>
+                                    <p
+                                        className={`text-base font-bold ${stat.textColor}`}
+                                    >
+                                        {stat.value}
+                                    </p>
+                                    <div className="flex items-center gap-1">
+                                        {stat.badge ? (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.badge}
+                                            </Badge>
+                                        ) : (
+                                            <Badge
+                                                className={`bg-${stat.color}-100 text-${stat.color}-700 border-${stat.color}-200 text-[10px] h-4`}
+                                            >
+                                                {stat.percent}%
+                                            </Badge>
+                                        )}
+                                    </div>
+                                </div>
+                                <div
+                                    className={`h-8 w-8 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                >
+                                    <stat.icon
+                                        className={`h-4 w-4 ${stat.textColor}`}
+                                    />
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
@@ -313,7 +365,8 @@ export default function Home() {
                                 Quản Lý Thành Viên
                             </CardTitle>
                             <CardDescription className="text-white/80">
-                                Quản lý thông tin, vai trò và trạng thái của các thành viên trong hệ thống.
+                                Quản lý thông tin, vai trò và trạng thái của các
+                                thành viên trong hệ thống.
                             </CardDescription>
                         </div>
 
@@ -345,29 +398,50 @@ export default function Home() {
                                     </Button>
                                 </DropdownMenuTrigger>
 
-                                <DropdownMenuContent align="end" className="dropdown-premium-content rounded-md w-56">
+                                <DropdownMenuContent
+                                    align="end"
+                                    className="dropdown-premium-content rounded-md w-56"
+                                >
                                     <DropdownMenuItem
                                         className={cn(
                                             "cursor-pointer dropdown-premium-item",
-                                            selectedRows.length === 0 && "opacity-50 cursor-not-allowed"
+                                            selectedRows.length === 0 &&
+                                                "opacity-50 cursor-not-allowed",
                                         )}
                                         disabled={selectedRows.length === 0}
-                                        onClick={() => bulkUpdateStatus(true, "User", "User")}
+                                        onClick={() =>
+                                            bulkUpdateStatus(
+                                                true,
+                                                "User",
+                                                "User",
+                                            )
+                                        }
                                     >
                                         <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />
-                                        <span className="text-slate-700">Xuất bản</span>
+                                        <span className="text-slate-700">
+                                            Xuất bản
+                                        </span>
                                     </DropdownMenuItem>
 
                                     <DropdownMenuItem
                                         className={cn(
                                             "cursor-pointer dropdown-premium-item",
-                                            selectedRows.length === 0 && "opacity-50 cursor-not-allowed"
+                                            selectedRows.length === 0 &&
+                                                "opacity-50 cursor-not-allowed",
                                         )}
                                         disabled={selectedRows.length === 0}
-                                        onClick={() => bulkUpdateStatus(false, "User", "User")}
+                                        onClick={() =>
+                                            bulkUpdateStatus(
+                                                false,
+                                                "User",
+                                                "User",
+                                            )
+                                        }
                                     >
                                         <XCircle className="mr-2 h-4 w-4 text-red-600" />
-                                        <span className="text-slate-700">Không xuất bản</span>
+                                        <span className="text-slate-700">
+                                            Không xuất bản
+                                        </span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
@@ -393,16 +467,25 @@ export default function Home() {
                                 </SelectTrigger>
 
                                 <SelectContent className="dropdown-premium-content">
-                                    <SelectItem value="all" className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5">
+                                    <SelectItem
+                                        value="all"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
                                         Tất cả
                                     </SelectItem>
-                                    <SelectItem value="1" className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5">
+                                    <SelectItem
+                                        value="1"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
                                         <span className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-green-500"></span>
                                             Đang hoạt động
                                         </span>
                                     </SelectItem>
-                                    <SelectItem value="0" className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5">
+                                    <SelectItem
+                                        value="0"
+                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
+                                    >
                                         <span className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-red-500"></span>
                                             Ngừng hoạt động

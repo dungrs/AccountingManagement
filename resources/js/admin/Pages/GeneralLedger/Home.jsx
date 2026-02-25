@@ -38,21 +38,28 @@ import {
 import axios from "axios";
 import toast from "react-hot-toast";
 import GeneralLedgerTable from "@/admin/components/pages/book/GeneralLedgerTable";
-import { Head, router } from "@inertiajs/react";
+import { Head } from "@inertiajs/react";
 import useFlashToast from "@/admin/hooks/useFlashToast";
 import { formatCurrency } from "@/admin/utils/helpers";
 import { useReactToPrint } from "react-to-print";
 import GeneralLedgerPrint from "@/admin/components/shared/print/GeneralLedgerPrint";
 import SelectCombobox from "@/admin/components/ui/select-combobox";
+import { RangeDatePicker } from "@/admin/components/ui/date-picker";
 
-export default function GeneralLedgerIndex() {
+export default function GeneralLedgerIndex({ initialFilters, accounts }) {
     useFlashToast();
 
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [month, setMonth] = useState(new Date().getMonth() + 1);
-    const [year, setYear] = useState(new Date().getFullYear());
-    const [accountCode, setAccountCode] = useState("111"); // Mã tài khoản
+    const [startDate, setStartDate] = useState(
+        initialFilters?.start_date || getDefaultStartDate(),
+    );
+    const [endDate, setEndDate] = useState(
+        initialFilters?.end_date || getDefaultEndDate(),
+    );
+    const [accountCode, setAccountCode] = useState(
+        initialFilters?.account_code || "111",
+    );
     const [summary, setSummary] = useState({
         total_debit: 0,
         total_credit: 0,
@@ -61,46 +68,83 @@ export default function GeneralLedgerIndex() {
     const [openingBalance, setOpeningBalance] = useState(0);
     const [closingBalance, setClosingBalance] = useState(0);
     const [period, setPeriod] = useState({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
         start_date: "",
         end_date: "",
     });
     const [accountInfo, setAccountInfo] = useState({
         code: "111",
         name: "Tiền mặt",
-        normal_balance: "debit", // Đổi từ balance_type thành normal_balance
+        normal_balance: "debit",
     });
-    const [accounts, setAccounts] = useState([]);
     const [systems, setSystems] = useState({});
     const [isPrinting, setIsPrinting] = useState(false);
 
     // Ref cho component in
     const printRef = useRef(null);
 
-    // Fetch danh sách tài khoản
-    useEffect(() => {
-        const fetchAccounts = async () => {
-            try {
-                const res = await axios.get(
-                    route("admin.book.ledger.accounts"),
-                );
-                if (res.data.success) {
-                    setAccounts(res.data.data);
-                }
-            } catch (error) {
-                console.error("Lỗi khi tải danh sách tài khoản:", error);
-            }
-        };
-        fetchAccounts();
-    }, []);
+    // Hàm lấy ngày mặc định
+    function getDefaultStartDate() {
+        const date = new Date();
+        date.setDate(1);
+        return date.toISOString().split("T")[0];
+    }
+
+    function getDefaultEndDate() {
+        const date = new Date();
+        return date.toISOString().split("T")[0];
+    }
+
+    // Các tùy chọn khoảng thời gian nhanh
+    const quickRanges = [
+        { label: "Hôm nay", days: 0 },
+        { label: "7 ngày qua", days: 7 },
+        { label: "30 ngày qua", days: 30 },
+        { label: "Tháng này", type: "month" },
+        { label: "Tháng trước", type: "prevMonth" },
+        { label: "Quý này", type: "quarter" },
+        { label: "Năm nay", type: "year" },
+    ];
+
+    // Xử lý chọn khoảng thời gian nhanh
+    const handleQuickRange = (range) => {
+        const today = new Date();
+        let start = new Date();
+        let end = new Date();
+
+        if (range.type === "month") {
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        } else if (range.type === "prevMonth") {
+            start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            end = new Date(today.getFullYear(), today.getMonth(), 0);
+        } else if (range.type === "quarter") {
+            const quarter = Math.floor(today.getMonth() / 3);
+            start = new Date(today.getFullYear(), quarter * 3, 1);
+            end = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
+        } else if (range.type === "year") {
+            start = new Date(today.getFullYear(), 0, 1);
+            end = new Date(today.getFullYear(), 11, 31);
+        } else if (range.days === 0) {
+            // Hôm nay
+            start = today;
+            end = today;
+        } else {
+            // days ago
+            start = new Date(today);
+            start.setDate(today.getDate() - range.days);
+            end = today;
+        }
+
+        setStartDate(start.toISOString().split("T")[0]);
+        setEndDate(end.toISOString().split("T")[0]);
+    };
 
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
             const params = {
-                month,
-                year,
+                start_date: startDate,
+                end_date: endDate,
                 account_code: accountCode,
             };
 
@@ -123,7 +167,7 @@ export default function GeneralLedgerIndex() {
                     code: response.data.account.code,
                     name: response.data.account.name,
                     normal_balance:
-                        response.data.account.normal_balance || "debit", // Sử dụng normal_balance
+                        response.data.account.normal_balance || "debit",
                 });
             }
 
@@ -162,7 +206,7 @@ export default function GeneralLedgerIndex() {
         } finally {
             setLoading(false);
         }
-    }, [month, year, accountCode]);
+    }, [startDate, endDate, accountCode]);
 
     useEffect(() => {
         fetchData();
@@ -181,7 +225,7 @@ export default function GeneralLedgerIndex() {
     // Xử lý in trực tiếp
     const handlePrint = useReactToPrint({
         contentRef: printRef,
-        documentTitle: `So-cai-${accountInfo.code}-thang-${month}-${year}`,
+        documentTitle: `So-cai-${accountInfo.code}-${startDate}-${endDate}`,
         pageStyle: `
             @page {
                 size: A4 landscape;
@@ -214,13 +258,6 @@ export default function GeneralLedgerIndex() {
         },
     });
 
-    // Tạo danh sách tháng và năm
-    const months = Array.from({ length: 12 }, (_, i) => i + 1);
-    const years = Array.from(
-        { length: 5 },
-        (_, i) => new Date().getFullYear() - 2 + i,
-    );
-
     // Format options cho SelectCombobox
     const accountOptions = accounts.map((account) => ({
         value: account.code,
@@ -250,8 +287,6 @@ export default function GeneralLedgerIndex() {
                     ref={printRef}
                     result={{
                         account: accountInfo,
-                        month: period.month,
-                        year: period.year,
                         period: period,
                         opening_balance: openingBalance,
                         closing_balance: closingBalance,
@@ -274,9 +309,8 @@ export default function GeneralLedgerIndex() {
                                 SỔ CÁI - TÀI KHOẢN {accountInfo.code}
                             </h2>
                             <p className="text-white/80 text-sm mt-1">
-                                {accountInfo.name} | Tháng {period.month} - Năm{" "}
-                                {period.year} | Từ ngày {period.start_date} đến
-                                ngày {period.end_date}
+                                {accountInfo.name} | Từ ngày {period.start_date}{" "}
+                                đến ngày {period.end_date}
                             </p>
                         </div>
                     </div>
@@ -303,7 +337,7 @@ export default function GeneralLedgerIndex() {
                             {formatCurrency(openingBalance)}
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
-                            Đến ngày {period.start_date}
+                            Tại ngày {period.start_date}
                         </p>
                     </CardContent>
                 </Card>
@@ -354,12 +388,11 @@ export default function GeneralLedgerIndex() {
                             {formatCurrency(closingBalance)}
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
-                            Đến ngày {period.end_date}
+                            Tại ngày {period.end_date}
                         </p>
                     </CardContent>
                 </Card>
             </div>
-
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
                 {/* HEADER - Gradient Header */}
@@ -399,14 +432,14 @@ export default function GeneralLedgerIndex() {
                                 Làm mới
                             </Button>
 
-                            <Button
+                            {/* <Button
                                 onClick={handleExport}
                                 variant="secondary"
                                 className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                             >
                                 <Download className="mr-2 h-4 w-4" />
                                 Xuất Excel
-                            </Button>
+                            </Button> */}
 
                             <Button
                                 onClick={handlePrint}
@@ -426,50 +459,54 @@ export default function GeneralLedgerIndex() {
                 </div>
 
                 <CardContent className="p-6 space-y-4">
-                    <div className="flex flex-wrap items-center gap-2 mb-4">
-                        <Filter className="h-4 w-4 text-slate-400" />
+                    {/* Filter Section */}
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
+                            <div className="flex-1">
+                                <label className="text-sm font-medium text-slate-700 mb-1 block">
+                                    Khoảng thời gian
+                                </label>
+                                <RangeDatePicker
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    onStartDateChange={setStartDate}
+                                    onEndDateChange={setEndDate}
+                                    placeholder="Chọn khoảng thời gian"
+                                    clearable={true}
+                                />
+                            </div>
 
-                        {/* Month Filter */}
-                        <Select
-                            value={month.toString()}
-                            onValueChange={(value) => setMonth(parseInt(value))}
-                        >
-                            <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-blue-500">
-                                <SelectValue placeholder="Tháng" />
-                            </SelectTrigger>
-                            <SelectContent className="dropdown-premium-content">
-                                {months.map((m) => (
-                                    <SelectItem
-                                        key={m}
-                                        value={m.toString()}
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        Tháng {m}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                            <Button
+                                onClick={fetchData}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 min-w-[120px]"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Filter className="w-4 h-4 mr-2" />
+                                )}
+                                {loading ? "Đang lọc..." : "Lọc dữ liệu"}
+                            </Button>
+                        </div>
 
-                        {/* Year Filter */}
-                        <Select
-                            value={year.toString()}
-                            onValueChange={(value) => setYear(parseInt(value))}
-                        >
-                            <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-purple-500">
-                                <SelectValue placeholder="Năm" />
-                            </SelectTrigger>
-                            <SelectContent className="dropdown-premium-content">
-                                {years.map((y) => (
-                                    <SelectItem
-                                        key={y}
-                                        value={y.toString()}
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        Năm {y}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
+                        {/* Quick Range Buttons */}
+                        <div className="flex flex-wrap gap-2 mt-4">
+                            <span className="text-sm text-slate-500 py-1">
+                                Nhanh:
+                            </span>
+                            {quickRanges.map((range, index) => (
+                                <Button
+                                    key={index}
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleQuickRange(range)}
+                                    className="text-xs hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                                >
+                                    {range.label}
+                                </Button>
+                            ))}
+                        </div>
                     </div>
 
                     <GeneralLedgerTable

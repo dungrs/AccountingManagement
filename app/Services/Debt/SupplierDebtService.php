@@ -21,7 +21,7 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
     protected const ACCOUNT_PAYABLE = '331';
     protected const REF_TYPE_PURCHASE = 'purchase_receipt';
     protected const REF_TYPE_PAYMENT = 'payment_voucher';
-    protected const TAX_ACCOUNT = '1331'; 
+    protected const TAX_ACCOUNT = '1331';
 
     protected SupplierDebtRepository $supplierDebtRepository;
     protected SupplierRepository $supplierRepository;
@@ -33,6 +33,10 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         $this->supplierDebtRepository = $supplierDebtRepository;
         $this->supplierRepository = $supplierRepository;
     }
+
+    // =========================================================================
+    // PUBLIC METHODS
+    // =========================================================================
 
     /**
      * Paginate danh sách tổng hợp công nợ theo từng nhà cung cấp
@@ -61,9 +65,9 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         );
 
         return [
-            'data' => $formattedData['data'],
-            'summary' => $formattedData['summary'],
-            'period' => $periodData['period'],
+            'data'       => $formattedData['data'],
+            'summary'    => $formattedData['summary'],
+            'period'     => $periodData['period'],
             'pagination' => $this->formatPagination($suppliers)
         ];
     }
@@ -80,7 +84,8 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
             throw new \Exception("Không tìm thấy nhà cung cấp với ID: {$supplierId}");
         }
 
-        $openingBalance = $this->calculateSupplierBalance(
+        // ✅ FIX: Dùng supplier_debts để tính opening balance — nhất quán với danh sách
+        $openingBalance = $this->calculateSupplierBalanceFromDebts(
             $supplierId,
             $periodData['previous_period_end']
         );
@@ -97,15 +102,21 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
             $periodData['end_date']
         );
 
-        $summary = $this->calculateSummary($transactions);
+        // ✅ FIX: Tính summary từ supplier_debts — nhất quán với danh sách
+        $summary = $this->calculateSummaryFromDebts(
+            $supplierId,
+            $periodData['start_date'],
+            $periodData['end_date']
+        );
+
         $transactions = $this->updateRunningBalance($transactions, $openingBalance);
 
         return [
-            'supplier' => $this->formatSupplierInfo($supplier),
-            'period' => $periodData['period'],
+            'supplier'        => $this->formatSupplierInfo($supplier),
+            'period'          => $periodData['period'],
             'opening_balance' => $openingBalance,
-            'transactions' => $transactions,
-            'summary' => $summary
+            'transactions'    => $transactions,
+            'summary'         => $summary
         ];
     }
 
@@ -141,11 +152,11 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         return DB::transaction(
             fn() =>
             $this->supplierDebtRepository->create([
-                'supplier_id' => $receipt->supplier_id,
-                'reference_type' => self::REF_TYPE_PURCHASE,
-                'reference_id' => $receipt->id,
-                'debit' => 0,
-                'credit' => $receipt->grand_total,
+                'supplier_id'      => $receipt->supplier_id,
+                'reference_type'   => self::REF_TYPE_PURCHASE,
+                'reference_id'     => $receipt->id,
+                'debit'            => 0,
+                'credit'           => $receipt->grand_total,
                 'transaction_date' => $receipt->receipt_date ?? now(),
             ])
         );
@@ -159,11 +170,11 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         return DB::transaction(
             fn() =>
             $this->supplierDebtRepository->create([
-                'supplier_id' => $paymentVoucher->supplier_id,
-                'reference_type' => self::REF_TYPE_PAYMENT,
-                'reference_id' => $paymentVoucher->id,
-                'debit' => $paymentVoucher->amount,
-                'credit' => 0,
+                'supplier_id'      => $paymentVoucher->supplier_id,
+                'reference_type'   => self::REF_TYPE_PAYMENT,
+                'reference_id'     => $paymentVoucher->id,
+                'debit'            => $paymentVoucher->amount,
+                'credit'           => 0,
                 'transaction_date' => $paymentVoucher->voucher_date ?? now(),
             ])
         );
@@ -185,8 +196,7 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
      */
     public function getSupplierDebtBalance(int $supplierId, ?Carbon $endDate = null): float
     {
-        $debts = $this->getSupplierDebts($supplierId, $endDate);
-        return $debts->sum('credit') - $debts->sum('debit');
+        return $this->calculateSupplierBalanceFromDebts($supplierId, $endDate);
     }
 
     /**
@@ -196,7 +206,7 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
     {
         $result = [];
         foreach ($supplierIds as $supplierId) {
-            $result[$supplierId] = $this->getSupplierDebtBalance($supplierId, $endDate);
+            $result[$supplierId] = $this->calculateSupplierBalanceFromDebts($supplierId, $endDate);
         }
         return $result;
     }
@@ -225,29 +235,117 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         );
     }
 
+    // =========================================================================
+    // CORE CALCULATION — dùng supplier_debts (nguồn dữ liệu chính)
+    // =========================================================================
+
+    /**
+     * ✅ Tính số dư tại một thời điểm từ bảng supplier_debts
+     * Đây là nguồn sự thật duy nhất — cả danh sách lẫn chi tiết đều dùng hàm này
+     */
+    protected function calculateSupplierBalanceFromDebts(int $supplierId, ?Carbon $endDate): float
+    {
+        $condition = [['supplier_id', '=', $supplierId]];
+
+        if ($endDate) {
+            $condition[] = ['transaction_date', '<=', $endDate];
+        }
+
+        $debts = $this->supplierDebtRepository->findByCondition(
+            $condition,
+            true,
+            [],
+            [],
+            ['debit', 'credit'],
+            [],
+            null,
+            []
+        );
+
+        return (float)($debts->sum('credit') - $debts->sum('debit'));
+    }
+
+    /**
+     * ✅ Tính phát sinh trong kỳ từ bảng supplier_debts
+     * Nhất quán với calculateSupplierBalanceFromDebts
+     */
+    protected function calculateSupplierPeriodTransactions(
+        int $supplierId,
+        Carbon $startDate,
+        Carbon $endDate
+    ): array {
+        $condition = [
+            ['supplier_id', '=', $supplierId],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ];
+
+        $debts = $this->supplierDebtRepository->findByCondition(
+            $condition,
+            true,
+            [],
+            [],
+            ['debit', 'credit'],
+            [],
+            null,
+            []
+        );
+
+        return [
+            'total_debit'  => (float)$debts->sum('debit'),
+            'total_credit' => (float)$debts->sum('credit'),
+            'count'        => $debts->count(),
+        ];
+    }
+
+    /**
+     * ✅ Tính summary từ supplier_debts — dùng cho trang chi tiết
+     * Thay thế calculateSummary() cũ vốn chỉ lọc dòng TK 331 trong journal entries
+     */
+    protected function calculateSummaryFromDebts(
+        int $supplierId,
+        Carbon $startDate,
+        Carbon $endDate
+    ): array {
+        $period = $this->calculateSupplierPeriodTransactions($supplierId, $startDate, $endDate);
+
+        return [
+            'total_debit'  => $period['total_debit'],
+            'total_credit' => $period['total_credit'],
+        ];
+    }
+
+    // =========================================================================
+    // PERIOD & FILTER HELPERS
+    // =========================================================================
+
     /**
      * Chuẩn bị dữ liệu kỳ báo cáo
      */
     protected function preparePeriodData(Request $request): array
     {
-        $month = (int)($request->input('month') ?? now()->month);
-        $year = (int)($request->input('year') ?? now()->year);
+        $startDateStr = $request->input('start_date');
+        $endDateStr   = $request->input('end_date');
 
-        $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
-        $endDate = $startDate->copy()->endOfMonth();
+        if (!$startDateStr || !$endDateStr) {
+            $startDate = Carbon::now()->startOfMonth()->startOfDay();
+            $endDate   = Carbon::now()->endOfMonth()->endOfDay();
+        } else {
+            $startDate = Carbon::createFromFormat('Y-m-d', $startDateStr)->startOfDay();
+            $endDate   = Carbon::createFromFormat('Y-m-d', $endDateStr)->endOfDay();
+        }
+
         $previousPeriodEnd = $startDate->copy()->subDay()->endOfDay();
 
         return [
-            'month' => $month,
-            'year' => $year,
-            'start_date' => $startDate,
-            'end_date' => $endDate,
+            'start_date'          => $startDate,
+            'end_date'            => $endDate,
             'previous_period_end' => $previousPeriodEnd,
-            'period' => [
-                'month' => $month,
-                'year' => $year,
-                'start_date' => $startDate->format('d/m/Y'),
-                'end_date' => $endDate->format('d/m/Y')
+            'period'              => [
+                'start_date'      => $startDate->format('d/m/Y'),
+                'end_date'        => $endDate->format('d/m/Y'),
+                'start_date_raw'  => $startDate->format('Y-m-d'),
+                'end_date_raw'    => $endDate->format('Y-m-d'),
             ]
         ];
     }
@@ -262,7 +360,7 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
     ): array {
         $condition = [
             ['transaction_date', '>=', $startDate],
-            ['transaction_date', '<=', $endDate]
+            ['transaction_date', '<=', $endDate],
         ];
 
         if ($request->has('supplier_id') && $request->supplier_id) {
@@ -313,8 +411,12 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         );
     }
 
+    // =========================================================================
+    // FORMAT DANH SÁCH
+    // =========================================================================
+
     /**
-     * Format dữ liệu công nợ nhà cung cấp
+     * Format dữ liệu công nợ nhà cung cấp cho danh sách
      */
     protected function formatSupplierDebtData(
         LengthAwarePaginator $suppliers,
@@ -325,116 +427,55 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         $formattedData = collect();
         $summary = [
             'opening_balance' => 0,
-            'total_debit' => 0,
-            'total_credit' => 0,
-            'closing_balance' => 0
+            'total_debit'     => 0,
+            'total_credit'    => 0,
+            'closing_balance' => 0,
         ];
 
         foreach ($suppliers as $supplier) {
-            $openingBalance = $this->calculateSupplierBalance($supplier->id, $previousPeriodEnd);
-            $periodTransactions = $this->calculateSupplierPeriodTransactions(
-                $supplier->id,
-                $startDate,
-                $endDate
-            );
+            // ✅ Cả hai dùng cùng hàm calculateSupplierBalanceFromDebts
+            $openingBalance      = $this->calculateSupplierBalanceFromDebts($supplier->id, $previousPeriodEnd);
+            $periodTransactions  = $this->calculateSupplierPeriodTransactions($supplier->id, $startDate, $endDate);
+            $closingBalance      = $openingBalance
+                + $periodTransactions['total_credit']
+                - $periodTransactions['total_debit'];
 
-            $closingBalance = $openingBalance + $periodTransactions['total_credit'] - $periodTransactions['total_debit'];
-
-            // Cập nhật summary
             $summary['opening_balance'] += $openingBalance;
-            $summary['total_debit'] += $periodTransactions['total_debit'];
-            $summary['total_credit'] += $periodTransactions['total_credit'];
+            $summary['total_debit']     += $periodTransactions['total_debit'];
+            $summary['total_credit']    += $periodTransactions['total_credit'];
 
             $formattedData->push([
-                'id' => $supplier->id,
-                'supplier_code' => $supplier->supplier_code,
-                'supplier_name' => $supplier->name,
-                'tax_code' => $supplier->tax_code ?? '',
-                'phone' => $supplier->phone ?? '',
-                'email' => $supplier->email ?? '',
-                'address' => $supplier->address ?? '',
-                'opening_balance' => $openingBalance,
-                'total_debit' => $periodTransactions['total_debit'],
-                'total_credit' => $periodTransactions['total_credit'],
-                'closing_balance' => $closingBalance,
-                'transaction_count' => $periodTransactions['count']
+                'id'                => $supplier->id,
+                'supplier_code'     => $supplier->supplier_code,
+                'supplier_name'     => $supplier->name,
+                'tax_code'          => $supplier->tax_code ?? '',
+                'phone'             => $supplier->phone ?? '',
+                'email'             => $supplier->email ?? '',
+                'address'           => $supplier->address ?? '',
+                'opening_balance'   => $openingBalance,
+                'total_debit'       => $periodTransactions['total_debit'],
+                'total_credit'      => $periodTransactions['total_credit'],
+                'closing_balance'   => $closingBalance,
+                'transaction_count' => $periodTransactions['count'],
             ]);
         }
 
-        $summary['closing_balance'] = $summary['opening_balance'] + $summary['total_credit'] - $summary['total_debit'];
+        $summary['closing_balance'] = $summary['opening_balance']
+            + $summary['total_credit']
+            - $summary['total_debit'];
 
         return [
-            'data' => $formattedData,
-            'summary' => $summary
+            'data'    => $formattedData,
+            'summary' => $summary,
         ];
     }
 
-    /**
-     * Tính số dư của nhà cung cấp tại một thời điểm
-     */
-    protected function calculateSupplierBalance(int $supplierId, Carbon $endDate): float
-    {
-        $debts = $this->getSupplierDebts($supplierId, $endDate);
-        return $debts->sum('credit') - $debts->sum('debit');
-    }
+    // =========================================================================
+    // FORMAT CHI TIẾT (journal entries)
+    // =========================================================================
 
     /**
-     * Lấy danh sách công nợ của nhà cung cấp
-     */
-    protected function getSupplierDebts(int $supplierId, ?Carbon $endDate = null): Collection
-    {
-        $condition = [['supplier_id', '=', $supplierId]];
-
-        if ($endDate) {
-            $condition[] = ['transaction_date', '<=', $endDate];
-        }
-
-        return $this->supplierDebtRepository->findByCondition(
-            $condition,
-            true,
-            [],
-            [],
-            ['debit', 'credit'],
-            [],
-            null,
-            []
-        );
-    }
-
-    /**
-     * Tính phát sinh trong kỳ của nhà cung cấp
-     */
-    protected function calculateSupplierPeriodTransactions(
-        int $supplierId,
-        Carbon $startDate,
-        Carbon $endDate
-    ): array {
-        $condition = [
-            ['supplier_id', '=', $supplierId],
-            ['transaction_date', '>=', $startDate],
-            ['transaction_date', '<=', $endDate]
-        ];
-
-        $debts = $this->supplierDebtRepository->findByCondition(
-            $condition,
-            true,
-            [],
-            [],
-            ['debit', 'credit'],
-            [],
-            null,
-            []
-        );
-
-        return [
-            'total_debit' => $debts->sum('debit'),
-            'total_credit' => $debts->sum('credit'),
-            'count' => $debts->count()
-        ];
-    }
-
-    /**
-     * Lấy danh sách ID chứng từ theo nhà cung cấp
+     * Lấy danh sách ID chứng từ theo nhà cung cấp trong kỳ
      */
     protected function getReferenceIdsBySupplier(
         int $supplierId,
@@ -445,7 +486,7 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
             [
                 ['supplier_id', '=', $supplierId],
                 ['transaction_date', '>=', $startDate],
-                ['transaction_date', '<=', $endDate]
+                ['transaction_date', '<=', $endDate],
             ],
             true,
             [],
@@ -458,10 +499,14 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
 
         return $debts->map(fn($debt) => [
             'reference_type' => $debt->reference_type,
-            'reference_id' => $debt->reference_id
+            'reference_id'   => $debt->reference_id,
         ])->toArray();
     }
 
+    /**
+     * Lấy chi tiết journal entries để hiển thị sổ chi tiết.
+     * Nếu chưa có journal entry (chưa hạch toán) thì fallback về dữ liệu từ supplier_debts.
+     */
     protected function getDetailedJournalEntryDetails(
         array $referenceIds,
         Carbon $startDate,
@@ -474,292 +519,167 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         $transactions = collect();
 
         foreach ($referenceIds as $ref) {
-            // Tìm journal entry theo reference
-            $journalEntry = $this->findJournalEntry($ref, $startDate, $endDate);
-            if (!$journalEntry) {
-                continue;
-            }
+            // ✅ FIX: Bỏ filter theo startDate/endDate khi tìm journal entry
+            // vì entry_date có thể khác transaction_date trong supplier_debts
+            $journalEntry = $this->findJournalEntry($ref);
 
-            // Lấy TẤT CẢ chi tiết của journal entry, không lọc bỏ bất kỳ dòng nào
-            $details = $this->getJournalEntryDetails($journalEntry->id);
-
-            if ($details->isEmpty()) {
-                continue;
-            }
-
-            // Lấy thông tin chung
-            $referenceInfo = $this->getReferenceDetails($ref['reference_type'], $ref['reference_id']);
-            $formattedDate = Carbon::parse($journalEntry->entry_date)->format('d/m/Y');
+            $referenceInfo      = $this->getReferenceDetails($ref['reference_type'], $ref['reference_id']);
             $referenceTypeLabel = $ref['reference_type'] === self::REF_TYPE_PURCHASE ? 'PN' : 'PC';
 
-            // Với MỖI dòng chi tiết, tạo một dòng riêng trong báo cáo
-            foreach ($details as $detail) {
-                // Bỏ qua nếu không có thông tin tài khoản
-                if (!$detail->account) {
+            if ($journalEntry) {
+                // --- Có journal entry: lấy chi tiết bút toán để hiển thị ---
+                $details = $this->getJournalEntryDetails($journalEntry->id);
+
+                if ($details->isEmpty()) {
+                    // Journal entry tồn tại nhưng không có details → fallback
+                    $transactions->push(
+                        $this->buildFallbackTransaction($ref, $referenceInfo, $referenceTypeLabel)
+                    );
                     continue;
                 }
 
-                // Lấy thông tin account
-                $account = $detail->account;
-                $accountName = $account->languages->first()->pivot->name ?? $account->account_code;
+                $formattedDate = Carbon::parse($journalEntry->entry_date)->format('d/m/Y');
 
-                $transactions->push([
-                    'journal_entry_id' => $journalEntry->id,
-                    'journal_entry_detail_id' => $detail->id,
-                    'formatted_date' => $formattedDate,
-                    'reference_code' => $referenceInfo['code'],
-                    'reference_type_label' => $referenceTypeLabel,
-                    'reference_note' => $referenceInfo['note'] ?? $journalEntry->note,
+                foreach ($details as $detail) {
+                    if (!$detail->account) {
+                        continue;
+                    }
 
-                    // Thông tin chi tiết từng dòng
-                    'account_id' => $account->id,
-                    'account_code' => $account->account_code,
-                    'account_name' => $accountName,
+                    $account     = $detail->account;
+                    $accountName = $account->languages->first()->pivot->name ?? $account->account_code;
 
-                    // Số tiền của từng dòng (chính xác từ bảng journal_entry_details)
-                    'debit' => (float)$detail->debit,
-                    'credit' => (float)$detail->credit,
-
-                    // Phân loại dòng
-                    'is_payable_account' => strpos($account->account_code, self::ACCOUNT_PAYABLE) === 0,
-                    'is_tax_account' => strpos($account->account_code, self::TAX_ACCOUNT) === 0,
-
-                    // Running balance sẽ cập nhật sau
-                    'running_balance' => 0,
-
-                    // Key để sort (đảm bảo thứ tự đúng)
-                    'sort_key' => $journalEntry->entry_date . '_' . $journalEntry->id . '_' . $detail->id
-                ]);
+                    $transactions->push([
+                        'journal_entry_id'        => $journalEntry->id,
+                        'journal_entry_detail_id' => $detail->id,
+                        'formatted_date'          => $formattedDate,
+                        'reference_code'          => $referenceInfo['code'],
+                        'reference_type_label'    => $referenceTypeLabel,
+                        'reference_note'          => $referenceInfo['note'] ?? $journalEntry->note,
+                        'account_id'              => $account->id,
+                        'account_code'            => $account->account_code,
+                        'account_name'            => $accountName,
+                        'debit'                   => (float)$detail->debit,
+                        'credit'                  => (float)$detail->credit,
+                        'is_payable_account'      => str_starts_with($account->account_code, self::ACCOUNT_PAYABLE),
+                        'is_tax_account'          => str_starts_with($account->account_code, self::TAX_ACCOUNT),
+                        'has_journal_entry'       => true,
+                        'running_balance'         => 0,
+                        'sort_key'                => $journalEntry->entry_date . '_' . $journalEntry->id . '_' . $detail->id,
+                    ]);
+                }
+            } else {
+                // ✅ FIX: Chưa có journal entry (chưa hạch toán) → fallback về supplier_debts
+                // Vẫn hiển thị dòng công nợ để sổ chi tiết không bị trống
+                $transactions->push(
+                    $this->buildFallbackTransaction($ref, $referenceInfo, $referenceTypeLabel)
+                );
             }
         }
 
-        // Sắp xếp theo ngày và ID để giữ đúng thứ tự định khoản
-        $sortedTransactions = $transactions->sortBy('sort_key')->values();
-
-        return $sortedTransactions;
+        return $transactions->sortBy('sort_key')->values();
     }
 
     /**
-     * Cập nhật running balance cho transactions (TÍNH ĐÚNG THEO DÒNG 331)
+     * Xây dựng dòng transaction fallback khi chưa có journal entry.
+     * Lấy dữ liệu trực tiếp từ supplier_debts và reference (phiếu nhập/phiếu chi).
+     */
+    protected function buildFallbackTransaction(
+        array $ref,
+        array $referenceInfo,
+        string $referenceTypeLabel
+    ): array {
+        // Lấy thông tin trực tiếp từ phiếu gốc
+        $debtRecord = $this->supplierDebtRepository->findByCondition(
+            [
+                ['reference_type', '=', $ref['reference_type']],
+                ['reference_id', '=', $ref['reference_id']],
+            ],
+            true,
+            [],
+            [],
+            ['*'],
+            [],
+            null,
+            []
+        )->first();
+
+        $transactionDate = $debtRecord
+            ? Carbon::parse($debtRecord->transaction_date)->format('d/m/Y')
+            : now()->format('d/m/Y');
+
+        $debit  = $debtRecord ? (float)$debtRecord->debit  : 0;
+        $credit = $debtRecord ? (float)$debtRecord->credit : 0;
+
+        // Xác định tài khoản đối ứng hiển thị (TK 331 phía công nợ)
+        $isPurchase = $ref['reference_type'] === self::REF_TYPE_PURCHASE;
+
+        return [
+            'journal_entry_id'        => null,
+            'journal_entry_detail_id' => null,
+            'formatted_date'          => $transactionDate,
+            'reference_code'          => $referenceInfo['code'],
+            'reference_type_label'    => $referenceTypeLabel,
+            'reference_note'          => $referenceInfo['note'] ?? '',
+            'account_id'              => null,
+            'account_code'            => self::ACCOUNT_PAYABLE,  // Hiển thị TK 331
+            'account_name'            => 'Phải trả người bán',
+            'debit'                   => $debit,
+            'credit'                  => $credit,
+            'is_payable_account'      => true,   // Luôn là TK 331 → tính vào running balance
+            'is_tax_account'          => false,
+            'has_journal_entry'       => false,  // Frontend có thể dùng flag này để highlight
+            'running_balance'         => 0,
+            // sort_key dùng transaction_date + reference_id để đảm bảo thứ tự đúng
+            'sort_key'                => ($debtRecord
+                ? $debtRecord->transaction_date
+                : now()->format('Y-m-d')) . '_0_' . $ref['reference_id'],
+        ];
+    }
+
+    /**
+     * ✅ Cập nhật running balance dựa trên dòng TK 331 trong journal entries
+     * Opening balance đã được tính đúng từ supplier_debts nên running balance sẽ khớp
      */
     protected function updateRunningBalance(Collection $transactions, float $openingBalance): Collection
     {
         $runningBalance = $openingBalance;
 
-        // Chỉ tính running balance khi gặp dòng tài khoản 331
-        // Vì công nợ chỉ thay đổi khi có phát sinh trên TK 331
-
         return $transactions->map(function ($item) use (&$runningBalance) {
-            // Chỉ cập nhật running balance cho dòng là tài khoản 331
             if ($item['is_payable_account']) {
-                // Với TK 331:
-                // - Nợ: giảm công nợ (trả tiền)
-                // - Có: tăng công nợ (mua hàng)
                 $runningBalance += ($item['credit'] - $item['debit']);
             }
 
-            // Gán running balance (có thể là giá trị mới nhất từ TK 331 trước đó)
             $item['running_balance'] = $runningBalance;
 
             return $item;
         });
     }
 
-    /**
-     * Tính tổng phát sinh cho summary (TÍNH ĐÚNG TỔNG CÔNG NỢ)
-     */
-    protected function calculateSummary(Collection $transactions): array
-    {
-        // Lọc chỉ lấy dòng tài khoản 331 để tính tổng công nợ
-        $payableTransactions = $transactions->filter(function ($item) {
-            return $item['is_payable_account'];
-        });
-
-        // Tổng phát sinh Nợ TK 331 (giảm nợ)
-        $totalDebit = $payableTransactions->sum('debit');
-
-        // Tổng phát sinh Có TK 331 (tăng nợ)
-        $totalCredit = $payableTransactions->sum('credit');
-
-        return [
-            'total_debit' => $totalDebit,
-            'total_credit' => $totalCredit
-        ];
-    }
+    // =========================================================================
+    // JOURNAL ENTRY HELPERS
+    // =========================================================================
 
     /**
-     * Tìm journal entry theo reference
+     * ✅ FIX: Tìm journal entry theo reference — KHÔNG lọc theo ngày
+     * vì entry_date có thể khác transaction_date trong supplier_debts
      */
-    protected function findJournalEntry(array $ref, Carbon $startDate, Carbon $endDate): ?JournalEntry
+    protected function findJournalEntry(array $ref): ?JournalEntry
     {
         return JournalEntry::where('reference_type', $ref['reference_type'])
             ->where('reference_id', $ref['reference_id'])
-            ->whereBetween('entry_date', [$startDate, $endDate])
             ->first();
     }
 
-    /**
-     * Lấy tất cả chi tiết journal entry (KHÔNG LỌC)
-     */
     protected function getJournalEntryDetails(int $journalEntryId): Collection
     {
         return JournalEntryDetail::with(['account.languages' => function ($q) {
             $q->where('language_id', session('currentLanguage', 1));
         }])
             ->where('journal_entry_id', $journalEntryId)
-            ->orderBy('id', 'ASC') // Giữ đúng thứ tự nhập
+            ->orderBy('id', 'ASC')
             ->get();
     }
 
-
-
-    /**
-     * Group transactions theo journal entry để dễ hiển thị
-     */
-    protected function groupTransactionsByJournalEntry(Collection $transactions): Collection
-    {
-        return $transactions->groupBy('journal_entry_id')->map(function ($items, $journalEntryId) {
-            $firstItem = $items->first();
-
-            return [
-                'journal_entry_id' => $journalEntryId,
-                'formatted_date' => $firstItem['formatted_date'],
-                'reference_code' => $firstItem['reference_code'],
-                'reference_type_label' => $firstItem['reference_type_label'],
-                'reference_note' => $firstItem['reference_note'],
-                'running_balance' => $items->last()['running_balance'], // Lấy balance cuối cùng
-                'details' => $items->map(function ($item) {
-                    return [
-                        'account_code' => $item['account_code'],
-                        'account_name' => $item['account_name'],
-                        'debit' => $item['debit'],
-                        'credit' => $item['credit'],
-                        'is_payable' => $item['is_payable_account']
-                    ];
-                })->values()
-            ];
-        })->values();
-    }
-
-    /**
-     * Lọc các dòng tài khoản 331
-     */
-    protected function filterAccount331Details(Collection $details): Collection
-    {
-        return $details->filter(function ($detail) {
-            return $detail->account &&
-                strpos($detail->account->account_code, self::ACCOUNT_PAYABLE) === 0;
-        });
-    }
-
-    /**
-     * Xây dựng transactions từ details
-     */
-    protected function buildTransactionsFromDetails(
-        JournalEntry $journalEntry,
-        array $ref,
-        Collection $details,
-        Collection $account331Details
-    ): Collection {
-        $transactions = collect();
-
-        $totalDebit331 = $account331Details->sum('debit');
-        $totalCredit331 = $account331Details->sum('credit');
-
-        $referenceInfo = $this->getReferenceDetails($ref['reference_type'], $ref['reference_id']);
-        $formattedDate = Carbon::parse($journalEntry->entry_date)->format('d/m/Y');
-        $referenceTypeLabel = $ref['reference_type'] === self::REF_TYPE_PURCHASE ? 'PN' : 'PC';
-
-        $otherAccounts = $details->filter(function ($detail) {
-            return $detail->account &&
-                strpos($detail->account->account_code, self::ACCOUNT_PAYABLE) !== 0;
-        });
-
-        if ($otherAccounts->isNotEmpty()) {
-            foreach ($otherAccounts as $otherAccount) {
-                $transactions->push($this->buildTransactionItem(
-                    $journalEntry,
-                    $formattedDate,
-                    $referenceInfo['code'],
-                    $referenceTypeLabel,
-                    $referenceInfo['note'] ?? $journalEntry->note,
-                    $otherAccount->account->account_code,
-                    $totalDebit331,
-                    $totalCredit331
-                ));
-            }
-        } else {
-            $transactions->push($this->buildTransactionItem(
-                $journalEntry,
-                $formattedDate,
-                $referenceInfo['code'],
-                $referenceTypeLabel,
-                $referenceInfo['note'] ?? $journalEntry->note,
-                '',
-                $totalDebit331,
-                $totalCredit331
-            ));
-        }
-
-        return $transactions;
-    }
-
-    /**
-     * Xây dựng một item transaction
-     */
-    protected function buildTransactionItem(
-        JournalEntry $journalEntry,
-        string $formattedDate,
-        ?string $referenceCode,
-        string $referenceTypeLabel,
-        ?string $referenceNote,
-        string $accountCode,
-        float $debit,
-        float $credit
-    ): array {
-        return [
-            'journal_entry_id' => $journalEntry->id,
-            'formatted_date' => $formattedDate,
-            'reference_code' => $referenceCode,
-            'reference_type_label' => $referenceTypeLabel,
-            'reference_note' => $referenceNote,
-            'account_code' => $accountCode,
-            'debit' => $debit,
-            'credit' => $credit,
-            'running_balance' => 0,
-            'sort_key' => $journalEntry->entry_date . '_' . $journalEntry->id . '_' . $accountCode
-        ];
-    }
-
-    /**
-     * Lấy thông tin chi tiết từ reference
-     */
-    protected function getReferenceDetails(string $referenceType, int $referenceId): array
-    {
-        $result = ['code' => null, 'note' => null];
-
-        switch ($referenceType) {
-            case self::REF_TYPE_PURCHASE:
-                $reference = PurchaseReceipt::find($referenceId);
-                break;
-            case self::REF_TYPE_PAYMENT:
-                $reference = PaymentVoucher::find($referenceId);
-                break;
-            default:
-                return $result;
-        }
-
-        if ($reference) {
-            $result['code'] = $reference->code;
-            $result['note'] = $reference->note;
-        }
-
-        return $result;
-    }
-
-    /**
-     * Áp dụng filters cho journal entry query
-     */
     protected function applyJournalEntryFilters(
         $query,
         int $supplierId,
@@ -794,58 +714,72 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         }
     }
 
-    /**
-     * Format dữ liệu tài khoản
-     */
+    // =========================================================================
+    // REFERENCE HELPERS
+    // =========================================================================
+
+    protected function getReferenceDetails(string $referenceType, int $referenceId): array
+    {
+        $result = ['code' => null, 'note' => null];
+
+        $reference = match ($referenceType) {
+            self::REF_TYPE_PURCHASE => PurchaseReceipt::find($referenceId),
+            self::REF_TYPE_PAYMENT  => PaymentVoucher::find($referenceId),
+            default                 => null,
+        };
+
+        if ($reference) {
+            $result['code'] = $reference->code;
+            $result['note'] = $reference->note;
+        }
+
+        return $result;
+    }
+
+    // =========================================================================
+    // FORMAT HELPERS
+    // =========================================================================
+
     protected function formatAccountData($item): array
     {
-        $accountName = $item->account->languages->first()->pivot->name ??
-            $item->account->account_code;
+        $accountName = $item->account->languages->first()->pivot->name
+            ?? $item->account->account_code;
 
         return [
-            'account_id' => $item->account_id,
-            'account_code' => $item->account->account_code,
-            'account_name' => $accountName,
-            'total_debit' => (float)$item->total_debit,
-            'total_credit' => (float)$item->total_credit,
-            'balance' => (float)($item->total_credit - $item->total_debit)
+            'account_id'    => $item->account_id,
+            'account_code'  => $item->account->account_code,
+            'account_name'  => $accountName,
+            'total_debit'   => (float)$item->total_debit,
+            'total_credit'  => (float)$item->total_credit,
+            'balance'       => (float)($item->total_credit - $item->total_debit),
         ];
     }
 
-    /**
-     * Format thông tin nhà cung cấp
-     */
     protected function formatSupplierInfo($supplier): array
     {
         return [
-            'id' => $supplier->id,
+            'id'            => $supplier->id,
             'supplier_code' => $supplier->supplier_code,
-            'name' => $supplier->name,
-            'tax_code' => $supplier->tax_code ?? '',
-            'phone' => $supplier->phone ?? '',
-            'email' => $supplier->email ?? '',
-            'address' => $supplier->address ?? ''
+            'name'          => $supplier->name,
+            'tax_code'      => $supplier->tax_code ?? '',
+            'phone'         => $supplier->phone ?? '',
+            'email'         => $supplier->email ?? '',
+            'address'       => $supplier->address ?? '',
         ];
     }
 
-    /**
-     * Format thông tin phân trang
-     */
     protected function formatPagination(LengthAwarePaginator $paginator): array
     {
         return [
             'current_page' => $paginator->currentPage(),
-            'last_page' => $paginator->lastPage(),
-            'per_page' => $paginator->perPage(),
-            'total' => $paginator->total(),
-            'from' => $paginator->firstItem() ?? 0,
-            'to' => $paginator->lastItem() ?? 0
+            'last_page'    => $paginator->lastPage(),
+            'per_page'     => $paginator->perPage(),
+            'total'        => $paginator->total(),
+            'from'         => $paginator->firstItem() ?? 0,
+            'to'           => $paginator->lastItem() ?? 0,
         ];
     }
 
-    /**
-     * Xây dựng điều kiện cho lịch sử công nợ
-     */
     protected function buildDebtHistoryCondition(
         int $supplierId,
         ?Carbon $startDate,
@@ -856,7 +790,6 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         if ($startDate) {
             $condition[] = ['transaction_date', '>=', $startDate];
         }
-
         if ($endDate) {
             $condition[] = ['transaction_date', '<=', $endDate];
         }
@@ -864,28 +797,67 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         return $condition;
     }
 
-    /**
-     * Trả về response rỗng
-     */
     protected function emptyResponse(array $periodData, int $perpage): array
     {
         return [
-            'data' => [],
+            'data'    => [],
             'summary' => [
                 'opening_balance' => 0,
-                'total_debit' => 0,
-                'total_credit' => 0,
-                'closing_balance' => 0
+                'total_debit'     => 0,
+                'total_credit'    => 0,
+                'closing_balance' => 0,
             ],
-            'period' => $periodData['period'],
+            'period'     => $periodData['period'],
             'pagination' => [
                 'current_page' => 1,
-                'last_page' => 1,
-                'per_page' => $perpage,
-                'total' => 0,
-                'from' => 0,
-                'to' => 0
+                'last_page'    => 1,
+                'per_page'     => $perpage,
+                'total'        => 0,
+                'from'         => 0,
+                'to'           => 0,
             ]
         ];
+    }
+
+    // =========================================================================
+    // DEPRECATED — giữ lại để tránh break nếu có nơi khác gọi
+    // =========================================================================
+
+    /** @deprecated Dùng calculateSupplierBalanceFromDebts() */
+    protected function calculateSupplierBalance(int $supplierId, Carbon $endDate): float
+    {
+        return $this->calculateSupplierBalanceFromDebts($supplierId, $endDate);
+    }
+
+    /** @deprecated Dùng calculateSummaryFromDebts() */
+    protected function calculateSummary(Collection $transactions): array
+    {
+        $payableTransactions = $transactions->filter(fn($item) => $item['is_payable_account']);
+
+        return [
+            'total_debit'  => $payableTransactions->sum('debit'),
+            'total_credit' => $payableTransactions->sum('credit'),
+        ];
+    }
+
+    /** @deprecated */
+    protected function getSupplierDebts(int $supplierId, ?Carbon $endDate = null): Collection
+    {
+        $condition = [['supplier_id', '=', $supplierId]];
+
+        if ($endDate) {
+            $condition[] = ['transaction_date', '<=', $endDate];
+        }
+
+        return $this->supplierDebtRepository->findByCondition(
+            $condition,
+            true,
+            [],
+            [],
+            ['debit', 'credit'],
+            [],
+            null,
+            []
+        );
     }
 }

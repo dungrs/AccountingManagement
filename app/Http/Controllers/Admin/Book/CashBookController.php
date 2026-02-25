@@ -28,10 +28,15 @@ class CashBookController extends Controller
     {
         $this->authorize('modules', 'book.cash.index');
 
+        // Mặc định lấy tháng hiện tại
+        $now = now();
+        $startDate = $now->copy()->startOfMonth()->format('Y-m-d');
+        $endDate = $now->copy()->endOfMonth()->format('Y-m-d');
+
         return Inertia::render('CashBook/Home', [
             'initialFilters' => [
-                'month' => now()->month,
-                'year' => now()->year,
+                'start_date' => $startDate,
+                'end_date' => $endDate,
                 'payment_method' => 'cash'
             ]
         ]);
@@ -56,7 +61,6 @@ class CashBookController extends Controller
                 'success' => true,
                 'data' => $cashBook,
                 'systems' => $system_languages,
-
             ]);
         } catch (\Exception $e) {
             return response()->json([

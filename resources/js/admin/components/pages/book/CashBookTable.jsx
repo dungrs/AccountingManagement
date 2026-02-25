@@ -127,7 +127,10 @@ export default function CashBookTable({
                                     <TableCell>
                                         {row.voucher_date ? (
                                             <div className="text-sm text-slate-600">
-                                                {formatDate(row.voucher_date)}
+                                                {formatDate(
+                                                    row.voucher_date,
+                                                    "DD/MM/YYYY",
+                                                )}
                                             </div>
                                         ) : (
                                             <span className="text-sm text-slate-400 italic">
@@ -239,8 +242,8 @@ export default function CashBookTable({
                                         Không có dữ liệu giao dịch trong kỳ
                                     </p>
                                     <p className="text-sm text-slate-400 mt-1">
-                                        Thử thay đổi kỳ báo cáo hoặc loại quỹ
-                                        khác
+                                        Thử thay đổi khoảng thời gian hoặc loại
+                                        quỹ khác
                                     </p>
                                 </div>
                             </TableCell>

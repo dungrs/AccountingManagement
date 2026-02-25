@@ -12,7 +12,6 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
         }
     };
 
-    // Format số - dùng dấu chấm ngăn cách hàng nghìn
     const formatMoney = (value) => {
         if (value === null || value === undefined || value === "") return "";
         const num = Number(value);
@@ -26,31 +25,23 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
         return <div ref={ref}>Không có dữ liệu</div>;
     }
 
-    // Lọc bỏ tài khoản 131, chỉ lấy tài khoản đối ứng
+    // Chỉ lấy các dòng đối ứng (bỏ dòng 131)
     const filteredTransactions = result.transactions.filter(
         (item) => !item.is_receivable_account,
     );
 
-    // Tính running balance - TK 131 là tài khoản phải thu (bên Nợ)
-    // Dư Nợ đầu kỳ + Phát sinh Nợ - Phát sinh Có = Dư Nợ cuối kỳ
+    // Tính running balance cho từng dòng đối ứng
+    // TK 131 là tài khoản phải thu, số dư bên Nợ
+    // - TK đối ứng ghi Có (doanh thu, thuế: 511, 333...) → 131 ghi Nợ → số dư Nợ tăng: +credit
+    // - TK đối ứng ghi Nợ (thu tiền: 112, 111...) → 131 ghi Có → số dư Nợ giảm: -debit
     let runningBalance = result.opening_balance || 0;
-    const processedJournalEntries = [];
 
     const transactionsWithBalance = filteredTransactions.map((item) => {
-        if (!processedJournalEntries.includes(item.journal_entry_id)) {
-            const receivableEntry = result.transactions.find(
-                (t) =>
-                    t.journal_entry_id === item.journal_entry_id &&
-                    t.is_receivable_account,
-            );
+        const debitAmount = Number(item.debit) || 0;
+        const creditAmount = Number(item.credit) || 0;
 
-            if (receivableEntry) {
-                // Nợ tăng dư Nợ, Có giảm dư Nợ
-                runningBalance +=
-                    receivableEntry.debit - receivableEntry.credit;
-            }
-            processedJournalEntries.push(item.journal_entry_id);
-        }
+        // TK đối ứng Có → 131 Nợ (+credit); TK đối ứng Nợ → 131 Có (-debit)
+        runningBalance = runningBalance + (creditAmount - debitAmount);
 
         return {
             ...item,
@@ -58,11 +49,12 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
         };
     });
 
-    // Số dư cuối kỳ = Dư đầu + Phát sinh Nợ - Phát sinh Có
+    // Số dư cuối kỳ = dòng cuối cùng
     const closingBalance =
-        (result.opening_balance || 0) +
-        (result.summary?.total_debit || 0) -
-        (result.summary?.total_credit || 0);
+        transactionsWithBalance.length > 0
+            ? transactionsWithBalance[transactionsWithBalance.length - 1]
+                  .running_balance
+            : result.opening_balance || 0;
 
     const companyName = systems?.homepage_company || "CÔNG TY TNHH ABC";
     const companyAddress =
@@ -172,6 +164,7 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                 </p>
             </div>
 
+            {/* Số dư đầu kỳ - góc phải */}
             <div
                 style={{
                     textAlign: "right",
@@ -180,8 +173,8 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                     color: "#000000",
                 }}
             >
-                <span style={{ fontWeight: "bold" }}>Số dư nợ đầu kỳ:</span>{" "}
-                <span style={{ fontWeight: "bold" }}>
+                <span>Số dư nợ đầu kỳ:</span>{" "}
+                <span style={{ fontWeight: "bold", marginLeft: "40px" }}>
                     {formatMoney(result.opening_balance || 0)}
                 </span>
             </div>
@@ -209,7 +202,6 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                         <th colSpan="2" style={{ ...thStyle }}>
                             Số phát sinh
                         </th>
-                        {/* ✅ Tách rõ cột Dư Nợ / Dư Có */}
                         <th colSpan="2" style={{ ...thStyle }}>
                             Số dư
                         </th>
@@ -219,13 +211,12 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                         <th style={{ ...thStyle, width: "9%" }}>Số</th>
                         <th style={{ ...thStyle, width: "11%" }}>Nợ</th>
                         <th style={{ ...thStyle, width: "11%" }}>Có</th>
-                        {/* ✅ TK 131 phải thu = dư Nợ, để cột Nợ trước */}
+                        {/* TK 131 dư Nợ → cột Nợ trước */}
                         <th style={{ ...thStyle, width: "11%" }}>Nợ</th>
                         <th style={{ ...thStyle, width: "11%" }}>Có</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {/* Các dòng phát sinh */}
                     {transactionsWithBalance.map((item, index) => (
                         <tr key={item.journal_entry_detail_id || index}>
                             <td style={{ ...tdStyle, textAlign: "center" }}>
@@ -240,17 +231,17 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                             <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.account_code || ""}
                             </td>
-                            {/* Phát sinh Nợ */}
+                            {/* Phát sinh Nợ của TK đối ứng */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.debit > 0 ? formatMoney(item.debit) : ""}
                             </td>
-                            {/* Phát sinh Có */}
+                            {/* Phát sinh Có của TK đối ứng */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.credit > 0
                                     ? formatMoney(item.credit)
                                     : ""}
                             </td>
-                            {/* ✅ Số dư Nợ: hiển thị khi running_balance >= 0 */}
+                            {/* Số dư Nợ: khi running_balance >= 0 */}
                             <td
                                 style={{
                                     ...tdStyle,
@@ -262,7 +253,7 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                                     ? formatMoney(item.running_balance)
                                     : ""}
                             </td>
-                            {/* ✅ Số dư Có: hiển thị khi running_balance < 0 (KH ứng trước) */}
+                            {/* Số dư Có: khi running_balance < 0 (KH ứng trước) */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.running_balance < 0
                                     ? formatMoney(
@@ -282,28 +273,34 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                                 textAlign: "center",
                                 backgroundColor: "#e9e9e9",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             Cộng phát sinh
                         </td>
-                        {/* Tổng phát sinh Nợ */}
+                        {/* Tổng phát sinh Nợ (từ summary TK 131) */}
                         <td
                             style={{
                                 ...tdStyle,
                                 textAlign: "right",
                                 backgroundColor: "#e9e9e9",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             {formatMoney(result.summary?.total_debit || 0)}
                         </td>
-                        {/* Tổng phát sinh Có */}
+                        {/* Tổng phát sinh Có (từ summary TK 131) */}
                         <td
                             style={{
                                 ...tdStyle,
                                 textAlign: "right",
                                 backgroundColor: "#e9e9e9",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             {formatMoney(result.summary?.total_credit || 0)}
@@ -315,19 +312,23 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                                 textAlign: "right",
                                 backgroundColor: "#e9e9e9",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             {closingBalance >= 0
                                 ? formatMoney(closingBalance)
                                 : ""}
                         </td>
-                        {/* Số dư cuối kỳ - cột Có (KH ứng trước tiền) */}
+                        {/* Số dư cuối kỳ - cột Có (KH ứng trước) */}
                         <td
                             style={{
                                 ...tdStyle,
                                 textAlign: "right",
                                 backgroundColor: "#e9e9e9",
                                 fontWeight: "bold",
+                                WebkitPrintColorAdjust: "exact",
+                                printColorAdjust: "exact",
                             }}
                         >
                             {closingBalance < 0
@@ -341,7 +342,10 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
             {/* ─── Ghi chú cuối ─── */}
             <div style={{ marginTop: "12px", fontSize: "12px" }}>
                 <p style={{ margin: "4px 0" }}>
-                    Ngày mở sổ: {result.period?.start_date}
+                    Sổ này có 01 trang, đánh số từ trang sổ 01 đến trang 01
+                </p>
+                <p style={{ margin: "4px 0" }}>
+                    Ngày mở sổ: {result.period?.end_date}
                 </p>
             </div>
 

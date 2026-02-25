@@ -20,21 +20,34 @@ class JournalEntryDetailRepository extends BaseRepository implements JournalEntr
     /**
      * Lấy tổng số dư theo tài khoản trong khoảng thời gian
      */
-    public function getTotalByAccountCode(string $accountCode, Carbon $startDate, Carbon $endDate, string $type = 'credit'): float
-    {
+    public function getTotalByAccountCode(
+        string|array $accountCodes,
+        Carbon $startDate,
+        Carbon $endDate,
+        string $type = 'credit'
+    ): float {
         $field = ($type === 'credit') ? 'credit' : 'debit';
 
         $query = $this->model
             ->join('journal_entries as je', 'je.id', '=', 'journal_entry_details.journal_entry_id')
             ->join('accounting_accounts as aa', 'aa.id', '=', 'journal_entry_details.account_id')
-            ->where('aa.account_code', $accountCode)
             ->whereBetween('je.entry_date', [$startDate, $endDate]);
 
-        if ($type === 'credit') {
-            return (float) $query->sum('journal_entry_details.credit');
-        } else {
-            return (float) $query->sum('journal_entry_details.debit');
+        // Nếu truyền vào 1 mã
+        if (is_string($accountCodes)) {
+            $query->where('aa.account_code', 'like', $accountCodes . '%');
         }
+
+        // Nếu truyền vào nhiều mã
+        if (is_array($accountCodes)) {
+            $query->where(function ($q) use ($accountCodes) {
+                foreach ($accountCodes as $code) {
+                    $q->orWhere('aa.account_code', 'like', $code . '%');
+                }
+            });
+        }
+
+        return (float) $query->sum('journal_entry_details.' . $field);
     }
 
     /**
@@ -62,7 +75,7 @@ class JournalEntryDetailRepository extends BaseRepository implements JournalEntr
      */
     public function getTotalRevenue(Carbon $startDate, Carbon $endDate): float
     {
-        return $this->getTotalByAccountCode('5111', $startDate, $endDate, 'credit');
+        return $this->getTotalByAccountCode(['5111', '511'], $startDate, $endDate, 'credit');
     }
 
     /**

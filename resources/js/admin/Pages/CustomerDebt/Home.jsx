@@ -29,10 +29,9 @@ import {
     Calendar,
     Users,
     FileText,
-    ArrowUpRight,
-    ArrowDownRight,
-    BarChart3,
     ArrowRight,
+    BarChart3,
+    Loader2,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -42,18 +41,24 @@ import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
 import useFlashToast from "@/admin/hooks/useFlashToast";
 import { formatCurrency } from "@/admin/utils/helpers";
-import { cn } from "@/admin/lib/utils";
+import { RangeDatePicker } from "@/admin/components/ui/date-picker";
 
-export default function CustomerDebtIndex() {
+export default function CustomerDebtIndex({ initialFilters }) {
     useFlashToast();
 
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
-    const [pageSize, setPageSize] = useState("20");
+    const [pageSize, setPageSize] = useState(
+        initialFilters?.perpage?.toString() || "20",
+    );
     const [keyword, setKeyword] = useState("");
     const [debouncedKeyword, setDebouncedKeyword] = useState("");
-    const [month, setMonth] = useState(new Date().getMonth() + 1);
-    const [year, setYear] = useState(new Date().getFullYear());
+    const [startDate, setStartDate] = useState(
+        initialFilters?.start_date || getDefaultStartDate(),
+    );
+    const [endDate, setEndDate] = useState(
+        initialFilters?.end_date || getDefaultEndDate(),
+    );
     const [referenceType, setReferenceType] = useState("all");
     const [loading, setLoading] = useState(false);
     const [summary, setSummary] = useState({
@@ -63,8 +68,6 @@ export default function CustomerDebtIndex() {
         closing_balance: 0,
     });
     const [period, setPeriod] = useState({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
         start_date: "",
         end_date: "",
     });
@@ -76,6 +79,63 @@ export default function CustomerDebtIndex() {
         from: 0,
         to: 0,
     });
+
+    // Hàm lấy ngày mặc định
+    function getDefaultStartDate() {
+        const date = new Date();
+        date.setDate(1);
+        return date.toISOString().split("T")[0];
+    }
+
+    function getDefaultEndDate() {
+        const date = new Date();
+        return date.toISOString().split("T")[0];
+    }
+
+    // Các tùy chọn khoảng thời gian nhanh
+    const quickRanges = [
+        { label: "Hôm nay", days: 0 },
+        { label: "7 ngày qua", days: 7 },
+        { label: "30 ngày qua", days: 30 },
+        { label: "Tháng này", type: "month" },
+        { label: "Tháng trước", type: "prevMonth" },
+        { label: "Quý này", type: "quarter" },
+        { label: "Năm nay", type: "year" },
+    ];
+
+    // Xử lý chọn khoảng thời gian nhanh
+    const handleQuickRange = (range) => {
+        const today = new Date();
+        let start = new Date();
+        let end = new Date();
+
+        if (range.type === "month") {
+            start = new Date(today.getFullYear(), today.getMonth(), 1);
+            end = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        } else if (range.type === "prevMonth") {
+            start = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            end = new Date(today.getFullYear(), today.getMonth(), 0);
+        } else if (range.type === "quarter") {
+            const quarter = Math.floor(today.getMonth() / 3);
+            start = new Date(today.getFullYear(), quarter * 3, 1);
+            end = new Date(today.getFullYear(), (quarter + 1) * 3, 0);
+        } else if (range.type === "year") {
+            start = new Date(today.getFullYear(), 0, 1);
+            end = new Date(today.getFullYear(), 11, 31);
+        } else if (range.days === 0) {
+            // Hôm nay
+            start = today;
+            end = today;
+        } else {
+            // days ago
+            start = new Date(today);
+            start.setDate(today.getDate() - range.days);
+            end = today;
+        }
+
+        setStartDate(start.toISOString().split("T")[0]);
+        setEndDate(end.toISOString().split("T")[0]);
+    };
 
     // Debounce keyword search
     useEffect(() => {
@@ -93,8 +153,8 @@ export default function CustomerDebtIndex() {
                     page,
                     perpage: parseInt(pageSize),
                     keyword: debouncedKeyword.trim(),
-                    month,
-                    year,
+                    start_date: startDate,
+                    end_date: endDate,
                     reference_type:
                         referenceType !== "all" ? referenceType : undefined,
                 };
@@ -174,7 +234,7 @@ export default function CustomerDebtIndex() {
                 setLoading(false);
             }
         },
-        [pageSize, debouncedKeyword, month, year, referenceType],
+        [pageSize, debouncedKeyword, startDate, endDate, referenceType],
     );
 
     useEffect(() => {
@@ -212,8 +272,8 @@ export default function CustomerDebtIndex() {
 
     const handleViewDetail = (row) => {
         router.get(route("admin.debt.customer.details", row.customer_id), {
-            month: period.month,
-            year: period.year,
+            start_date: startDate,
+            end_date: endDate,
         });
     };
 
@@ -229,19 +289,12 @@ export default function CustomerDebtIndex() {
 
     const handlePrint = () => {
         router.get(route("admin.debt.customer.print"), {
-            month,
-            year,
+            start_date: startDate,
+            end_date: endDate,
             reference_type: referenceType !== "all" ? referenceType : undefined,
             keyword: debouncedKeyword,
         });
     };
-
-    // Tạo danh sách tháng và năm
-    const months = Array.from({ length: 12 }, (_, i) => i + 1);
-    const years = Array.from(
-        { length: 5 },
-        (_, i) => new Date().getFullYear() - 2 + i,
-    );
 
     return (
         <AdminLayout
@@ -258,152 +311,148 @@ export default function CustomerDebtIndex() {
             <Head title="Công Nợ Khách Hàng" />
 
             {/* Period Info */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                            <Calendar className="h-6 w-6 text-white" />
+            <div className="mb-6 p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
+                            <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-xl font-bold">
-                                Kỳ báo cáo: Tháng {period.month} - Năm{" "}
-                                {period.year}
+                            <h2 className="text-base sm:text-xl font-bold">
+                                Báo cáo công nợ khách hàng
                             </h2>
-                            <p className="text-white/80 text-sm mt-1">
+                            <p className="text-white/80 text-xs sm:text-sm mt-0.5 sm:mt-1">
                                 Từ ngày {period.start_date} đến ngày{" "}
                                 {period.end_date}
                             </p>
                         </div>
                     </div>
-                    <Badge className="bg-white/20 text-white border-0">
-                        <BarChart3 className="h-4 w-4 mr-1" />
+                    <Badge className="bg-white/20 text-white border-0 text-[10px] sm:text-xs h-6 sm:h-7 w-fit">
+                        <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                         Báo cáo công nợ
                     </Badge>
                 </div>
             </div>
 
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                Dư đầu kỳ
-                            </p>
-                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                <DollarSign className="h-4 w-4 text-blue-600" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {[
+                    {
+                        title: "Dư đầu kỳ",
+                        value: summary.opening_balance,
+                        date: period.start_date,
+                        icon: DollarSign,
+                        color: "blue",
+                        bgColor: "bg-blue-100",
+                        textColor: "text-blue-600",
+                    },
+                    {
+                        title: "PS Nợ",
+                        value: summary.total_debit,
+                        subText: "Bán hàng trong kỳ",
+                        icon: TrendingUp,
+                        color: "green",
+                        bgColor: "bg-green-100",
+                        textColor: "text-green-600",
+                    },
+                    {
+                        title: "PS Có",
+                        value: summary.total_credit,
+                        subText: "Thu tiền trong kỳ",
+                        icon: TrendingDown,
+                        color: "red",
+                        bgColor: "bg-red-100",
+                        textColor: "text-red-600",
+                    },
+                    {
+                        title: "Dư cuối kỳ",
+                        value: summary.closing_balance,
+                        date: period.end_date,
+                        icon: DollarSign,
+                        color: "purple",
+                        bgColor: "bg-purple-100",
+                        textColor: "text-purple-600",
+                    },
+                ].map((stat, index) => (
+                    <Card
+                        key={index}
+                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
+                    >
+                        <CardContent className="p-3">
+                            <div className="flex items-start justify-between">
+                                <p className="text-xs text-slate-500">
+                                    {stat.title}
+                                </p>
+                                <div
+                                    className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                >
+                                    <stat.icon
+                                        className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.textColor}`}
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <p className="text-2xl font-bold text-blue-600">
-                            {formatCurrency(summary.opening_balance)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Đến ngày {period.start_date}
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                PS Nợ
+                            <p
+                                className={`text-base sm:text-lg font-bold ${stat.textColor}`}
+                            >
+                                {formatCurrency(stat.value)}
                             </p>
-                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                                <TrendingUp className="h-4 w-4 text-green-600" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold text-green-600">
-                            {formatCurrency(summary.total_debit)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Bán hàng trong kỳ
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                PS Có
-                            </p>
-                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                                <TrendingDown className="h-4 w-4 text-red-600" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold text-red-600">
-                            {formatCurrency(summary.total_credit)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Thu tiền trong kỳ
-                        </p>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-sm font-medium text-slate-500">
-                                Dư cuối kỳ
-                            </p>
-                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                                <DollarSign className="h-4 w-4 text-purple-600" />
-                            </div>
-                        </div>
-                        <p className="text-2xl font-bold text-purple-600">
-                            {formatCurrency(summary.closing_balance)}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Đến ngày {period.end_date}
-                        </p>
-                    </CardContent>
-                </Card>
+                            {stat.date ? (
+                                <p className="text-[10px] sm:text-xs text-slate-400 mt-1">
+                                    Tại ngày {stat.date}
+                                </p>
+                            ) : (
+                                <p className="text-[10px] sm:text-xs text-slate-400 mt-1">
+                                    {stat.subText}
+                                </p>
+                            )}
+                        </CardContent>
+                    </Card>
+                ))}
             </div>
 
             {/* Balance Trend */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-200">
-                <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
-                        <BarChart3 className="h-5 w-5 text-blue-600" />
+            <div className="mb-6 p-3 sm:p-4 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-200">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                        <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
                     </div>
-                    <div className="flex-1">
-                        <p className="text-sm font-medium text-slate-700 mb-1">
+                    <div className="flex-1 w-full">
+                        <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2">
                             Biến động công nợ
                         </p>
-                        <div className="flex items-center gap-4">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">
+                                <span className="text-[10px] sm:text-xs text-slate-500">
                                     Dư đầu:
                                 </span>
-                                <span className="text-sm font-semibold text-blue-600">
+                                <span className="text-xs sm:text-sm font-semibold text-blue-600">
                                     {formatCurrency(summary.opening_balance)}
                                 </span>
                             </div>
-                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hidden sm:block" />
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">
+                                <span className="text-[10px] sm:text-xs text-slate-500">
                                     Bán hàng:
                                 </span>
-                                <span className="text-sm font-semibold text-green-600">
+                                <span className="text-xs sm:text-sm font-semibold text-green-600">
                                     +{formatCurrency(summary.total_debit)}
                                 </span>
                             </div>
-                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hidden sm:block" />
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">
+                                <span className="text-[10px] sm:text-xs text-slate-500">
                                     Thu tiền:
                                 </span>
-                                <span className="text-sm font-semibold text-red-600">
+                                <span className="text-xs sm:text-sm font-semibold text-red-600">
                                     -{formatCurrency(summary.total_credit)}
                                 </span>
                             </div>
-                            <ArrowRight className="h-4 w-4 text-slate-400" />
+                            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hidden sm:block" />
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">
+                                <span className="text-[10px] sm:text-xs text-slate-500">
                                     Dư cuối:
                                 </span>
-                                <span className="text-sm font-semibold text-purple-600">
+                                <span className="text-xs sm:text-sm font-semibold text-purple-600">
                                     {formatCurrency(summary.closing_balance)}
                                 </span>
                             </div>
@@ -436,14 +485,14 @@ export default function CustomerDebtIndex() {
                                 Làm mới
                             </Button>
 
-                            <Button
+                            {/* <Button
                                 onClick={handleExport}
                                 variant="secondary"
                                 className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
                             >
                                 <Download className="mr-2 h-4 w-4" />
                                 Xuất Excel
-                            </Button>
+                            </Button> */}
 
                             <Button
                                 onClick={handlePrint}
@@ -467,51 +516,32 @@ export default function CustomerDebtIndex() {
                         <div className="flex flex-wrap items-center gap-2">
                             <Filter className="h-4 w-4 text-slate-400" />
 
-                            {/* Month Filter */}
-                            <Select
-                                value={month.toString()}
-                                onValueChange={(value) =>
-                                    setMonth(parseInt(value))
-                                }
-                            >
-                                <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-blue-500">
-                                    <SelectValue placeholder="Tháng" />
-                                </SelectTrigger>
-                                <SelectContent className="dropdown-premium-content">
-                                    {months.map((m) => (
-                                        <SelectItem
-                                            key={m}
-                                            value={m.toString()}
-                                            className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                        >
-                                            Tháng {m}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {/* Date Range Picker */}
+                            <div className="min-w-[300px]">
+                                <RangeDatePicker
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    onStartDateChange={setStartDate}
+                                    onEndDateChange={setEndDate}
+                                    placeholder="Chọn khoảng thời gian"
+                                    clearable={true}
+                                />
+                            </div>
 
-                            {/* Year Filter */}
-                            <Select
-                                value={year.toString()}
-                                onValueChange={(value) =>
-                                    setYear(parseInt(value))
-                                }
-                            >
-                                <SelectTrigger className="w-[120px] rounded-md border-slate-200 focus:ring-purple-500">
-                                    <SelectValue placeholder="Năm" />
-                                </SelectTrigger>
-                                <SelectContent className="dropdown-premium-content">
-                                    {years.map((y) => (
-                                        <SelectItem
-                                            key={y}
-                                            value={y.toString()}
-                                            className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                        >
-                                            Năm {y}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
+                            {/* Quick Range Buttons */}
+                            <div className="flex flex-wrap gap-1">
+                                {quickRanges.map((range, index) => (
+                                    <Button
+                                        key={index}
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleQuickRange(range)}
+                                        className="text-xs hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200"
+                                    >
+                                        {range.label}
+                                    </Button>
+                                ))}
+                            </div>
 
                             {/* Reference Type Filter */}
                             <Select
@@ -548,6 +578,19 @@ export default function CustomerDebtIndex() {
                                     </SelectItem>
                                 </SelectContent>
                             </Select>
+
+                            <Button
+                                onClick={() => fetchData(1)}
+                                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700"
+                                disabled={loading}
+                            >
+                                {loading ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <Filter className="w-4 h-4 mr-2" />
+                                )}
+                                {loading ? "Đang lọc..." : "Lọc"}
+                            </Button>
                         </div>
                     </DataTableFilter>
 

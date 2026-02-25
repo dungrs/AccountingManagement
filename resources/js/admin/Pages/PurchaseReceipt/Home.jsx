@@ -223,94 +223,81 @@ export default function Home() {
             <Head title="Quản Lý Phiếu Nhập Kho" />
 
             {/* Header Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Tổng phiếu
-                            </p>
-                            <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
-                            <FileText className="h-6 w-6 text-blue-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đã xác nhận
-                            </p>
-                            <p className="text-2xl font-bold text-green-600">
-                                {confirmedCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-yellow-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Nháp
-                            </p>
-                            <p className="text-2xl font-bold text-yellow-600">
-                                {draftCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                            <Clock className="h-6 w-6 text-yellow-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4 flex items-center justify-between">
-                        <div>
-                            <p className="text-sm text-muted-foreground">
-                                Đã hủy
-                            </p>
-                            <p className="text-2xl font-bold text-red-600">
-                                {cancelledCount}
-                            </p>
-                        </div>
-                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                            <XCircle className="h-6 w-6 text-red-600" />
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            {/* Total Amount Card */}
-            <div className="mb-6">
-                <Card className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                    <CardContent className="p-6">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-4">
-                                <div className="h-16 w-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                                    <Package className="h-8 w-8 text-white" />
-                                </div>
-                                <div>
-                                    <p className="text-white/80 text-sm">
-                                        Tổng giá trị nhập kho
-                                    </p>
-                                    <p className="text-3xl font-bold mt-1">
-                                        {new Intl.NumberFormat("vi-VN", {
-                                            style: "currency",
-                                            currency: "VND",
-                                        }).format(totalAmount)}
-                                    </p>
-                                </div>
+            {/* Header Stats */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                {/* Tổng phiếu */}
+                <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs sm:text-sm text-slate-500">
+                                    Tổng phiếu
+                                </p>
+                                <p className="text-lg sm:text-xl lg:text-base xl:text-xl font-bold text-blue-600">
+                                    {paginationData.total}
+                                </p>
                             </div>
-                            <TrendingUp className="h-12 w-12 text-white/30" />
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Đã xác nhận */}
+                <Card className="border-l-4 border-l-green-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs sm:text-sm text-slate-500">
+                                    Đã xác nhận
+                                </p>
+                                <p className="text-lg sm:text-xl lg:text-base xl:text-xl font-bold text-green-600">
+                                    {confirmedCount}
+                                </p>
+                            </div>
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-green-100 flex items-center justify-center">
+                                <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Nháp */}
+                <Card className="border-l-4 border-l-yellow-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs sm:text-sm text-slate-500">
+                                    Nháp
+                                </p>
+                                <p className="text-lg sm:text-xl lg:text-base xl:text-xl font-bold text-yellow-600">
+                                    {draftCount}
+                                </p>
+                            </div>
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-600" />
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                {/* Đã hủy */}
+                <Card className="border-l-4 border-l-red-500 shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-3 sm:p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="space-y-1">
+                                <p className="text-xs sm:text-sm text-slate-500">
+                                    Đã hủy
+                                </p>
+                                <p className="text-lg sm:text-xl lg:text-base xl:text-xl font-bold text-red-600">
+                                    {cancelledCount}
+                                </p>
+                                
+                            </div>
+                            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-100 flex items-center justify-center">
+                                <XCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-600" />
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
