@@ -70,8 +70,8 @@ class ProductCatalogueController extends Controller
     public function store(StoreProductCatalogueRequest $request)
     {
         try {
+            
             $this->productCatalogueService->create($request);
-
             return redirect()
                 ->route('admin.product.catalogue.index')
                 ->with('success', 'Thêm mới nhóm sản phẩm thành công!');
@@ -87,7 +87,7 @@ class ProductCatalogueController extends Controller
     {
         try {
             $this->productCatalogueService->update($request, $id, $this->languageId);
-
+            
             return redirect()
                 ->route('admin.product.catalogue.index')
                 ->with('success', 'Cập nhật nhóm sản phẩm thành công!');

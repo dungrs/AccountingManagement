@@ -28,6 +28,7 @@ import {
     Landmark,
     Clock,
     DollarSign,
+    CheckCircle2, // ✅ Đã chuyển import lên đây (trước đây để cuối file gây lỗi)
 } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 import { format } from "date-fns";
@@ -50,12 +51,13 @@ export default function VoucherGeneralInfo({
     bankAccounts = [],
     isEdit = false,
 }) {
-    // Format số tiền khi nhập
+    // ✅ Chỉ lấy số từ input số tiền
     const handleAmountChange = (e) => {
         const rawValue = e.target.value.replace(/[^0-9]/g, "");
         handleChange("amount", rawValue);
     };
 
+    // ✅ CheckCircle2 đã được import đúng ở trên
     const getStatusOptions = () => {
         return [
             { value: "draft", label: "Nháp", icon: Clock },
@@ -350,6 +352,3 @@ export default function VoucherGeneralInfo({
         </Card>
     );
 }
-
-// Import thiếu
-import { CheckCircle2 } from "lucide-react";

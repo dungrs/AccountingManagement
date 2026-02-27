@@ -22,8 +22,6 @@ import {
 
 import {
     MoreHorizontal,
-    Pencil,
-    Trash2,
     PackagePlus,
     AlertTriangle,
     Package,
@@ -32,10 +30,13 @@ import {
     Barcode,
     Hash,
     Box,
+    History,
+    DollarSign,
+    Pencil,
 } from "lucide-react";
 
-import ChangeStatusSwitch from "../../shared/common/ChangeStatusSwitch";
 import { cn } from "@/admin/lib/utils";
+import { formatCurrency } from "@/admin/utils/helpers";
 
 export default function InventoryTable({
     data = [],
@@ -43,10 +44,9 @@ export default function InventoryTable({
     selectedRows = [],
     toggleAll,
     toggleRow,
-    handleEdit,
+    handleEditProduct, // Thêm prop mới
     handleAdjustStock,
-    handleDeleteClick,
-    onToggleActive,
+    handleViewTransactions,
 }) {
     const getStockStatusBadge = (status, quantity) => {
         if (quantity <= 0) {
@@ -74,7 +74,7 @@ export default function InventoryTable({
                 variant="success"
                 className="bg-green-100 text-green-700 border-green-200 flex items-center gap-1"
             >
-                <CheckCircle2 className="h-3 w-3" /> Còn hàng ({quantity})
+                <CheckCircle2 className="h-3 w-3" /> Còn hàng
             </Badge>
         );
     };
@@ -92,9 +92,6 @@ export default function InventoryTable({
                     <p className="mt-4 text-slate-600 font-medium">
                         Đang tải dữ liệu...
                     </p>
-                    <p className="text-sm text-slate-400">
-                        Vui lòng chờ trong giây lát
-                    </p>
                 </div>
             </div>
         );
@@ -104,7 +101,7 @@ export default function InventoryTable({
         <div className="rounded-md border border-slate-200 overflow-hidden bg-white shadow-sm">
             <Table>
                 <TableHeader>
-                    <TableRow className="bg-gradient-to-r from-blue-600/5 to-purple-600/5 hover:from-blue-600/10 hover:to-purple-600/10">
+                    <TableRow className="bg-gradient-to-r from-blue-600/5 to-purple-600/5">
                         <TableHead className="w-12">
                             <Checkbox
                                 checked={
@@ -112,21 +109,21 @@ export default function InventoryTable({
                                     data.length > 0
                                 }
                                 onCheckedChange={toggleAll}
-                                className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                className="border-blue-400 data-[state=checked]:bg-blue-600"
                             />
                         </TableHead>
 
                         <TableHead className="font-semibold text-slate-700">
                             <div className="flex items-center gap-2">
                                 <Hash className="h-4 w-4 text-blue-600" />
-                                Mã SKU
+                                SKU
                             </div>
                         </TableHead>
 
                         <TableHead className="font-semibold text-slate-700">
                             <div className="flex items-center gap-2">
                                 <Barcode className="h-4 w-4 text-purple-600" />
-                                Mã Barcode
+                                Barcode
                             </div>
                         </TableHead>
 
@@ -152,11 +149,21 @@ export default function InventoryTable({
                         </TableHead>
 
                         <TableHead className="font-semibold text-slate-700 text-center">
-                            Trạng thái tồn kho
+                            <div className="flex items-center justify-center gap-2">
+                                <DollarSign className="h-4 w-4 text-blue-600" />
+                                Giá vốn TB
+                            </div>
                         </TableHead>
 
                         <TableHead className="font-semibold text-slate-700 text-center">
-                            Kinh doanh
+                            <div className="flex items-center justify-center gap-2">
+                                <DollarSign className="h-4 w-4 text-green-600" />
+                                Giá trị tồn
+                            </div>
+                        </TableHead>
+
+                        <TableHead className="font-semibold text-slate-700 text-center">
+                            Trạng thái
                         </TableHead>
 
                         <TableHead className="font-semibold text-slate-700 text-right">
@@ -171,7 +178,7 @@ export default function InventoryTable({
                             <TableRow
                                 key={row.id}
                                 className={cn(
-                                    "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5 transition-all duration-200",
+                                    "hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5",
                                     index % 2 === 0
                                         ? "bg-white"
                                         : "bg-slate-50/50",
@@ -183,7 +190,7 @@ export default function InventoryTable({
                                         onCheckedChange={() =>
                                             toggleRow(row.id)
                                         }
-                                        className="border-blue-400 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                                        className="border-blue-400 data-[state=checked]:bg-blue-600"
                                     />
                                 </TableCell>
 
@@ -244,30 +251,23 @@ export default function InventoryTable({
                                 </TableCell>
 
                                 <TableCell className="text-center">
+                                    <span className="text-sm font-medium">
+                                        {formatCurrency(row.average_cost)}
+                                    </span>
+                                </TableCell>
+
+                                <TableCell className="text-center">
+                                    <span className="text-sm font-medium text-blue-600">
+                                        {formatCurrency(row.inventory_value)}
+                                    </span>
+                                </TableCell>
+
+                                <TableCell className="text-center">
                                     <div className="flex justify-center">
                                         {getStockStatusBadge(
                                             row.stock_status,
                                             row.quantity,
                                         )}
-                                    </div>
-                                </TableCell>
-
-                                <TableCell className="text-center">
-                                    <div className="flex justify-center">
-                                        <ChangeStatusSwitch
-                                            id={row.id}
-                                            checked={row.active}
-                                            field="publish"
-                                            model="Inventory"
-                                            modelParent="Product"
-                                            onSuccess={(res) => {
-                                                onToggleActive?.(
-                                                    row.id,
-                                                    res.checked,
-                                                );
-                                            }}
-                                            className="data-[state=checked]:bg-blue-600"
-                                        />
                                     </div>
                                 </TableCell>
 
@@ -277,7 +277,7 @@ export default function InventoryTable({
                                             <Button
                                                 variant="ghost"
                                                 size="icon"
-                                                className="rounded-md hover:bg-gradient-to-r hover:from-blue-600/10 hover:to-purple-600/10 hover:text-blue-600 transition-all duration-200"
+                                                className="rounded-md hover:bg-gradient-to-r hover:from-blue-600/10 hover:to-purple-600/10"
                                             >
                                                 <MoreHorizontal className="h-4 w-4" />
                                             </Button>
@@ -285,20 +285,36 @@ export default function InventoryTable({
 
                                         <DropdownMenuContent
                                             align="end"
-                                            className="dropdown-premium-content rounded-md w-56"
+                                            className="w-56"
                                         >
                                             <DropdownMenuItem
-                                                className="cursor-pointer dropdown-premium-item group"
+                                                className="cursor-pointer"
+                                                onClick={() =>
+                                                    handleEditProduct(row)
+                                                }
+                                            >
+                                                <Pencil className="mr-2 h-4 w-4 text-blue-600" />
+                                                <span>
+                                                    Chỉnh sửa SKU/Barcode
+                                                </span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="cursor-pointer"
                                                 onClick={() =>
                                                     handleAdjustStock(row)
                                                 }
                                             >
-                                                <div className="flex items-center w-full">
-                                                    <PackagePlus className="mr-2 h-4 w-4 text-blue-600 group-hover:scale-110 transition-transform" />
-                                                    <span className="text-slate-700 group-hover:text-blue-600">
-                                                        Điều chỉnh tồn kho
-                                                    </span>
-                                                </div>
+                                                <PackagePlus className="mr-2 h-4 w-4 text-orange-600" />
+                                                <span>Điều chỉnh tồn kho</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="cursor-pointer"
+                                                onClick={() =>
+                                                    handleViewTransactions(row)
+                                                }
+                                            >
+                                                <History className="mr-2 h-4 w-4 text-purple-600" />
+                                                <span>Xem lịch sử</span>
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -308,7 +324,7 @@ export default function InventoryTable({
                     ) : (
                         <TableRow>
                             <TableCell
-                                colSpan={9}
+                                colSpan={10}
                                 className="text-center py-16"
                             >
                                 <div className="flex flex-col items-center justify-center">

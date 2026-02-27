@@ -229,7 +229,6 @@ export default function Home() {
             <Head title="Quản Lý Sản phẩm" />
 
             {/* Header Stats */}
-            {/* Header Stats */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
                 {/* Tổng sản phẩm */}
                 <Card className="border-l-4 border-l-blue-500 shadow-sm hover:shadow-md transition-shadow">

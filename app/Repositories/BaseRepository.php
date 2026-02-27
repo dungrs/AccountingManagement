@@ -148,10 +148,16 @@ class BaseRepository implements BaseRepositoryInterface
 
         return ($flag == false) ? $query->first() : $query->get();
     }
-    
-    public function findById(int $modelId, array $column = ['*'], array $relation = [])
+
+    public function findById(int $modelId, array $column = ['*'], array $relation = [], bool $throw = false)
     {
-        return $this->model->select($column)->with($relation)->findOrFail($modelId);
+        $query = $this->model->select($column)->with($relation);
+
+        if ($throw) {
+            return $query->findOrFail($modelId);
+        }
+
+        return $query->find($modelId);
     }
 
     public function findByWhereHas(array $condition = [], string $relation = '', string $alias = '')

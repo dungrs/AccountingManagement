@@ -2,7 +2,7 @@
 
 namespace App\Services\Interfaces\Inventory;
 
-interface InventoryValuationServiceInterface
+interface InventoryServiceInterface
 {
 
 }

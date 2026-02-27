@@ -160,32 +160,43 @@ export default function SupplierDebtPreview() {
         }).format(amount);
     };
 
-    // Sắp xếp và lọc chỉ các dòng đối ứng (không phải dòng 331)
     const sortedFilteredTransactions = useMemo(() => {
         if (!result.transactions || !Array.isArray(result.transactions)) {
             return [];
         }
 
-        return [...result.transactions]
-            .filter((item) => !item.is_payable_account) // Chỉ lấy dòng đối ứng
-            .sort((a, b) => {
-                if (a.formatted_date !== b.formatted_date) {
-                    const dateA = a.formatted_date
-                        .split("/")
-                        .reverse()
-                        .join("-");
-                    const dateB = b.formatted_date
-                        .split("/")
-                        .reverse()
-                        .join("-");
-                    return dateA.localeCompare(dateB);
-                }
-                // Cùng ngày → sort theo journal_entry_id rồi journal_entry_detail_id
-                if (a.journal_entry_id !== b.journal_entry_id) {
-                    return a.journal_entry_id - b.journal_entry_id;
-                }
-                return a.journal_entry_detail_id - b.journal_entry_detail_id;
-            });
+        // Lọc bỏ dòng TK 331
+        const nonPayable = result.transactions.filter(
+            (item) => !item.is_payable_account,
+        );
+
+        // Group theo reference_code + account_code (mỗi TK đối ứng 1 dòng, không duplicate)
+        const groupMap = new Map();
+
+        nonPayable.forEach((item) => {
+            const key = `${item.formatted_date}_${item.reference_code}_${item.reference_type_label}_${item.account_code}`;
+
+            if (!groupMap.has(key)) {
+                groupMap.set(key, {
+                    ...item,
+                    debit: Number(item.debit) || 0,
+                    credit: Number(item.credit) || 0,
+                });
+            } else {
+                const existing = groupMap.get(key);
+                existing.debit += Number(item.debit) || 0;
+                existing.credit += Number(item.credit) || 0;
+            }
+        });
+
+        return Array.from(groupMap.values()).sort((a, b) => {
+            if (a.formatted_date !== b.formatted_date) {
+                const dateA = a.formatted_date.split("/").reverse().join("-");
+                const dateB = b.formatted_date.split("/").reverse().join("-");
+                return dateA.localeCompare(dateB);
+            }
+            return a.sort_key?.localeCompare(b.sort_key ?? "") ?? 0;
+        });
     }, [result.transactions]);
 
     // Tính running balance:

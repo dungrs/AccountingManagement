@@ -76,50 +76,59 @@ class InventoryTransactionRepository extends BaseRepository implements Inventory
     }
 
     /**
-     * Lấy chi tiết giá vốn theo từng phiếu xuất
+     * Lấy danh sách giao dịch theo sản phẩm và khoảng thời gian
      */
-    public function getCOGSDetails(Carbon $startDate, Carbon $endDate)
-    {
-        return DB::table('inventory_transactions as it')
-            ->join('product_variants as pv', 'pv.id', '=', 'it.product_variant_id')
-            ->leftJoin('product_variant_languages as pvl', function ($join) {
-                $join->on('pvl.product_variant_id', 'pv.id')
-                    ->where('pvl.language_id', '=', 1);
-            })
-            ->join('sales_receipts as sr', function ($join) {
-                $join->on('sr.id', '=', 'it.reference_id')
-                    ->where('it.reference_type', '=', 'sales_receipt');
-            })
-            ->whereBetween('it.transaction_date', [$startDate, $endDate])
-            ->where('it.transaction_type', 'outbound')
-            ->select(
-                'sr.id',
-                'sr.code',
-                'sr.receipt_date',
-                'it.product_variant_id',
-                'pvl.name as product_name',
-                DB::raw('SUM(it.quantity) as quantity'),
-                DB::raw('AVG(it.unit_cost) as unit_cost'),
-                DB::raw('SUM(it.total_cost) as total_cost')
-            )
-            ->groupBy('sr.id', 'sr.code', 'sr.receipt_date', 'it.product_variant_id', 'pvl.name')
-            ->orderBy('sr.receipt_date', 'DESC')
-            ->get();
+    public function getTransactionsByProduct(
+        int $productVariantId,
+        Carbon $startDate,
+        Carbon $endDate,
+        ?string $type = null
+    ) {
+        $condition = [
+            ['product_variant_id', '=', $productVariantId],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ];
+
+        if ($type) {
+            $condition[] = ['transaction_type', '=', $type];
+        }
+
+        return $this->findByCondition(
+            $condition,
+            true,
+            [],
+            ['transaction_date' => 'DESC', 'id' => 'DESC']
+        );
     }
 
     /**
-     * Lấy tổng giá vốn theo sản phẩm
+     * Tính tồn kho tại thời điểm
      */
-    public function getTotalCOGSByProduct(int $productVariantId, Carbon $startDate, Carbon $endDate): float
+    public function calculateBalanceAtDate(int $productVariantId, Carbon $asOfDate): array
     {
-        $result = DB::table('inventory_transactions')
-            ->where('product_variant_id', $productVariantId)
-            ->where('reference_type', 'sales_receipt')
-            ->whereBetween('transaction_date', [$startDate, $endDate])
-            ->where('transaction_type', 'outbound')
-            ->select(DB::raw('COALESCE(SUM(total_cost), 0) as total_cogs'))
-            ->first();
+        $totalInbound = $this->getAggregatedByProduct(
+            $productVariantId,
+            null,
+            $asOfDate,
+            'inbound'
+        );
 
-        return (float)($result->total_cogs ?? 0);
+        $totalOutbound = $this->getAggregatedByProduct(
+            $productVariantId,
+            null,
+            $asOfDate,
+            'outbound'
+        );
+
+        $quantity = ($totalInbound['total_quantity'] ?? 0) - ($totalOutbound['total_quantity'] ?? 0);
+        $value = ($totalInbound['total_value'] ?? 0) - ($totalOutbound['total_value'] ?? 0);
+        $averageCost = $quantity > 0 ? round($value / $quantity, 2) : 0;
+
+        return [
+            'quantity' => $quantity,
+            'value' => $value,
+            'average_cost' => $averageCost,
+        ];
     }
 }

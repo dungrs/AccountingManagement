@@ -8,6 +8,7 @@ use App\Repositories\VatTaxRepository;
 use App\Services\BaseService;
 use App\Services\Debt\SupplierDebtService;
 use App\Services\Interfaces\Receipt\PurchaseReceiptServiceInterface;
+use App\Services\Inventory\InventoryService;
 use App\Services\JournalEntryService;
 use App\Services\Product\ProductVariantService;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     protected $journalEntryService;
     protected $supplierDebtService;
     protected $productVariantService;
+    protected $inventoryService;
 
     public function __construct(
         PurchaseReceiptRepository $purchaseReceiptRepository,
@@ -28,7 +30,8 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         VatTaxRepository $vatTaxRepository,
         JournalEntryService $journalEntryService,
         SupplierDebtService $supplierDebtService,
-        ProductVariantService $productVariantService
+        ProductVariantService $productVariantService,
+        InventoryService $inventoryService
     ) {
         $this->purchaseReceiptRepository = $purchaseReceiptRepository;
         $this->purchaseReceiptItemRepository = $purchaseReceiptItemRepository;
@@ -36,6 +39,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
         $this->journalEntryService = $journalEntryService;
         $this->supplierDebtService = $supplierDebtService;
         $this->productVariantService = $productVariantService;
+        $this->inventoryService = $inventoryService;
     }
 
     public function paginate($request)
@@ -229,7 +233,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 $this->supplierDebtService->deleteDebtByReference('purchase_receipt', $purchaseReceipt->id);
 
                 // Giảm tồn kho khi xóa phiếu đã confirmed (hoàn nhập)
-                $this->productVariantService->revertTransaction('purchase_receipt', $purchaseReceipt->id);
+                $this->inventoryService->revertTransactions('purchase_receipt', $purchaseReceipt->id);
             }
 
             $purchaseReceipt->delete();
@@ -244,7 +248,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     private function handleConfirm($receipt)
     {
         // 1️⃣ Tăng tồn kho và ghi nhận giao dịch nhập kho với giá nhập
-        $this->productVariantService->increaseStock(
+        $this->inventoryService->receiveStock(
             $receipt->items,
             'purchase_receipt',
             $receipt->id,
@@ -264,7 +268,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     private function handleCancel($receipt)
     {
         // 1️⃣ Hoàn nhập giao dịch tồn kho
-        $this->productVariantService->revertTransaction('purchase_receipt', $receipt->id);
+        $this->inventoryService->revertTransactions('purchase_receipt', $receipt->id);
 
         // 2️⃣ Xóa công nợ nhà cung cấp
         $this->supplierDebtService->deleteDebtByReference('purchase_receipt', $receipt->id);

@@ -117,7 +117,6 @@ class ProductController extends Controller
     {
         try {
             $response = $this->productService->create($request);
-
             if ($response) {
                 return redirect()
                     ->route('admin.product.index')
@@ -134,11 +133,10 @@ class ProductController extends Controller
         }
     }
 
-
     public function update(UpdateProductRequest $request, $id)
-    {
+    {   
+        $this->productService->update($request, $id, $this->languageId);
         try {
-            $this->productService->update($request, $id, $this->languageId);
 
             return redirect()
                 ->route('admin.product.index')

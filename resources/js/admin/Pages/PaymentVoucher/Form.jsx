@@ -51,8 +51,8 @@ export default function PaymentVoucherForm() {
         bank_accounts,
     } = usePage().props;
 
+    // ✅ Dùng chung 1 ref cho cả print lẫn PDF (cùng nội dung)
     const printRef = useRef(null);
-    const pdfRef = useRef(null);
     const { emit } = useEventBus();
     const isEdit = !!payment_voucher;
     const [isExportingPDF, setIsExportingPDF] = useState(false);
@@ -87,7 +87,7 @@ export default function PaymentVoucherForm() {
         if (serverErrors && Object.keys(serverErrors).length > 0) {
             setErrors(serverErrors);
         }
-    }, [serverErrors, setErrors, emit]);
+    }, [serverErrors, setErrors]);
 
     // Submit handler
     const handleSubmit = (e) => {
@@ -99,7 +99,7 @@ export default function PaymentVoucherForm() {
         baseHandleSubmit(e, submitRoute, submitMethod);
     };
 
-    // Hàm xuất PDF
+    // ✅ Hàm xuất PDF dùng chung ref với print
     const generatePDF = async (element, fileName) => {
         if (!element) {
             throw new Error("Không tìm thấy nội dung cần xuất!");
@@ -120,7 +120,7 @@ export default function PaymentVoucherForm() {
         document.body.appendChild(tempContainer);
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             const canvas = await html2canvas(tempContainer, {
                 scale: 3,
@@ -201,9 +201,6 @@ export default function PaymentVoucherForm() {
                 }
             }
         `,
-        onBeforeGetContent: async () => {
-            console.log("Preparing to print...");
-        },
         onAfterPrint: () => {
             emit("toast:success", "Đã gửi lệnh in thành công!");
         },
@@ -215,7 +212,7 @@ export default function PaymentVoucherForm() {
 
     // Xử lý xuất PDF
     const handleExportPDF = async () => {
-        if (!pdfRef.current) {
+        if (!printRef.current) {
             alert("Không tìm thấy nội dung cần xuất!");
             return;
         }
@@ -223,7 +220,7 @@ export default function PaymentVoucherForm() {
         setIsExportingPDF(true);
         try {
             await generatePDF(
-                pdfRef.current,
+                printRef.current,
                 `Phieu-chi-${formData.code || "Moi"}.pdf`,
             );
             emit("toast:success", "Xuất PDF thành công!");
@@ -245,10 +242,7 @@ export default function PaymentVoucherForm() {
 
     // Kiểm tra có thể in không
     const canPrint =
-        isEdit &&
-        payment_voucher?.status !== "draft" &&
-        payment_voucher?.status === "confirmed" &&
-        formData.code;
+        isEdit && payment_voucher?.status === "confirmed" && !!formData.code;
 
     // Get status badge
     const getStatusBadge = (status) => {
@@ -542,7 +536,7 @@ export default function PaymentVoucherForm() {
                     </div>
                 </form>
 
-                {/* Component cho in ấn - để trong DOM nhưng ẩn */}
+                {/* ✅ Chỉ render 1 PaymentVoucherPrint, dùng chung cho cả in và xuất PDF */}
                 <div
                     style={{
                         position: "absolute",
@@ -553,24 +547,6 @@ export default function PaymentVoucherForm() {
                 >
                     <PaymentVoucherPrint
                         ref={printRef}
-                        voucher={formData}
-                        user={currentUser}
-                        partner={currentSupplier}
-                        system_languages={system_languages}
-                    />
-                </div>
-
-                {/* Component cho xuất PDF - để trong DOM nhưng ẩn */}
-                <div
-                    style={{
-                        position: "absolute",
-                        left: "-9999px",
-                        top: 0,
-                        visibility: "hidden",
-                    }}
-                >
-                    <PaymentVoucherPrint
-                        ref={pdfRef}
                         voucher={formData}
                         user={currentUser}
                         partner={currentSupplier}

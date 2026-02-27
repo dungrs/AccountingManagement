@@ -19,7 +19,7 @@ use App\Http\Controllers\Admin\Debt\SupplierDebtController;
 use App\Http\Controllers\Admin\Book\GeneralLedgerController;
 use App\Http\Controllers\Admin\PriceListController;
 use App\Http\Controllers\Admin\Product\ProductCatalogueController;
-use App\Http\Controllers\Admin\Product\ProductVariantController;
+use App\Http\Controllers\Admin\InventoryController;
 use App\Http\Controllers\Admin\Receipt\PurchaseReceiptController;
 use App\Http\Controllers\Admin\Receipt\SalesReceiptController;
 use App\Http\Controllers\Admin\SupplierController;
@@ -62,12 +62,16 @@ Route::middleware('auth')->group(function () {
         Route::post('delete/{id}', [ProductCatalogueController::class, 'delete'])->name('admin.product.catalogue.delete')->where(['id' => '[0-9]+']);
     });
 
-    // PRODUCT VARIANT
-    Route::prefix('product/variant')->group(function () {
-        Route::get('index', [ProductVariantController::class, 'index'])->name('admin.product.variant.index');
+    // INVENTORY
+    Route::prefix('inventory')->group(function () {
+        Route::get('index', [InventoryController::class, 'index'])->name('admin.inventory.index');
+        Route::get('show/{id}', [InventoryController::class, 'show'])->name('admin.inventory.show')->where(['id' => '[0-9]+']);
 
-        Route::post('filter', [ProductVariantController::class, 'filter'])->name('admin.product.variant.filter');
-        Route::post('update', [ProductVariantController::class, 'update'])->name('admin.product.variant.update');
+        Route::post('filter', [InventoryController::class, 'filter'])->name('admin.inventory.filter');
+        Route::get('overview', [InventoryController::class, 'overview'])->name('admin.inventory.overview'); // Đổi từ POST sang GET
+        Route::post('adjust', [InventoryController::class, 'adjust'])->name('admin.inventory.adjust');
+        Route::get('transactions/{id}', [InventoryController::class, 'transactions'])->name('admin.inventory.transactions')->where(['id' => '[0-9]+']);
+        Route::post('update-product-info', [InventoryController::class, 'updateProduct'])->name('admin.inventory.update-product-info');
     });
 
     // ATTRIBUTE CATALOGUE

@@ -24,13 +24,12 @@ export default function InventoryFormModal({
     onClose,
     onSuccess,
 }) {
-    const isEdit = mode === "edit" || mode === "adjust";
+    const isEdit = mode === "edit"; // Chỉ edit mới hiển thị form này
 
     const [loading, setLoading] = useState(false);
     const [form, setForm] = useState({
         sku: "",
         barcode: "",
-        quantity: 0,
     });
     const [errors, setErrors] = useState({});
 
@@ -43,22 +42,16 @@ export default function InventoryFormModal({
             setForm({
                 sku: data.sku || "",
                 barcode: data.barcode || "",
-                quantity: data.quantity || 0,
             });
         } else {
             setForm({
                 sku: "",
                 barcode: "",
-                quantity: 0,
             });
         }
     }, [open, isEdit, data]);
 
     const handleChange = (field, value) => {
-        if (field === "quantity") {
-            value = Math.max(0, parseInt(value) || 0);
-        }
-
         setForm((prev) => ({
             ...prev,
             [field]: value,
@@ -74,20 +67,20 @@ export default function InventoryFormModal({
         setLoading(true);
         setErrors({});
 
-        const apiRoute = route("admin.product.variant.update");
+        const apiRoute = route("admin.inventory.update-product-info");
 
         const payload = {
-            id: data.id,
+            id: data.product_variant_id,
             sku: form.sku,
             barcode: form.barcode,
-            quantity: form.quantity,
         };
 
         axios
             .post(apiRoute, payload)
             .then((res) => {
                 toast.success(
-                    res.data?.message || "Cập nhật tồn kho thành công!",
+                    res.data?.message ||
+                        "Cập nhật thông tin sản phẩm thành công!",
                 );
                 onSuccess?.();
                 onClose();
@@ -112,15 +105,11 @@ export default function InventoryFormModal({
     };
 
     const getTitle = () => {
-        if (mode === "adjust") return "Điều chỉnh tồn kho";
-        if (isEdit) return "Chỉnh sửa thông tin sản phẩm";
-        return "Thêm sản phẩm mới";
+        return "Chỉnh sửa thông tin sản phẩm";
     };
 
     const getDescription = () => {
-        if (mode === "adjust") return "Cập nhật số lượng tồn kho cho sản phẩm.";
-        if (isEdit) return "Cập nhật thông tin SKU và Barcode cho sản phẩm.";
-        return "Thêm sản phẩm mới vào kho.";
+        return "Cập nhật thông tin SKU và Barcode cho sản phẩm.";
     };
 
     return (
@@ -211,37 +200,6 @@ export default function InventoryFormModal({
                                 </p>
                             )}
                         </div>
-
-                        {/* Quantity */}
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 flex items-center gap-1">
-                                <Package className="h-4 w-4 text-green-600" />
-                                Số lượng tồn kho{" "}
-                                <span className="text-red-500">*</span>
-                            </label>
-                            <div className="relative">
-                                <Input
-                                    type="number"
-                                    min="0"
-                                    value={form.quantity}
-                                    onChange={(e) =>
-                                        handleChange("quantity", e.target.value)
-                                    }
-                                    placeholder="Nhập số lượng..."
-                                    className={cn(
-                                        "pl-3 border-slate-200 focus:border-green-500 focus:ring-green-500 transition-all",
-                                        errors?.quantity &&
-                                            "border-red-500 focus:border-red-500 focus:ring-red-500",
-                                    )}
-                                />
-                            </div>
-                            {errors?.quantity && (
-                                <p className="text-xs text-red-500 flex items-center gap-1">
-                                    <Info className="h-3 w-3" />
-                                    {errors.quantity[0]}
-                                </p>
-                            )}
-                        </div>
                     </div>
 
                     {/* Product Info */}
@@ -282,9 +240,7 @@ export default function InventoryFormModal({
                         ) : (
                             <>
                                 <Save className="mr-2 h-4 w-4" />
-                                {mode === "adjust"
-                                    ? "Cập nhật tồn kho"
-                                    : "Lưu thay đổi"}
+                                Lưu thay đổi
                             </>
                         )}
                     </Button>

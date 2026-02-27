@@ -3,23 +3,21 @@ import { useEffect, useState } from "react";
 import {
     Eye,
     EyeOff,
-    Chrome,
-    Github,
     Shield,
-    TrendingUp,
     BarChart3,
     Receipt,
     Wallet,
-    PieChart,
     BadgeDollarSign,
-    ClipboardList,
     ArrowRight,
     Lock,
     Mail,
     CheckCircle2,
-    Building2,
     ShoppingCart,
     FileSpreadsheet,
+    Store,
+    UtensilsCrossed,
+    Bike,
+    Coffee,
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -28,7 +26,6 @@ import { Card, CardContent } from "@/admin/components/ui/card";
 import { Input } from "@/admin/components/ui/input";
 import { Label } from "@/admin/components/ui/label";
 import { Checkbox } from "@/admin/components/ui/checkbox";
-import { Separator } from "@/admin/components/ui/separator";
 import { useEventBus } from "@/EventBus";
 
 export default function Login() {
@@ -64,64 +61,59 @@ export default function Login() {
         });
     };
 
-    const handleGoogleLogin = () => {
-        toast.loading("Đang chuyển hướng đến Google...");
-    };
-
-    const handleGithubLogin = () => {
-        toast.loading("Đang chuyển hướng đến GitHub...");
-    };
-
+    // Các khu vực kinh doanh chính của BC Mall
     const coreModules = [
         {
+            icon: ShoppingCart,
+            title: "BC Mart – Siêu thị tổng hợp",
+            desc: "Quản lý hơn 20.000 sản phẩm: thực phẩm, gia dụng, mỹ phẩm, hàng mẹ & bé",
+            badge: "Bán lẻ",
+        },
+        {
+            icon: UtensilsCrossed,
+            title: "Bee BBQ & BC Coffee",
+            desc: "Quản lý doanh thu ẩm thực, đặt bàn, menu BBQ Hàn Quốc và đồ uống",
+            badge: "Ẩm thực",
+        },
+        {
+            icon: Bike,
+            title: "BC Bike – Thể thao",
+            desc: "Xe đạp, phụ kiện thể thao, dịch vụ bảo dưỡng xe chuyên nghiệp",
+            badge: "Thể thao",
+        },
+        {
             icon: Receipt,
-            title: "Kế toán & Sổ cái",
-            desc: "Hạch toán tự động, cân đối tài khoản, báo cáo BCTC theo chuẩn VAS/IFRS",
+            title: "Kế toán & Báo cáo",
+            desc: "Ghi nhận doanh thu đa khu vực, hóa đơn điện tử, báo cáo tài chính theo VAS",
             badge: "Kế toán",
         },
-        {
-            icon: ShoppingCart,
-            title: "Bán hàng & Hóa đơn",
-            desc: "Quản lý đơn hàng, xuất hóa đơn điện tử, theo dõi công nợ khách hàng",
-            badge: "Bán hàng",
-        },
-        {
-            icon: BarChart3,
-            title: "Báo cáo tài chính",
-            desc: "P&L, Bảng cân đối kế toán, Lưu chuyển tiền tệ – cập nhật theo thời gian thực",
-            badge: "Báo cáo",
-        },
-        {
-            icon: Wallet,
-            title: "Quản lý thu chi",
-            desc: "Kiểm soát ngân sách, dự báo dòng tiền, đối chiếu ngân hàng tự động",
-            badge: "Tài chính",
-        },
     ];
 
+    // Thông tin thực tế BC Mall
     const stats = [
-        { value: "98.6%", label: "Độ chính xác" },
-        { value: "5,200+", label: "Doanh nghiệp" },
-        { value: "₫1.2T+", label: "Doanh thu xử lý" },
-        { value: "24/7", label: "Hỗ trợ kỹ thuật" },
+        { value: "20.000+", label: "Sản phẩm" },
+        { value: "7", label: "Khu vực KD" },
+        { value: "08–22h", label: "Hoạt động" },
+        { value: "29/09/2025", label: "Khai trương" },
     ];
 
+    // Badges tuân thủ
     const certBadges = [
         "Tuân thủ chuẩn kế toán VAS",
         "Hóa đơn điện tử theo TT78",
-        "Kết nối cổng thuế VNPT",
+        "Phần mềm Bravo tích hợp",
     ];
 
     return (
         <>
-            <Head title="Đăng nhập | AccSales Pro – Kế toán & Bán hàng" />
+            <Head title="Đăng nhập | BC Mall – Hệ thống quản lý kế toán bán hàng" />
 
             <div className="relative min-h-screen w-full overflow-hidden">
-                {/* Background */}
+                {/* Background – ảnh siêu thị BC Mall */}
                 <div className="fixed inset-0 -z-10">
                     <img
-                        src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=1920&auto=format&fit=crop&q=100"
-                        alt="Corporate Office"
+                        src="https://cafefcdn.com/thumb_w/640/203337114487263232/2025/9/28/photo1758947244041-1758947244726417053038-1759029432081578138638.jpg"
+                        alt="BC Mall – Tổ hợp mua sắm giải trí Ninh Bình"
                         className="absolute inset-0 h-full w-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-br from-slate-900/95 via-slate-900/80 to-slate-800/90" />
@@ -157,25 +149,39 @@ export default function Login() {
                                 <div className="flex items-center gap-5">
                                     <div className="relative">
                                         <div className="absolute inset-0 bg-gradient-to-r from-blue-500 to-purple-600 blur-2xl opacity-50" />
-                                        <div className="relative bg-gradient-to-br from-white to-gray-100 p-5 rounded-2xl shadow-2xl">
+                                        <div className="relative bg-white p-3 rounded-2xl shadow-2xl">
+                                            {/* Logo chính thức của BC Mall */}
                                             <img
-                                                src="https://laravel.com/img/logomark.min.svg"
-                                                alt="Logo"
-                                                className="h-10 w-auto"
+                                                src="https://bcmall.vn/wp-content/uploads/2026/02/ft_logo_bcmall.png"
+                                                alt="BC Mall Logo"
+                                                className="h-12 w-auto object-contain"
+                                                onError={(e) => {
+                                                    // Fallback nếu logo không load được
+                                                    e.target.style.display =
+                                                        "none";
+                                                    e.target.nextSibling.style.display =
+                                                        "flex";
+                                                }}
                                             />
+                                            {/* Fallback icon */}
+                                            <div
+                                                className="h-12 w-12 items-center justify-center hidden"
+                                                style={{ display: "none" }}
+                                            >
+                                                <Store className="h-8 w-8 text-blue-600" />
+                                            </div>
                                         </div>
                                     </div>
                                     <div>
                                         <h1 className="text-4xl font-bold tracking-tight">
-                                            AccSales{" "}
+                                            BC{" "}
                                             <span className="text-blue-400">
-                                                Pro
+                                                Mall
                                             </span>
                                         </h1>
                                         <p className="text-white/50 text-sm mt-1 flex items-center gap-2">
                                             <BadgeDollarSign className="h-4 w-4 text-blue-400" />
-                                            Phần mềm kế toán – bán hàng doanh
-                                            nghiệp
+                                            Hệ thống quản lý kế toán bán hàng
                                         </p>
                                     </div>
                                 </div>
@@ -183,17 +189,19 @@ export default function Login() {
                                 {/* Headline */}
                                 <div className="space-y-4">
                                     <h2 className="text-5xl font-bold leading-tight tracking-tight">
-                                        Kế toán thông minh.
+                                        Quản lý thông minh.
                                         <br />
                                         <span className="bg-gradient-to-r from-blue-400 via-blue-500 to-purple-500 text-transparent bg-clip-text">
                                             Bán hàng hiệu quả.
                                         </span>
                                     </h2>
                                     <p className="text-lg text-white/60 leading-relaxed max-w-lg">
-                                        Nền tảng tích hợp kế toán – bán hàng –
-                                        tài chính toàn diện. Tự động hóa quy
-                                        trình, giảm sai sót, tuân thủ đầy đủ quy
-                                        định thuế Việt Nam.
+                                        Nền tảng quản lý tích hợp toàn bộ hoạt
+                                        động kinh doanh của BC Mall — từ siêu
+                                        thị BC Mart, ẩm thực Bee BBQ đến khu vui
+                                        chơi và thời trang. Tự động hóa kế toán
+                                        doanh thu, kiểm soát kho hàng, tuân thủ
+                                        quy định thuế Việt Nam.
                                     </p>
                                 </div>
 
@@ -210,7 +218,7 @@ export default function Login() {
                                     ))}
                                 </div>
 
-                                {/* Module Cards */}
+                                {/* Module Cards – 7 khu vực BC Mall */}
                                 <div className="grid grid-cols-2 gap-4">
                                     {coreModules.map((mod, i) => {
                                         const Icon = mod.icon;
@@ -242,7 +250,7 @@ export default function Login() {
                                     })}
                                 </div>
 
-                                {/* Stats Row */}
+                                {/* Stats Row – thông tin thực BC Mall */}
                                 <div className="grid grid-cols-4 gap-4 pt-2">
                                     {stats.map((s, i) => (
                                         <div key={i} className="text-center">
@@ -261,20 +269,33 @@ export default function Login() {
                             <div className="flex justify-end">
                                 <Card className="w-full max-w-md border-0 backdrop-blur-xl shadow-2xl">
                                     <CardContent className="p-10">
-                                        {/* Card Header */}
+                                        {/* Card Header – logo BC Mall */}
                                         <div className="text-center mb-8">
-                                            <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-gradient-to-br from-blue-600 to-purple-600 mb-5 shadow-lg shadow-blue-600/20">
+                                            <div className="inline-flex items-center justify-center h-20 w-20 rounded-2xl bg-white mb-5 shadow-lg shadow-blue-600/20 p-2">
                                                 <img
-                                                    src="https://laravel.com/img/logomark.min.svg"
-                                                    alt="Logo"
-                                                    className="h-10 w-auto brightness-0 invert"
+                                                    src="https://bcmall.vn/wp-content/uploads/2026/02/ft_logo_bcmall.png"
+                                                    alt="BC Mall"
+                                                    className="h-full w-full object-contain"
+                                                    onError={(e) => {
+                                                        e.target.style.display =
+                                                            "none";
+                                                        e.target.nextSibling.style.display =
+                                                            "flex";
+                                                    }}
                                                 />
+                                                {/* Fallback */}
+                                                <div
+                                                    className="h-full w-full items-center justify-center hidden"
+                                                    style={{ display: "none" }}
+                                                >
+                                                    <Store className="h-10 w-10 text-blue-600" />
+                                                </div>
                                             </div>
                                             <h2 className="text-2xl font-bold text-gray-900">
                                                 Đăng nhập hệ thống
                                             </h2>
                                             <p className="text-sm text-gray-500 mt-1.5">
-                                                Phần mềm kế toán &amp; quản lý
+                                                BC Mall – Quản lý kế toán &amp;
                                                 bán hàng
                                             </p>
                                         </div>
@@ -296,7 +317,7 @@ export default function Login() {
                                                 <Input
                                                     id="email"
                                                     type="email"
-                                                    placeholder="ketoan@congty.com"
+                                                    placeholder="ketoan@bcmall.vn"
                                                     value={data.email}
                                                     onChange={(e) =>
                                                         setData(
@@ -422,52 +443,27 @@ export default function Login() {
                                                     </>
                                                 )}
                                             </Button>
-
-                                            {/* Divider */}
-                                            <div className="relative">
-                                                <div className="absolute inset-0 flex items-center">
-                                                    <Separator className="bg-gray-200" />
-                                                </div>
-                                                <div className="relative flex justify-center text-xs">
-                                                    <span className="bg-white px-3 text-gray-400">
-                                                        Hoặc tiếp tục với
-                                                    </span>
-                                                </div>
-                                            </div>
-
-                                            {/* Social Login */}
-                                            <div className="grid grid-cols-2 gap-3">
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-11 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                                    onClick={handleGoogleLogin}
-                                                >
-                                                    <Chrome className="h-5 w-5 mr-2 text-[#DB4437]" />
-                                                    Google
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-11 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
-                                                    onClick={handleGithubLogin}
-                                                >
-                                                    <Github className="h-5 w-5 mr-2" />
-                                                    GitHub
-                                                </Button>
-                                            </div>
                                         </form>
 
-                                        {/* Register */}
-                                        <p className="text-center text-sm text-gray-500 mt-6">
-                                            Chưa có tài khoản doanh nghiệp?{" "}
-                                            <Link
-                                                href="#"
-                                                className="text-blue-600 font-medium hover:underline"
-                                            >
-                                                Đăng ký dùng thử miễn phí
-                                            </Link>
-                                        </p>
+                                        {/* Thông tin liên hệ hỗ trợ */}
+                                        <div className="mt-6 pt-5 border-t border-gray-100 text-center">
+                                            <p className="text-xs text-gray-400">
+                                                Cần hỗ trợ? Liên hệ{" "}
+                                                <a
+                                                    href="tel:0968579468"
+                                                    className="text-blue-600 font-medium hover:underline"
+                                                >
+                                                    096 857 94 68
+                                                </a>{" "}
+                                                hoặc{" "}
+                                                <a
+                                                    href="mailto:lienhe@bcmall.vn"
+                                                    className="text-blue-600 font-medium hover:underline"
+                                                >
+                                                    lienhe@bcmall.vn
+                                                </a>
+                                            </p>
+                                        </div>
                                     </CardContent>
                                 </Card>
                             </div>
@@ -476,17 +472,19 @@ export default function Login() {
                         {/* Footer */}
                         <div className="mt-10 flex flex-col items-center gap-4">
                             <div className="flex items-center justify-center flex-wrap gap-x-8 gap-y-2 text-xs text-white/40">
+                                <a
+                                    href="https://bcmall.vn"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="hover:text-white transition-colors"
+                                >
+                                    Website BC Mall
+                                </a>
                                 <Link
                                     href="#"
                                     className="hover:text-white transition-colors"
                                 >
-                                    Giới thiệu
-                                </Link>
-                                <Link
-                                    href="#"
-                                    className="hover:text-white transition-colors"
-                                >
-                                    Tính năng kế toán
+                                    Kế toán doanh thu
                                 </Link>
                                 <Link
                                     href="#"
@@ -498,7 +496,7 @@ export default function Login() {
                                     href="#"
                                     className="hover:text-white transition-colors"
                                 >
-                                    Bảng giá
+                                    Báo cáo tài chính
                                 </Link>
                                 <Link
                                     href="#"
@@ -512,21 +510,20 @@ export default function Login() {
                                 >
                                     Chính sách bảo mật
                                 </Link>
-                                <Link
-                                    href="#"
+                                <a
+                                    href="tel:0968579468"
                                     className="hover:text-white transition-colors"
                                 >
                                     Liên hệ hỗ trợ
-                                </Link>
+                                </a>
                             </div>
                             <div className="flex items-center gap-3 text-xs text-white/25">
                                 <span>
-                                    © 2025 AccSales Pro. All rights reserved.
+                                    © 2025 BC Mall – Công ty TNHH Phát triển
+                                    Nhân lực Việt. All rights reserved.
                                 </span>
                                 <span>•</span>
-                                <span>Phiên bản 3.5.2</span>
-                                <span>•</span>
-                                <span>Cập nhật: 15/02/2025</span>
+                                <span>489C, Xã Xuân Trường, Ninh Bình</span>
                             </div>
                         </div>
                     </div>

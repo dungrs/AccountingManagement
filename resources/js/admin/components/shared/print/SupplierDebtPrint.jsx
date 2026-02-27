@@ -28,35 +28,41 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
         return <div ref={ref}>Không có dữ liệu</div>;
     }
 
-    // Lọc bỏ các tài khoản 331 và chỉ lấy các tài khoản đối ứng
-    const filteredTransactions = result.transactions.filter(
-        (item) => !item.is_payable_account,
-    );
+    // Thay thế phần filteredTransactions và transactionsWithBalance
+    const groupedTransactions = React.useMemo(() => {
+        const nonPayable = result.transactions.filter(
+            (item) => !item.is_payable_account,
+        );
 
-    // Tính running balance cho từng dòng
-    // Số dư đầu kỳ là dư Có (credit balance) - dương = dư Có, âm = dư Nợ
+        // Group theo reference_code + account_code để tránh duplicate
+        const groupMap = new Map();
+        nonPayable.forEach((item) => {
+            const key = `${item.formatted_date}_${item.reference_code}_${item.reference_type_label}_${item.account_code}`;
+            if (!groupMap.has(key)) {
+                groupMap.set(key, {
+                    ...item,
+                    debit: Number(item.debit) || 0,
+                    credit: Number(item.credit) || 0,
+                });
+            } else {
+                const existing = groupMap.get(key);
+                existing.debit += Number(item.debit) || 0;
+                existing.credit += Number(item.credit) || 0;
+            }
+        });
+
+        return Array.from(groupMap.values()).sort(
+            (a, b) => a.sort_key?.localeCompare(b.sort_key ?? "") ?? 0,
+        );
+    }, [result.transactions]);
+
+    // Tính running balance trên grouped data
     let runningBalance = result.opening_balance || 0;
-
-    // Tính running balance cho từng dòng đối ứng
-    // Logic: mỗi dòng đối ứng đóng góp đúng số tiền của CHÍNH NÓ vào số dư 331
-    // - Dòng đối ứng Nợ (item.debit > 0): bút toán ghi Nợ TK đối ứng, Có 331
-    //   → 331 phát sinh Có → số dư Có tăng
-    // - Dòng đối ứng Có (item.credit > 0): bút toán ghi Có TK đối ứng, Nợ 331
-    //   → 331 phát sinh Nợ → số dư Có giảm
-    const transactionsWithBalance = filteredTransactions.map((item) => {
-        // Dòng nhập hàng: TK đối ứng (156, 133...) ghi Nợ → 331 ghi Có → số dư Có tăng
-        // Dòng thanh toán: TK đối ứng (112, 111...) ghi Có → 331 ghi Nợ → số dư Có giảm
+    const transactionsWithBalance = groupedTransactions.map((item) => {
         const debitAmount = Number(item.debit) || 0;
         const creditAmount = Number(item.credit) || 0;
-
-        // Contribution của dòng này vào 331:
-        // TK đối ứng Nợ → 331 Có (+), TK đối ứng Có → 331 Nợ (-)
         runningBalance = runningBalance + (debitAmount - creditAmount);
-
-        return {
-            ...item,
-            running_balance: runningBalance,
-        };
+        return { ...item, running_balance: runningBalance };
     });
 
     // Tính số dư cuối kỳ
@@ -273,7 +279,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                 </thead>
                 <tbody>
                     {transactionsWithBalance.map((item, index) => (
-                        <tr key={item.journal_entry_detail_id || index}>
+                        <tr key={`${item.reference_code}_${item.account_code}_${index}`}>
                             <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.formatted_date || formatDate(item.date)}
                             </td>

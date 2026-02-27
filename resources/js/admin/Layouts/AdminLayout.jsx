@@ -56,6 +56,7 @@ import {
     Briefcase,
     Menu,
     X,
+    Store,
 } from "lucide-react";
 
 import { useEventBus } from "@/EventBus";
@@ -79,7 +80,7 @@ export default function AdminLayout({ children, breadcrumb }) {
         {
             id: 1,
             title: "Thông báo mới",
-            description: "Có đơn hàng mới",
+            description: "Có đơn hàng mới tại BC Mart",
             time: "5 phút trước",
         },
         {
@@ -91,7 +92,7 @@ export default function AdminLayout({ children, breadcrumb }) {
         {
             id: 3,
             title: "Báo cáo tháng",
-            description: "Báo cáo doanh thu tháng 2",
+            description: "Báo cáo doanh thu BC Mall tháng này",
             time: "2 giờ trước",
         },
     ]);
@@ -270,7 +271,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                 },
                 {
                     title: "Kiểm kê kho",
-                    href: route("admin.product.variant.index"),
+                    href: route("admin.inventory.index"),
                     description: "Kiểm kê hàng hóa",
                     icon: BarChart3,
                 },
@@ -388,6 +389,20 @@ export default function AdminLayout({ children, breadcrumb }) {
 
     const hasBreadcrumb = Array.isArray(breadcrumb) && breadcrumb.length > 0;
 
+    // Component logo BC Mall dùng chung
+    const BCMallLogo = ({ className = "h-4 w-4" }) => (
+        <img
+            src="https://bcmall.vn/wp-content/uploads/2026/02/ft_logo_bcmall.png"
+            alt="BC Mall"
+            className={`${className} object-contain`}
+            onError={(e) => {
+                e.target.style.display = "none";
+                e.target.nextSibling &&
+                    (e.target.nextSibling.style.display = "block");
+            }}
+        />
+    );
+
     return (
         <div className="h-screen flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-white">
             {/* HEADER */}
@@ -405,15 +420,26 @@ export default function AdminLayout({ children, breadcrumb }) {
                         <Menu className="h-5 w-5" />
                     </Button>
 
-                    {/* Logo */}
+                    {/* Logo BC Mall */}
                     <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                         <div className="relative group">
                             <div className="absolute inset-0 bg-white/20 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-xl" />
-                            <div className="relative h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 group-hover:border-white/30 transition-all duration-300">
+                            <div className="relative h-8 w-8 sm:h-10 sm:w-10 rounded-xl bg-white flex items-center justify-center border border-white/20 group-hover:border-white/30 transition-all duration-300 p-1">
+                                {/* Logo BC Mall */}
                                 <img
-                                    src="https://laravel.com/img/logomark.min.svg"
-                                    alt="Laravel"
-                                    className="h-4 w-4 sm:h-5 sm:w-5 brightness-0 invert"
+                                    src="https://bcmall.vn/wp-content/uploads/2026/02/ft_logo_bcmall.png"
+                                    alt="BC Mall"
+                                    className="h-full w-full object-contain"
+                                    onError={(e) => {
+                                        e.target.style.display = "none";
+                                        e.target.nextSibling.style.display =
+                                            "flex";
+                                    }}
+                                />
+                                {/* Fallback */}
+                                <Store
+                                    className="h-5 w-5 text-blue-600 hidden"
+                                    style={{ display: "none" }}
                                 />
                             </div>
                         </div>
@@ -427,7 +453,7 @@ export default function AdminLayout({ children, breadcrumb }) {
                         </div>
                     </div>
 
-                    {/* Search - hidden on small mobile, shown md+ */}
+                    {/* Search */}
                     <div className="hidden md:flex flex-1 max-w-xs lg:max-w-md ml-2 lg:ml-4">
                         <div className="relative w-full group">
                             <Search className="absolute z-10 left-3 top-2.5 h-4 w-4 text-white/50 group-focus-within:text-white transition-colors" />
@@ -644,18 +670,27 @@ export default function AdminLayout({ children, breadcrumb }) {
 
                     {/* Drawer panel */}
                     <div className="absolute left-0 top-0 h-full w-72 sm:w-80 bg-white shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-left duration-300">
-                        {/* Drawer header */}
+                        {/* Drawer header – logo BC Mall */}
                         <div className="header-premium flex items-center justify-between px-4 py-3 shrink-0">
                             <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-xl bg-white/10 flex items-center justify-center border border-white/20">
+                                <div className="h-8 w-8 rounded-xl bg-white flex items-center justify-center border border-white/20 p-1">
                                     <img
-                                        src="https://laravel.com/img/logomark.min.svg"
-                                        alt="Laravel"
-                                        className="h-4 w-4 brightness-0 invert"
+                                        src="https://bcmall.vn/wp-content/uploads/2026/02/ft_logo_bcmall.png"
+                                        alt="BC Mall"
+                                        className="h-full w-full object-contain"
+                                        onError={(e) => {
+                                            e.target.style.display = "none";
+                                            e.target.nextSibling.style.display =
+                                                "block";
+                                        }}
+                                    />
+                                    <Store
+                                        className="h-4 w-4 text-blue-600 hidden"
+                                        style={{ display: "none" }}
                                     />
                                 </div>
                                 <span className="font-semibold text-white text-sm">
-                                    Enterprise Suite
+                                    BC Mall
                                 </span>
                             </div>
                             <Button
@@ -745,29 +780,32 @@ export default function AdminLayout({ children, breadcrumb }) {
                                     <div className="flex items-center gap-2">
                                         <Heart className="h-4 w-4 text-white/70 fill-white/70 shrink-0" />
                                         <span className="text-white/70 text-xs sm:text-sm text-center sm:text-left">
-                                            © {currentYear} Enterprise Suite.
-                                            All rights reserved.
+                                            © {currentYear} BC Mall – Công ty
+                                            TNHH Phát triển Nhân lực Việt. All
+                                            rights reserved.
                                         </span>
                                     </div>
                                     <div className="flex gap-3 sm:gap-6">
-                                        <Link
-                                            href="#"
+                                        <a
+                                            href="https://bcmall.vn"
+                                            target="_blank"
+                                            rel="noopener noreferrer"
                                             className="text-white/70 hover:text-white transition-colors text-xs sm:text-sm"
                                         >
-                                            Privacy Policy
-                                        </Link>
-                                        <Link
-                                            href="#"
+                                            Website BC Mall
+                                        </a>
+                                        <a
+                                            href="tel:0968579468"
                                             className="text-white/70 hover:text-white transition-colors text-xs sm:text-sm"
                                         >
-                                            Terms of Service
-                                        </Link>
-                                        <Link
-                                            href="#"
+                                            096 857 94 68
+                                        </a>
+                                        <a
+                                            href="mailto:lienhe@bcmall.vn"
                                             className="text-white/70 hover:text-white transition-colors text-xs sm:text-sm hidden sm:inline"
                                         >
-                                            Cookie Policy
-                                        </Link>
+                                            lienhe@bcmall.vn
+                                        </a>
                                     </div>
                                 </div>
                             </div>

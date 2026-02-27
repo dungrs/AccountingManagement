@@ -17,7 +17,7 @@ import { useVoucherForm } from "@/admin/hooks/useVoucherForm";
 import VoucherGeneralInfo from "@/admin/components/shared/vouchers/VoucherGeneralInfo";
 import VoucherAccountingTabs from "@/admin/components/shared/vouchers/VoucherAccountingTabs";
 import { Button } from "@/admin/components/ui/button";
-import ReceiptVoucherPrint from "@/admin/components/shared/print/ReceiptVoucherPrint"; // Đổi import
+import ReceiptVoucherPrint from "@/admin/components/shared/print/ReceiptVoucherPrint";
 
 // Utils
 import { formatCurrency } from "@/admin/utils/helpers";
@@ -26,37 +26,33 @@ import {
     Printer,
     Download,
     Loader2,
-    Wallet,
     Calendar,
     User,
-    Building2,
     DollarSign,
-    TrendingUp, // Đổi từ TrendingDown
+    TrendingUp,
     CheckCircle2,
     Clock,
-    Landmark,
     CreditCard,
-    Users, // Thêm icon cho khách hàng
-    Receipt, // Thêm icon cho phiếu thu
+    Users,
+    Receipt,
 } from "lucide-react";
 import { cn } from "@/admin/lib/utils";
 
 export default function ReceiptVoucherForm() {
     const {
-        receipt_voucher, // Đổi từ payment_voucher
-        customers, // Đổi từ suppliers
+        receipt_voucher,
+        customers,
         accounting_accounts,
         flash,
         users,
         system_languages,
         errors: serverErrors,
-        // bank_accounts, // Có thể bỏ nếu không dùng
     } = usePage().props;
 
+    // ✅ Dùng chung 1 ref cho cả print lẫn PDF
     const printRef = useRef(null);
-    const pdfRef = useRef(null);
     const { emit } = useEventBus();
-    const isEdit = !!receipt_voucher; // Đổi từ payment_voucher
+    const isEdit = !!receipt_voucher;
     const [isExportingPDF, setIsExportingPDF] = useState(false);
 
     // Main form hook
@@ -74,9 +70,9 @@ export default function ReceiptVoucherForm() {
         handleSubmit: baseHandleSubmit,
         handleJournalEntriesChange,
     } = useVoucherForm({
-        voucher: receipt_voucher, // Đổi từ payment_voucher
+        voucher: receipt_voucher,
         isEdit,
-        type: "receipt", // Đổi từ "payment" thành "receipt"
+        type: "receipt",
     });
 
     // Handle flash messages
@@ -89,19 +85,19 @@ export default function ReceiptVoucherForm() {
         if (serverErrors && Object.keys(serverErrors).length > 0) {
             setErrors(serverErrors);
         }
-    }, [serverErrors, setErrors, emit]);
+    }, [serverErrors, setErrors]);
 
     // Submit handler
     const handleSubmit = (e) => {
         const submitRoute = isEdit
-            ? route("admin.voucher.receipt.update", receipt_voucher.id) // Đổi route
-            : route("admin.voucher.receipt.store"); // Đổi route
+            ? route("admin.voucher.receipt.update", receipt_voucher.id)
+            : route("admin.voucher.receipt.store");
         const submitMethod = isEdit ? "put" : "post";
 
         baseHandleSubmit(e, submitRoute, submitMethod);
     };
 
-    // Hàm xuất PDF
+    // Hàm xuất PDF dùng chung ref với print
     const generatePDF = async (element, fileName) => {
         if (!element) {
             throw new Error("Không tìm thấy nội dung cần xuất!");
@@ -122,7 +118,7 @@ export default function ReceiptVoucherForm() {
         document.body.appendChild(tempContainer);
 
         try {
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+            await new Promise((resolve) => setTimeout(resolve, 500));
 
             const canvas = await html2canvas(tempContainer, {
                 scale: 3,
@@ -187,7 +183,7 @@ export default function ReceiptVoucherForm() {
     // Xử lý in
     const handlePrint = useReactToPrint({
         contentRef: printRef,
-        documentTitle: `Phieu-thu-${formData.code || "Moi"}`, // Đổi tên file
+        documentTitle: `Phieu-thu-${formData.code || "Moi"}`,
         pageStyle: `
             @page {
                 size: A4;
@@ -203,9 +199,6 @@ export default function ReceiptVoucherForm() {
                 }
             }
         `,
-        onBeforeGetContent: async () => {
-            console.log("Preparing to print...");
-        },
         onAfterPrint: () => {
             emit("toast:success", "Đã gửi lệnh in thành công!");
         },
@@ -215,9 +208,9 @@ export default function ReceiptVoucherForm() {
         },
     });
 
-    // Xử lý xuất PDF
+    // Xử lý xuất PDF — dùng chung printRef
     const handleExportPDF = async () => {
-        if (!pdfRef.current) {
+        if (!printRef.current) {
             alert("Không tìm thấy nội dung cần xuất!");
             return;
         }
@@ -225,8 +218,8 @@ export default function ReceiptVoucherForm() {
         setIsExportingPDF(true);
         try {
             await generatePDF(
-                pdfRef.current,
-                `Phieu-thu-${formData.code || "Moi"}.pdf`, // Đổi tên file
+                printRef.current,
+                `Phieu-thu-${formData.code || "Moi"}.pdf`,
             );
             emit("toast:success", "Xuất PDF thành công!");
         } catch (error) {
@@ -237,7 +230,7 @@ export default function ReceiptVoucherForm() {
         }
     };
 
-    // Get current customer (đổi từ supplier)
+    // Get current customer
     const currentCustomer = customers?.find(
         (c) => c.id === formData.partner_id,
     );
@@ -245,12 +238,9 @@ export default function ReceiptVoucherForm() {
     // Get current user
     const currentUser = users?.find((u) => u.id === formData.user_id);
 
-    // Kiểm tra có thể in không
+    // ✅ canPrint: chỉ check confirmed và có mã (bỏ điều kiện dư !== "draft")
     const canPrint =
-        isEdit &&
-        receipt_voucher?.status !== "draft" && // Đổi từ payment_voucher
-        receipt_voucher?.status === "confirmed" &&
-        formData.code;
+        isEdit && receipt_voucher?.status === "confirmed" && !!formData.code;
 
     // Get status badge
     const getStatusBadge = (status) => {
@@ -278,21 +268,21 @@ export default function ReceiptVoucherForm() {
             breadcrumb={[
                 { label: "Dashboard", link: route("admin.dashboard.index") },
                 {
-                    label: "Phiếu thu", // Đổi label
-                    link: route("admin.voucher.receipt.index"), // Đổi route
+                    label: "Phiếu thu",
+                    link: route("admin.voucher.receipt.index"),
                 },
                 {
                     label: isEdit
-                        ? `Chỉnh sửa ${formData.code || "phiếu thu"}` // Đổi text
-                        : "Thêm phiếu thu", // Đổi text
+                        ? `Chỉnh sửa ${formData.code || "phiếu thu"}`
+                        : "Thêm phiếu thu",
                 },
             ]}
         >
             <Head
                 title={
                     isEdit
-                        ? `Chỉnh sửa ${formData.code || "phiếu thu"}` // Đổi title
-                        : "Thêm phiếu thu" // Đổi title
+                        ? `Chỉnh sửa ${formData.code || "phiếu thu"}`
+                        : "Thêm phiếu thu"
                 }
             />
 
@@ -310,8 +300,7 @@ export default function ReceiptVoucherForm() {
                                 </p>
                             </div>
                             <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <Receipt className="h-5 w-5 text-blue-600" />{" "}
-                                {/* Đổi icon */}
+                                <Receipt className="h-5 w-5 text-blue-600" />
                             </div>
                         </CardContent>
                     </Card>
@@ -336,16 +325,14 @@ export default function ReceiptVoucherForm() {
                         <CardContent className="p-4 flex items-center justify-between">
                             <div>
                                 <p className="text-sm text-muted-foreground">
-                                    Khách hàng {/* Đổi text */}
+                                    Khách hàng
                                 </p>
                                 <p className="text-lg font-bold text-purple-600 truncate max-w-[150px]">
-                                    {currentCustomer?.name || "Chưa chọn"}{" "}
-                                    {/* Đổi từ currentSupplier */}
+                                    {currentCustomer?.name || "Chưa chọn"}
                                 </p>
                             </div>
                             <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
-                                <Users className="h-5 w-5 text-purple-600" />{" "}
-                                {/* Đổi icon */}
+                                <Users className="h-5 w-5 text-purple-600" />
                             </div>
                         </CardContent>
                     </Card>
@@ -380,15 +367,13 @@ export default function ReceiptVoucherForm() {
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
                             <div className="h-16 w-16 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                                <Receipt className="h-8 w-8 text-white" />{" "}
-                                {/* Đổi icon */}
+                                <Receipt className="h-8 w-8 text-white" />
                             </div>
                             <div>
                                 <h1 className="text-2xl font-bold">
                                     {isEdit
-                                        ? `Chỉnh sửa phiếu thu: ${formData.code}` // Đổi text
-                                        : "Thêm phiếu thu mới"}{" "}
-                                    {/* Đổi text */}
+                                        ? `Chỉnh sửa phiếu thu: ${formData.code}`
+                                        : "Thêm phiếu thu mới"}
                                 </h1>
                                 <p className="text-white/80 mt-1 flex items-center gap-2">
                                     <Calendar className="h-4 w-4" />
@@ -476,12 +461,11 @@ export default function ReceiptVoucherForm() {
                     <Card className="border-slate-200 shadow-sm">
                         <CardContent className="p-4 flex items-center gap-3">
                             <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
-                                <TrendingUp className="h-5 w-5 text-green-600" />{" "}
-                                {/* Đổi icon */}
+                                <TrendingUp className="h-5 w-5 text-green-600" />
                             </div>
                             <div>
                                 <p className="text-xs text-slate-500">
-                                    Tổng thu {/* Đổi text */}
+                                    Tổng thu
                                 </p>
                                 <p className="font-medium text-slate-700">
                                     {formatCurrency(formData.amount || 0)}
@@ -503,18 +487,17 @@ export default function ReceiptVoucherForm() {
                         setOpenVoucherDate={setOpenVoucherDate}
                         handleChange={handleChange}
                         setErrors={setErrors}
-                        type="receipt" // Đổi từ "payment" thành "receipt"
-                        partners={customers} // Đổi từ suppliers
+                        type="receipt"
+                        partners={customers}
                         users={users}
-                        // bankAccounts={bank_accounts} // Có thể bỏ nếu không dùng
                         isEdit={isEdit}
                     />
 
-                    {/* Hạch toán và Công nợ */}
+                    {/* Hạch toán kế toán */}
                     <VoucherAccountingTabs
                         formData={formData}
                         accountingAccounts={accounting_accounts || []}
-                        type="receipt" // Đổi từ "payment" thành "receipt"
+                        type="receipt"
                         formatCurrency={formatCurrency}
                         onJournalEntriesChange={handleJournalEntriesChange}
                     />
@@ -544,14 +527,13 @@ export default function ReceiptVoucherForm() {
                             {isSubmitting
                                 ? "Đang lưu..."
                                 : isEdit
-                                  ? "Cập nhật phiếu thu" // Đổi text
-                                  : "Lưu phiếu thu"}{" "}
-                            {/* Đổi text */}
+                                  ? "Cập nhật phiếu thu"
+                                  : "Lưu phiếu thu"}
                         </Button>
                     </div>
                 </form>
 
-                {/* Component cho in ấn - để trong DOM nhưng ẩn */}
+                {/* ✅ Chỉ render 1 ReceiptVoucherPrint, dùng chung cho cả in và xuất PDF */}
                 <div
                     style={{
                         position: "absolute",
@@ -560,29 +542,11 @@ export default function ReceiptVoucherForm() {
                         visibility: "hidden",
                     }}
                 >
-                    <ReceiptVoucherPrint // Đổi component
+                    <ReceiptVoucherPrint
                         ref={printRef}
                         voucher={formData}
                         user={currentUser}
-                        partner={currentCustomer} // Đổi từ currentSupplier
-                        system_languages={system_languages}
-                    />
-                </div>
-
-                {/* Component cho xuất PDF - để trong DOM nhưng ẩn */}
-                <div
-                    style={{
-                        position: "absolute",
-                        left: "-9999px",
-                        top: 0,
-                        visibility: "hidden",
-                    }}
-                >
-                    <ReceiptVoucherPrint // Đổi component
-                        ref={pdfRef}
-                        voucher={formData}
-                        user={currentUser}
-                        partner={currentCustomer} // Đổi từ currentSupplier
+                        partner={currentCustomer}
                         system_languages={system_languages}
                     />
                 </div>

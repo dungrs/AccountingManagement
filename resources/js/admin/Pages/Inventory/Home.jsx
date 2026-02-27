@@ -25,47 +25,46 @@ import {
     SelectValue,
 } from "@/admin/components/ui/select";
 import {
-    MoreHorizontal,
-    Plus,
     Package,
     AlertTriangle,
     CheckCircle2,
     XCircle,
     Filter,
     RefreshCw,
-    Download,
-    Upload,
     TrendingUp,
-    TrendingDown,
     Boxes,
-    AlertCircle,
     CheckCheck,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import InventoryFormModal from "@/admin/components/pages/inventory/InventoryFormModal";
-import ConfirmDeleteDialog from "@/admin/components/shared/common/ConfirmDeleteDialog";
+import InventoryAdjustModal from "@/admin/components/pages/inventory/InventoryAdjustModal";
 import InventoryTable from "@/admin/components/pages/inventory/InventoryTable";
 import DataTablePagination from "@/admin/components/shared/common/DataTablePagination";
 import DataTableFilter from "@/admin/components/shared/common/DataTableFilter";
 import { Head, router } from "@inertiajs/react";
-import { useBulkUpdateStatus } from "@/admin/hooks/useBulkUpdateStatus";
 import { cn } from "@/admin/lib/utils";
+import { formatCurrency, formatNumber } from "@/admin/utils/helpers";
+import InventoryFormModal from "@/admin/components/pages/inventory/InventoryFormModal";
 
-export default function Home() {
+export default function Home({ initialFilters = {} }) {
     const [data, setData] = useState([]);
     const [selectedRows, setSelectedRows] = useState([]);
     const [pageSize, setPageSize] = useState("20");
-    const [keyword, setKeyword] = useState("");
-    const [debouncedKeyword, setDebouncedKeyword] = useState("");
-    const [statusFilter, setStatusFilter] = useState("all");
-    const [stockFilter, setStockFilter] = useState("all"); // all, in-stock, low-stock, out-of-stock
+    const [keyword, setKeyword] = useState(initialFilters.keyword || "");
+    const [debouncedKeyword, setDebouncedKeyword] = useState(keyword);
+    const [stockFilter, setStockFilter] = useState(
+        initialFilters.stock_status || "all",
+    );
     const [loading, setLoading] = useState(false);
-    const [openModal, setOpenModal] = useState(false);
-    const [modalMode, setModalMode] = useState("create");
-    const [editingRow, setEditingRow] = useState(null);
-    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-    const [deletingRow, setDeletingRow] = useState(null);
+
+    // Modal states
+    const [openAdjustModal, setOpenAdjustModal] = useState(false);
+    const [selectedVariant, setSelectedVariant] = useState(null);
+
+    const [openFormModal, setOpenFormModal] = useState(false);
+    const [modalMode, setModalMode] = useState("edit");
+    const [selectedProduct, setSelectedProduct] = useState(null);
+
     const [paginationData, setPaginationData] = useState({
         current_page: 1,
         last_page: 1,
@@ -75,11 +74,16 @@ export default function Home() {
         to: 0,
     });
 
-    const bulkUpdateStatus = useBulkUpdateStatus(
-        selectedRows,
-        setData,
-        setSelectedRows,
-    );
+    // Stats overview
+    const [overview, setOverview] = useState({
+        total_value: 0,
+        total_quantity: 0,
+        product_with_stock: 0,
+        low_stock: 0,
+        out_of_stock: 0,
+        monthly_inbound_quantity: 0,
+        monthly_outbound_quantity: 0,
+    });
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -87,6 +91,21 @@ export default function Home() {
         }, 500);
         return () => clearTimeout(timer);
     }, [keyword]);
+
+    // Fetch overview stats
+    const fetchOverview = useCallback(async () => {
+        try {
+            const res = await axios.get(route("admin.inventory.overview"));
+            // API trả về trực tiếp data, không có status
+            setOverview(res.data);
+        } catch (error) {
+            console.error("Lỗi khi tải tổng quan:", error);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchOverview();
+    }, [fetchOverview]);
 
     const fetchData = useCallback(
         async (page = 1) => {
@@ -96,36 +115,36 @@ export default function Home() {
                     page,
                     perpage: parseInt(pageSize),
                     keyword: debouncedKeyword.trim(),
+                    stock_status:
+                        stockFilter !== "all" ? stockFilter : undefined,
                 };
 
-                if (statusFilter !== "all") {
-                    params.publish = parseInt(statusFilter);
-                }
-
-                if (stockFilter !== "all") {
-                    params.stock_status = stockFilter;
-                }
-
                 const res = await axios.post(
-                    route("admin.product.variant.filter"),
+                    route("admin.inventory.filter"),
                     params,
                 );
 
+                // API trả về trực tiếp paginate object
                 const response = res.data;
 
-                if (!response || !Array.isArray(response.data)) {
+                if (!response || !response.data) {
                     throw new Error("Dữ liệu trả về không hợp lệ");
                 }
 
+                // Map dữ liệu từ response.data (mảng các item)
                 const mappedData = response.data.map((item) => ({
                     id: item.product_variant_id,
-                    name: item.name || "",
+                    inventory_balance_id: item.id,
+                    name: item.product_name || "",
                     sku: item.sku || "",
                     barcode: item.barcode || "",
                     quantity: item.quantity || 0,
                     unit_name: item.unit_name || "",
-                    active: item.publish === 1,
-                    stock_status: getStockStatus(item.quantity),
+                    average_cost: item.average_cost || 0,
+                    inventory_value: item.inventory_value || 0,
+                    stock_status:
+                        item.stock_status || getStockStatus(item.quantity),
+                    balance_date: item.balance_date,
                 }));
 
                 setData(mappedData);
@@ -156,7 +175,7 @@ export default function Home() {
                 setLoading(false);
             }
         },
-        [pageSize, debouncedKeyword, statusFilter, stockFilter],
+        [pageSize, debouncedKeyword, stockFilter],
     );
 
     const getStockStatus = (quantity) => {
@@ -169,57 +188,36 @@ export default function Home() {
         fetchData(1);
     }, [fetchData]);
 
-    const handleEdit = (row) => {
+    const handleEditProduct = (row) => {
+        setSelectedProduct(row);
         setModalMode("edit");
-        setEditingRow(row);
-        setOpenModal(true);
+        setOpenFormModal(true);
     };
 
+    const handleCloseFormModal = () => {
+        setOpenFormModal(false);
+        setSelectedProduct(null);
+    };
+
+    const handleFormSuccess = () => {
+        fetchData(paginationData.current_page);
+        fetchOverview();
+    };
+
+    // Cập nhật handleAdjustStock để phân biệt với edit
     const handleAdjustStock = (row) => {
-        setModalMode("adjust");
-        setEditingRow(row);
-        setOpenModal(true);
+        setSelectedVariant(row);
+        setOpenAdjustModal(true);
     };
 
-    const handleDeleteClick = (row) => {
-        setDeletingRow(row);
-        setOpenDeleteDialog(true);
-    };
-
-    const handleConfirmDelete = async () => {
-        if (!deletingRow) return;
-
-        try {
-            const res = await axios.post(
-                route("admin.product.variant.delete"),
-                {
-                    id: deletingRow.id,
-                },
-            );
-
-            toast.success(res.data?.message || "Xóa thành công!");
-            setOpenDeleteDialog(false);
-            setDeletingRow(null);
-            fetchData(paginationData.current_page);
-        } catch (err) {
-            console.error("Lỗi khi xóa:", err);
-            toast.error(
-                err.response?.data?.message ||
-                    "Có lỗi xảy ra, vui lòng thử lại!",
-            );
-        }
-    };
-
-    const handleExportInventory = () => {
-        window.location.href = route("admin.product.variant.export");
-    };
-
-    const handleImportInventory = () => {
-        router.visit(route("admin.product.variant.import"));
+    const handleViewTransactions = (row) => {
+        // Mở modal xem lịch sử hoặc chuyển trang
+        router.visit(route("admin.inventory.transactions", { id: row.id }));
     };
 
     const handleRefresh = () => {
         fetchData(paginationData.current_page);
+        fetchOverview();
         toast.success("Đã làm mới dữ liệu");
     };
 
@@ -252,19 +250,16 @@ export default function Home() {
         setPageSize(value);
     };
 
-    // Thống kê
-    const totalQuantity = data.reduce((sum, item) => sum + item.quantity, 0);
-    const inStockCount = data.filter(
-        (item) => item.stock_status === "in-stock",
-    ).length;
-    const lowStockCount = data.filter(
-        (item) => item.stock_status === "low-stock",
-    ).length;
-    const outOfStockCount = data.filter(
-        (item) => item.stock_status === "out-of-stock",
-    ).length;
-    const activeCount = data.filter((item) => item.active).length;
-    const inactiveCount = data.filter((item) => !item.active).length;
+    // Thống kê từ overview
+    const {
+        total_value = 0,
+        total_quantity = 0,
+        product_with_stock = 0,
+        low_stock = 0,
+        out_of_stock = 0,
+        monthly_inbound_quantity = 0,
+        monthly_outbound_quantity = 0,
+    } = overview;
 
     return (
         <AdminLayout
@@ -274,22 +269,22 @@ export default function Home() {
                     link: route("admin.dashboard.index"),
                 },
                 {
-                    label: "Kiểm Kê Kho",
+                    label: "Quản lý kho",
                 },
             ]}
         >
-            <Head title="Kiểm Kê Kho" />
+            <Head title="Quản lý kho" />
 
-            {/* Header Stats */}
+            {/* Header Stats - 4 cột */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
                     <CardContent className="p-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
-                                Tổng sản phẩm
+                                Tổng giá trị kho
                             </p>
                             <p className="text-2xl font-bold text-blue-600">
-                                {paginationData.total}
+                                {formatCurrency(total_value)}
                             </p>
                         </div>
                         <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
@@ -302,10 +297,10 @@ export default function Home() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
-                                Tổng tồn kho
+                                Tổng số lượng
                             </p>
                             <p className="text-2xl font-bold text-green-600">
-                                {formatNumber(totalQuantity)}
+                                {formatNumber(total_quantity)}
                             </p>
                         </div>
                         <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
@@ -318,10 +313,10 @@ export default function Home() {
                     <CardContent className="p-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
-                                Đang kinh doanh
+                                Sản phẩm có tồn
                             </p>
                             <p className="text-2xl font-bold text-purple-600">
-                                {activeCount}
+                                {product_with_stock}
                             </p>
                         </div>
                         <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center">
@@ -330,18 +325,19 @@ export default function Home() {
                     </CardContent>
                 </Card>
 
-                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
+                <Card className="border-l-4 border-l-orange-500 shadow-md hover:shadow-lg transition-shadow">
                     <CardContent className="p-4 flex items-center justify-between">
                         <div>
                             <p className="text-sm text-muted-foreground">
-                                Ngừng KD
+                                Nhập/Xuất trong tháng
                             </p>
-                            <p className="text-2xl font-bold text-red-600">
-                                {inactiveCount}
+                            <p className="text-2xl font-bold text-orange-600">
+                                {formatNumber(monthly_inbound_quantity)} /{" "}
+                                {formatNumber(monthly_outbound_quantity)}
                             </p>
                         </div>
-                        <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                            <XCircle className="h-6 w-6 text-red-600" />
+                        <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
+                            <TrendingUp className="h-6 w-6 text-orange-600" />
                         </div>
                     </CardContent>
                 </Card>
@@ -357,16 +353,15 @@ export default function Home() {
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-green-800">
-                                    Còn hàng
+                                    Còn hàng (≥10)
                                 </p>
                                 <p className="text-2xl font-bold text-green-700">
-                                    {inStockCount}
+                                    {product_with_stock -
+                                        low_stock -
+                                        out_of_stock}
                                 </p>
                             </div>
                         </div>
-                        <Badge className="bg-green-200 text-green-800 border-green-300">
-                            Đủ số lượng
-                        </Badge>
                     </CardContent>
                 </Card>
 
@@ -378,16 +373,13 @@ export default function Home() {
                             </div>
                             <div>
                                 <p className="text-sm font-medium text-yellow-800">
-                                    Sắp hết
+                                    Sắp hết (1-9)
                                 </p>
                                 <p className="text-2xl font-bold text-yellow-700">
-                                    {lowStockCount}
+                                    {low_stock}
                                 </p>
                             </div>
                         </div>
-                        <Badge className="bg-yellow-200 text-yellow-800 border-yellow-300">
-                            Dưới 10
-                        </Badge>
                     </CardContent>
                 </Card>
 
@@ -402,29 +394,26 @@ export default function Home() {
                                     Hết hàng
                                 </p>
                                 <p className="text-2xl font-bold text-red-700">
-                                    {outOfStockCount}
+                                    {out_of_stock}
                                 </p>
                             </div>
                         </div>
-                        <Badge className="bg-red-200 text-red-800 border-red-300">
-                            Cần nhập
-                        </Badge>
                     </CardContent>
                 </Card>
             </div>
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
-                {/* HEADER - Gradient Header */}
+                {/* HEADER */}
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <CardTitle className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
                                 <Package className="h-6 w-6" />
-                                Kiểm Kê Kho
+                                Quản lý tồn kho
                             </CardTitle>
                             <CardDescription className="text-white/80">
-                                Quản lý số lượng tồn kho, theo dõi nhập xuất và
-                                kiểm kê hàng hóa.
+                                Theo dõi số lượng tồn kho, giá trị và lịch sử
+                                nhập xuất.
                             </CardDescription>
                         </div>
 
@@ -436,24 +425,6 @@ export default function Home() {
                             >
                                 <RefreshCw className="mr-2 h-4 w-4" />
                                 Làm mới
-                            </Button>
-
-                            {/* <Button
-                                onClick={handleExportInventory}
-                                variant="secondary"
-                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Xuất Excel
-                            </Button> */}
-
-                            <Button
-                                onClick={handleImportInventory}
-                                variant="secondary"
-                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
-                            >
-                                <Upload className="mr-2 h-4 w-4" />
-                                Nhập Excel
                             </Button>
                         </div>
                     </div>
@@ -478,75 +449,24 @@ export default function Home() {
                                     <SelectValue placeholder="Tình trạng kho" />
                                 </SelectTrigger>
 
-                                <SelectContent className="dropdown-premium-content">
-                                    <SelectItem
-                                        value="all"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        Tất cả
-                                    </SelectItem>
-                                    <SelectItem
-                                        value="in-stock"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
+                                <SelectContent>
+                                    <SelectItem value="all">Tất cả</SelectItem>
+                                    <SelectItem value="in-stock">
                                         <span className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                                            Còn hàng
+                                            Còn hàng (≥10)
                                         </span>
                                     </SelectItem>
-                                    <SelectItem
-                                        value="low-stock"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
+                                    <SelectItem value="low-stock">
                                         <span className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-yellow-500"></span>
-                                            Sắp hết
+                                            Sắp hết (1-9)
                                         </span>
                                     </SelectItem>
-                                    <SelectItem
-                                        value="out-of-stock"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
+                                    <SelectItem value="out-of-stock">
                                         <span className="flex items-center gap-2">
                                             <span className="h-2 w-2 rounded-full bg-red-500"></span>
                                             Hết hàng
-                                        </span>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-
-                            {/* Publish Status Filter */}
-                            <Select
-                                value={statusFilter}
-                                onValueChange={setStatusFilter}
-                            >
-                                <SelectTrigger className="w-full sm:w-[180px] rounded-md border-slate-200 focus:ring-purple-500">
-                                    <SelectValue placeholder="Trạng thái KD" />
-                                </SelectTrigger>
-
-                                <SelectContent className="dropdown-premium-content">
-                                    <SelectItem
-                                        value="all"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        Tất cả
-                                    </SelectItem>
-                                    <SelectItem
-                                        value="1"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                                            Đang kinh doanh
-                                        </span>
-                                    </SelectItem>
-                                    <SelectItem
-                                        value="0"
-                                        className="cursor-pointer hover:bg-gradient-to-r hover:from-blue-600/5 hover:to-purple-600/5"
-                                    >
-                                        <span className="flex items-center gap-2">
-                                            <span className="h-2 w-2 rounded-full bg-red-500"></span>
-                                            Ngừng kinh doanh
                                         </span>
                                     </SelectItem>
                                 </SelectContent>
@@ -560,18 +480,9 @@ export default function Home() {
                         selectedRows={selectedRows}
                         toggleAll={toggleAll}
                         toggleRow={toggleRow}
-                        handleEdit={handleEdit}
+                        handleEditProduct={handleEditProduct} // Thêm prop này
                         handleAdjustStock={handleAdjustStock}
-                        handleDeleteClick={handleDeleteClick}
-                        onToggleActive={(id, newChecked) => {
-                            setData((prev) =>
-                                prev.map((item) =>
-                                    item.id === id
-                                        ? { ...item, active: newChecked }
-                                        : item,
-                                ),
-                            );
-                        }}
+                        handleViewTransactions={handleViewTransactions}
                     />
 
                     <DataTablePagination
@@ -590,28 +501,23 @@ export default function Home() {
             </Card>
 
             <InventoryFormModal
-                open={openModal}
+                open={openFormModal}
                 mode={modalMode}
-                data={editingRow}
-                onClose={() => setOpenModal(false)}
-                onSuccess={() => fetchData(paginationData.current_page)}
+                data={selectedProduct}
+                onClose={handleCloseFormModal}
+                onSuccess={handleFormSuccess}
             />
 
-            <ConfirmDeleteDialog
-                open={openDeleteDialog}
-                title="Xóa hàng tồn kho"
-                description={`Bạn có chắc chắn muốn xóa sản phẩm "${deletingRow?.name}" khỏi kho không?`}
-                onCancel={() => {
-                    setOpenDeleteDialog(false);
-                    setDeletingRow(null);
+            {/* Modals */}
+            <InventoryAdjustModal
+                open={openAdjustModal}
+                onClose={() => setOpenAdjustModal(false)}
+                data={selectedVariant}
+                onSuccess={() => {
+                    fetchData(paginationData.current_page);
+                    fetchOverview();
                 }}
-                onConfirm={handleConfirmDelete}
             />
         </AdminLayout>
     );
 }
-
-// Helper function
-const formatNumber = (num) => {
-    return new Intl.NumberFormat("vi-VN").format(num);
-};

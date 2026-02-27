@@ -8,6 +8,7 @@ use App\Repositories\VatTaxRepository;
 use App\Services\BaseService;
 use App\Services\Debt\CustomerDebtService;
 use App\Services\Interfaces\Receipt\SalesReceiptServiceInterface;
+use App\Services\Inventory\InventoryService;
 use App\Services\JournalEntryService;
 use App\Services\Product\ProductVariantService;
 use Illuminate\Support\Carbon;
@@ -22,6 +23,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     protected $journalEntryService;
     protected $customerDebtService;
     protected $productVariantService;
+    protected $inventoryService;
 
     // Tài khoản kế toán
     const ACCOUNT_COST_OF_GOODS_SOLD = '632'; // Giá vốn hàng bán
@@ -36,7 +38,8 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
         VatTaxRepository $vatTaxRepository,
         JournalEntryService $journalEntryService,
         CustomerDebtService $customerDebtService,
-        ProductVariantService $productVariantService
+        ProductVariantService $productVariantService,
+        InventoryService $inventoryService
     ) {
         $this->salesReceiptRepository = $salesReceiptRepository;
         $this->salesReceiptItemRepository = $salesReceiptItemRepository;
@@ -44,6 +47,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
         $this->journalEntryService = $journalEntryService;
         $this->customerDebtService = $customerDebtService;
         $this->productVariantService = $productVariantService;
+        $this->inventoryService = $inventoryService;
     }
 
     public function paginate($request)
@@ -260,7 +264,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 $this->customerDebtService->deleteDebtByReference('sales_receipt', $salesReceipt->id);
 
                 // Hoàn nhập giao dịch tồn kho
-                $this->productVariantService->revertTransaction('sales_receipt', $salesReceipt->id);
+                $this->inventoryService->revertTransactions('sales_receipt', $salesReceipt->id);
             }
 
             $salesReceipt->delete();
@@ -275,7 +279,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     private function handleConfirm($receipt)
     {
         // 1️⃣ Tính giá vốn và giảm tồn kho (xuất kho)
-        $cogsDetails = $this->productVariantService->decreaseStock(
+        $cogsDetails = $this->inventoryService->issueStock(
             $receipt->items,
             'sales_receipt',
             $receipt->id,
@@ -300,7 +304,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     private function handleCancel($receipt)
     {
         // 1️⃣ Hoàn nhập giao dịch tồn kho
-        $this->productVariantService->revertTransaction('sales_receipt', $receipt->id);
+        $this->inventoryService->revertTransactions('sales_receipt', $receipt->id);
 
         // 2️⃣ Xóa bút toán giá vốn
         $this->journalEntryService->deleteJournalByReference('sales_receipt_cogs', $receipt->id);
