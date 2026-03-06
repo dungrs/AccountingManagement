@@ -393,7 +393,222 @@ export default function AccountingTabs({
         prevPaymentMethod.current = formData?.payment_method;
     }, [formData?.payment_method, getAccountName, type]);
 
-    // Cập nh��t số tiền khi amount thay đổi (chỉ với default entries)
+    // Trong phần useEffect khởi tạo entries, thêm xử lý cho trường hợp cancelled
+    useEffect(() => {
+        // Chưa sẵn sàng
+        if (accountingAccounts.length === 0) return;
+        if (hasInitializedRef.current) return;
+
+        console.log("[AccountingTabs] Initializing entries...", {
+            hasJournalEntries:
+                formData?.journal_entries &&
+                formData.journal_entries.length > 0,
+            hasProducts:
+                formData?.product_variants &&
+                formData.product_variants.length > 0,
+            status: formData?.status,
+        });
+
+        // ✅ Nếu status là cancelled, ưu tiên tạo bút toán hủy
+        if (formData?.status === "cancelled" && type === "sale") {
+            const cancellationEntries = createCancellationEntries();
+            if (cancellationEntries.length > 0) {
+                setEntries(cancellationEntries);
+                initSourceRef.current = "cancellation";
+                prevPaymentMethod.current = formData?.payment_method;
+                prevAmount.current = formData?.amount;
+                hasInitializedRef.current = true;
+                return;
+            }
+        }
+
+        // ✅ Nếu có journal_entries từ server → ưu tiên dùng
+        if (formData?.journal_entries && formData.journal_entries.length > 0) {
+            const mappedEntries = formData.journal_entries.map(
+                (detail, index) => ({
+                    id: `server_${index}_${String(detail.account_code)}`,
+                    account_code: String(detail.account_code),
+                    account_name: getAccountName(detail.account_code),
+                    debit: parseFloat(detail.debit) || 0,
+                    credit: parseFloat(detail.credit) || 0,
+                    note: detail.note || "",
+                }),
+            );
+
+            setEntries(mappedEntries);
+            initSourceRef.current = "server";
+            prevPaymentMethod.current = formData?.payment_method;
+            prevAmount.current = formData?.amount;
+            hasInitializedRef.current = true;
+            return;
+        }
+
+        // ✅ Tạo default entries nếu có sản phẩm
+        const defaultEntries = createDefaultJournalEntries();
+        if (defaultEntries.length > 0) {
+            setEntries(defaultEntries);
+            initSourceRef.current = "default";
+            prevPaymentMethod.current = formData?.payment_method;
+            prevAmount.current = formData?.amount;
+            hasInitializedRef.current = true;
+        }
+    }, [
+        accountingAccounts.length,
+        formData?.journal_entries,
+        formData?.status,
+        createDefaultJournalEntries,
+        getAccountName,
+    ]);
+
+    const createCancellationEntries = useCallback(() => {
+        const entries = [];
+
+        let totalRevenue = 0;
+        let totalVAT = 0;
+
+        (formData?.product_variants || []).forEach((item) => {
+            const amount =
+                (parseFloat(item.quantity) || 0) *
+                (parseFloat(item.price) || 0);
+            totalRevenue += amount;
+            totalVAT += parseFloat(item.vat_amount) || 0;
+        });
+
+        if (totalRevenue === 0) return entries;
+
+        const discountAmount = parseFloat(formData?.discount_amount || 0);
+        let discountExcludingVAT = 0;
+        let vatOnDiscount = 0;
+
+        if (discountAmount > 0 && totalRevenue > 0) {
+            const vatRate = totalVAT / totalRevenue || 0.1;
+            discountExcludingVAT = discountAmount / (1 + vatRate);
+            vatOnDiscount = discountAmount - discountExcludingVAT;
+            totalRevenue -= discountExcludingVAT;
+            totalVAT -= vatOnDiscount;
+        }
+
+        const netRevenue = totalRevenue;
+        const netVAT = totalVAT;
+        const totalDebt = netRevenue + netVAT;
+
+        // Xác định TK tiền/công nợ ban đầu (đảo ngược bút toán gốc)
+        const isCashPayment =
+            formData?.payment_method === "cash" ||
+            formData?.payment_method === "bank";
+
+        const cashAccountCode = isCashPayment
+            ? formData?.payment_method === "bank"
+                ? "112"
+                : "111"
+            : "131";
+
+        const cashAccount = findAccount(cashAccountCode);
+        const account511 = findAccount("511");
+        const account3331 = findAccount("3331");
+        const account521 = findAccount("521");
+
+        // ── Bút toán hủy: ĐẢO NGƯỢC bút toán doanh thu gốc ──
+
+        // 1. Nợ TK 511 - Giảm doanh thu
+        entries.push({
+            id: `cancel_511_${Date.now()}`,
+            account_code: account511?.account_code || "511",
+            account_name: account511?.name || "Doanh thu bán hàng hóa",
+            debit: netRevenue,
+            credit: 0,
+            note: "Hủy phiếu - Ghi giảm doanh thu",
+        });
+
+        // 2. Nợ TK 3331 - Giảm thuế GTGT phải nộp
+        if (netVAT > 0) {
+            entries.push({
+                id: `cancel_3331_${Date.now()}`,
+                account_code: account3331?.account_code || "3331",
+                account_name: account3331?.name || "Thuế GTGT phải nộp",
+                debit: netVAT,
+                credit: 0,
+                note: "Hủy phiếu - Ghi giảm thuế GTGT",
+            });
+        }
+
+        // 3. Có TK 111/112/131 - Giảm tiền/công nợ phải thu
+        entries.push({
+            id: `cancel_cash_${Date.now()}`,
+            account_code: cashAccount?.account_code || cashAccountCode,
+            account_name:
+                cashAccount?.name ||
+                (isCashPayment ? "Tiền mặt" : "Phải thu khách hàng"),
+            debit: 0,
+            credit: totalDebt,
+            note: "Hủy phiếu - Ghi giảm công nợ/tiền",
+        });
+
+        // 4. Nếu có chiết khấu → đảo ngược bút toán chiết khấu
+        if (discountAmount > 0) {
+            // Đảo: Có TK 521 (giảm khoản đã ghi chiết khấu)
+            entries.push({
+                id: `cancel_521_${Date.now()}`,
+                account_code: account521?.account_code || "521",
+                account_name: account521?.name || "Chiết khấu thương mại",
+                debit: 0,
+                credit: discountExcludingVAT,
+                note: "Hủy phiếu - Đảo bút toán chiết khấu",
+            });
+
+            // Đảo: Có TK 3331 (phần thuế trên chiết khấu)
+            if (vatOnDiscount > 0) {
+                entries.push({
+                    id: `cancel_3331_ck_${Date.now()}`,
+                    account_code: account3331?.account_code || "3331",
+                    account_name: account3331?.name || "Thuế GTGT phải nộp",
+                    debit: 0,
+                    credit: vatOnDiscount,
+                    note: "Hủy phiếu - Đảo thuế GTGT trên chiết khấu",
+                });
+            }
+
+            // Đảo: Nợ TK 131/111/112 (phần tiền chiết khấu đã giảm)
+            entries.push({
+                id: `cancel_cash_ck_${Date.now()}`,
+                account_code: cashAccount?.account_code || cashAccountCode,
+                account_name:
+                    cashAccount?.name ||
+                    (isCashPayment ? "Tiền mặt" : "Phải thu khách hàng"),
+                debit: discountAmount,
+                credit: 0,
+                note: "Hủy phiếu - Đảo giảm trừ công nợ/tiền chiết khấu",
+            });
+        }
+
+        return entries;
+    }, [
+        formData?.product_variants,
+        formData?.discount_amount,
+        formData?.payment_method,
+        findAccount,
+    ]);
+
+    // Tự động tạo bút toán hủy khi status chuyển sang "cancelled"
+    useEffect(() => {
+        if (!accountingAccounts.length) return;
+        if (formData?.status !== "cancelled") return;
+        if (type !== "sale") return;
+
+        // Tạo bút toán hủy
+        const cancellationEntries = createCancellationEntries();
+        if (cancellationEntries.length > 0) {
+            setEntries(cancellationEntries);
+            initSourceRef.current = "cancellation";
+        }
+    }, [
+        formData?.status,
+        type,
+        accountingAccounts.length,
+        createCancellationEntries,
+    ]);
+
+    // Cập nhật số tiền khi amount thay đổi (chỉ với default entries)
     useEffect(() => {
         if (!initSourceRef.current) return;
         if (entries.length === 0) return;

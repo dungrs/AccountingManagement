@@ -53,8 +53,12 @@ export default function CashBookIndex({ initialFilters }) {
 
     const [data, setData] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [startDate, setStartDate] = useState("2025-01-01");
-    const [endDate, setEndDate] = useState("2026-01-31");
+    const [startDate, setStartDate] = useState(
+        initialFilters?.start_date || getDefaultStartDate(),
+    );
+    const [endDate, setEndDate] = useState(
+        initialFilters?.end_date || getDefaultEndDate(),
+    );
 
     const [paymentMethod, setPaymentMethod] = useState(
         initialFilters?.payment_method || "cash",
@@ -82,6 +86,18 @@ export default function CashBookIndex({ initialFilters }) {
 
     // Ref cho component in
     const printRef = useRef(null);
+
+    // Hàm lấy ngày mặc định
+    function getDefaultStartDate() {
+        const date = new Date();
+        date.setDate(1);
+        return date.toISOString().split("T")[0];
+    }
+
+    function getDefaultEndDate() {
+        const date = new Date();
+        return date.toISOString().split("T")[0];
+    }
 
     // Danh sách phương thức thanh toán
     const paymentMethods = [
@@ -283,103 +299,83 @@ export default function CashBookIndex({ initialFilters }) {
                 />
             </div>
 
-            {/* Period Info */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                            <Calendar className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">
-                                SỔ QUỸ {accountInfo.payment_method_name} - TÀI
-                                KHOẢN {accountInfo.account_code}
-                            </h2>
-                            <p className="text-white/80 text-sm mt-1">
-                                Từ ngày {period.start_date} đến ngày{" "}
-                                {period.end_date}
+            {/* Summary Cards - Giống General Ledger */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                Số dư đầu kỳ
                             </p>
-                        </div>
-                    </div>
-                    <Badge className="bg-white/20 text-white border-0">
-                        <Wallet className="h-4 w-4 mr-1" />
-                        {accountInfo.payment_method_name}
-                    </Badge>
-                </div>
-            </div>
-
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-                {[
-                    {
-                        title: "Số dư đầu kỳ",
-                        value: openingBalance,
-                        date: period.start_date,
-                        icon: DollarSign,
-                        color: "blue",
-                        bgColor: "bg-blue-100",
-                        textColor: "text-blue-600",
-                        subText: `Tại ngày ${period.start_date}`,
-                    },
-                    {
-                        title: "Tổng thu",
-                        value: summary.total_receipt,
-                        count: summary.receipt_count,
-                        icon: TrendingUp,
-                        color: "green",
-                        bgColor: "bg-green-100",
-                        textColor: "text-green-600",
-                        subText: `${summary.receipt_count} giao dịch`,
-                    },
-                    {
-                        title: "Tổng chi",
-                        value: summary.total_payment,
-                        count: summary.payment_count,
-                        icon: TrendingDown,
-                        color: "red",
-                        bgColor: "bg-red-100",
-                        textColor: "text-red-600",
-                        subText: `${summary.payment_count} giao dịch`,
-                    },
-                    {
-                        title: "Số dư cuối kỳ",
-                        value: closingBalance,
-                        date: period.end_date,
-                        icon: DollarSign,
-                        color: "purple",
-                        bgColor: "bg-purple-100",
-                        textColor: "text-purple-600",
-                        subText: `Tại ngày ${period.end_date}`,
-                    },
-                ].map((stat, index) => (
-                    <Card
-                        key={index}
-                        className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
-                    >
-                        <CardContent className="p-3">
-                            <div className="flex items-start justify-between mb-1">
-                                <p className="text-xs text-slate-500">
-                                    {stat.title}
-                                </p>
-                                <div
-                                    className={`h-6 w-6 rounded-full ${stat.bgColor} flex items-center justify-center`}
-                                >
-                                    <stat.icon
-                                        className={`h-3 w-3 ${stat.textColor}`}
-                                    />
-                                </div>
+                            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                                <DollarSign className="h-4 w-4 text-blue-600" />
                             </div>
-                            <p
-                                className={`text-base font-bold ${stat.textColor}`}
-                            >
-                                {formatCurrency(stat.value)}
+                        </div>
+                        <p className="text-2xl font-bold text-blue-600">
+                            {formatCurrency(openingBalance)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            Tại ngày {period.start_date}
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-green-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                Tổng thu
                             </p>
-                            <p className="text-[10px] text-slate-400 mt-1">
-                                {stat.subText}
+                            <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                                <TrendingUp className="h-4 w-4 text-green-600" />
+                            </div>
+                        </div>
+                        <p className="text-2xl font-bold text-green-600">
+                            {formatCurrency(summary.total_receipt)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            {summary.receipt_count} giao dịch
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-red-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                Tổng chi
                             </p>
-                        </CardContent>
-                    </Card>
-                ))}
+                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
+                                <TrendingDown className="h-4 w-4 text-red-600" />
+                            </div>
+                        </div>
+                        <p className="text-2xl font-bold text-red-600">
+                            {formatCurrency(summary.total_payment)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            {summary.payment_count} giao dịch
+                        </p>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-l-4 border-l-purple-500 shadow-md hover:shadow-lg transition-shadow">
+                    <CardContent className="p-4">
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-sm font-medium text-slate-500">
+                                Số dư cuối kỳ
+                            </p>
+                            <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <DollarSign className="h-4 w-4 text-purple-600" />
+                            </div>
+                        </div>
+                        <p className="text-2xl font-bold text-purple-600">
+                            {formatCurrency(closingBalance)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            Tại ngày {period.end_date}
+                        </p>
+                    </CardContent>
+                </Card>
             </div>
 
             {/* Cash Flow Trend */}
@@ -501,25 +497,21 @@ export default function CashBookIndex({ initialFilters }) {
                 </div>
 
                 <CardContent className="p-6 space-y-4">
-                    {/* Filter Section */}
+                    {/* Filter Section - Sửa lại giống General Ledger */}
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
-                            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="flex-1">
-                                    <label className="text-sm font-medium text-slate-700 mb-1 block">
-                                        Khoảng thời gian
-                                    </label>
-                                    <RangeDatePicker
-                                        startDate={startDate}
-                                        endDate={endDate}
-                                        onStartDateChange={setStartDate}
-                                        onEndDateChange={setEndDate}
-                                        placeholder="Chọn khoảng thời gian"
-                                        clearable={true}
-                                        minDate="2020-01-01" // Giới hạn tối thiểu
-                                        maxDate="2030-12-31" // Giới hạn tối đa
-                                    />
-                                </div>
+                            <div className="flex-1">
+                                <label className="text-sm font-medium text-slate-700 mb-1 block">
+                                    Khoảng thời gian
+                                </label>
+                                <RangeDatePicker
+                                    startDate={startDate}
+                                    endDate={endDate}
+                                    onStartDateChange={setStartDate}
+                                    onEndDateChange={setEndDate}
+                                    placeholder="Chọn khoảng thời gian"
+                                    clearable={true}
+                                />
                             </div>
 
                             <Button

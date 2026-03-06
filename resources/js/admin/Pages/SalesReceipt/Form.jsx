@@ -12,7 +12,12 @@ import { Label } from "@/admin/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/admin/components/ui/radio-group";
 import { Input } from "@/admin/components/ui/input";
 import { Button } from "@/admin/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/admin/components/ui/card";
+import {
+    Card,
+    CardContent,
+    CardHeader,
+    CardTitle,
+} from "@/admin/components/ui/card";
 
 import { useReceiptForm } from "@/admin/hooks/useReceiptForm";
 import { useProductVariants } from "@/admin/hooks/useProductVariants";
@@ -45,51 +50,7 @@ import {
     ShoppingCart,
     Percent,
 } from "lucide-react";
-
-const generatePDF = async (element, fileName) => {
-    if (!element) throw new Error("Không tìm thấy nội dung cần xuất!");
-    const tempContainer = document.createElement("div");
-    tempContainer.style.cssText =
-        "position:fixed;left:-9999px;top:0;z-index:9999;";
-    tempContainer.appendChild(element.cloneNode(true));
-    document.body.appendChild(tempContainer);
-    try {
-        await new Promise((r) => setTimeout(r, 500));
-        const canvas = await html2canvas(tempContainer, {
-            scale: 2,
-            useCORS: true,
-            allowTaint: false,
-            logging: false,
-            backgroundColor: "#ffffff",
-        });
-        if (!canvas || canvas.width === 0)
-            throw new Error("Canvas không hợp lệ");
-        const pdf = new jsPDF({
-            orientation: "portrait",
-            unit: "mm",
-            format: "a4",
-            compress: true,
-        });
-        const pdfWidth = 210;
-        const imgHeight = (canvas.height * pdfWidth) / canvas.width;
-        const imgData = canvas.toDataURL("image/jpeg", 1.0);
-        if (!imgData || imgData === "data:,")
-            throw new Error("Không thể tạo image từ canvas");
-        pdf.addImage(
-            imgData,
-            "JPEG",
-            0,
-            0,
-            pdfWidth,
-            imgHeight,
-            undefined,
-            "FAST",
-        );
-        pdf.save(fileName);
-    } finally {
-        if (tempContainer.parentNode) document.body.removeChild(tempContainer);
-    }
-};
+import InvoiceVATPrint from "@/admin/components/shared/print/InvoiceVATPrint";
 
 export default function SalesReceiptForm() {
     const {
@@ -111,6 +72,9 @@ export default function SalesReceiptForm() {
     const isEdit = !!sales_receipt;
     const [isExportingPDF, setIsExportingPDF] = useState(false);
     const [isPrinting, setIsPrinting] = useState(false);
+    // Thêm ref cho hóa đơn GTGT
+    const vatInvoiceRef = useRef(null);
+    const [isPrintingVAT, setIsPrintingVAT] = useState(false);
 
     const getDefaultVatTax = () =>
         vat_taxes?.find((tax) => parseFloat(tax.rate) === 10) || vat_taxes?.[0];
@@ -180,6 +144,29 @@ export default function SalesReceiptForm() {
         );
     };
 
+    // Handler in hóa đơn GTGT
+    const handlePrintVATInvoice = useReactToPrint({
+        contentRef: vatInvoiceRef,
+        documentTitle: `Hoa-don-GTGT-${formData.code || "Moi"}`,
+        pageStyle: `@page{size:A4;margin:10mm;}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}}`,
+        onBeforeGetContent: async () => {
+            setIsPrintingVAT(true);
+            toast.loading("Đang chuẩn bị in hóa đơn GTGT...", {
+                id: "print-vat-loading",
+            });
+        },
+        onAfterPrint: () => {
+            setIsPrintingVAT(false);
+            toast.dismiss("print-vat-loading");
+            toast.success("Đã gửi lệnh in hóa đơn GTGT!");
+        },
+        onPrintError: () => {
+            setIsPrintingVAT(false);
+            toast.dismiss("print-vat-loading");
+            toast.error("Có lỗi khi in hóa đơn GTGT!");
+        },
+    });
+
     const handlePrint = useReactToPrint({
         contentRef: printRef,
         documentTitle: `Phieu-xuat-kho-${formData.code || "Moi"}`,
@@ -194,22 +181,6 @@ export default function SalesReceiptForm() {
             emit("toast:error", "Có lỗi khi in phiếu!");
         },
     });
-
-    const handleExportPDF = async () => {
-        if (!pdfRef.current) return;
-        setIsExportingPDF(true);
-        try {
-            await generatePDF(
-                pdfRef.current,
-                `Phieu-xuat-kho-${formData.code || "Moi"}.pdf`,
-            );
-            emit("toast:success", "Xuất PDF thành công!");
-        } catch {
-            emit("toast:error", "Có lỗi khi xuất PDF!");
-        } finally {
-            setIsExportingPDF(false);
-        }
-    };
 
     // Xử lý chiết khấu cấp phiếu
     const handleDiscountTypeChange = (value) => {
@@ -426,6 +397,7 @@ export default function SalesReceiptForm() {
                         </div>
                         {canPrint && (
                             <div className="flex gap-2">
+                                {/* Nút in phiếu xuất hiện tại */}
                                 <Button
                                     type="button"
                                     variant="secondary"
@@ -438,23 +410,27 @@ export default function SalesReceiptForm() {
                                     ) : (
                                         <Printer className="w-4 h-4 mr-2" />
                                     )}
-                                    {isPrinting ? "Đang in..." : "In phiếu"}
+                                    {isPrinting
+                                        ? "Đang in..."
+                                        : "In phiếu xuất"}
                                 </Button>
+
+                                {/* Nút in hóa đơn GTGT - MỚI */}
                                 <Button
                                     type="button"
                                     variant="secondary"
-                                    onClick={handleExportPDF}
+                                    onClick={handlePrintVATInvoice}
                                     className="bg-white/20 text-white hover:bg-white/30 border-0"
-                                    disabled={isExportingPDF || isPrinting}
+                                    disabled={isPrinting || isExportingPDF}
                                 >
-                                    {isExportingPDF ? (
+                                    {isPrinting ? (
                                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
                                     ) : (
-                                        <Download className="w-4 h-4 mr-2" />
+                                        <FileText className="w-4 h-4 mr-2" />
                                     )}
-                                    {isExportingPDF
-                                        ? "Đang xuất..."
-                                        : "Xuất PDF"}
+                                    {isPrinting
+                                        ? "Đang in..."
+                                        : "In hóa đơn GTGT"}
                                 </Button>
                             </div>
                         )}
@@ -817,8 +793,8 @@ export default function SalesReceiptForm() {
                         customer={currentCustomer}
                         system_languages={system_languages}
                     />
-                    <SalesReceiptPrint
-                        ref={pdfRef}
+                    <InvoiceVATPrint
+                        ref={vatInvoiceRef}
                         receipt={{
                             ...formData,
                             discount_info: {
@@ -828,7 +804,6 @@ export default function SalesReceiptForm() {
                                 discount_total: formData.discount_total,
                                 discount_note: formData.discount_note,
                             },
-                            final_total_after_discount: finalTotalAfterDiscount,
                         }}
                         totals={{
                             ...totals,

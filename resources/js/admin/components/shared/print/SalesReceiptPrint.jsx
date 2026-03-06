@@ -201,7 +201,7 @@ const SalesReceiptPrint = forwardRef(
                         {website && <p>Website: {website}</p>}
                     </div>
 
-                    {/* Bên phải: mẫu số */}
+                    {/* Bên phải: mẫu số — CẬP NHẬT THEO TT99/2025/TT-BTC */}
                     <div
                         style={{
                             width: "40%",
@@ -211,10 +211,10 @@ const SalesReceiptPrint = forwardRef(
                     >
                         <p style={{ fontWeight: "bold" }}>Mẫu số 02 - VT</p>
                         <p style={{ fontStyle: "italic", fontSize: "11px" }}>
-                            (Ban hành theo Thông tư số 200/2014/TT-BTC
+                            (Ban hành theo Thông tư số 99/2025/TT-BTC
                         </p>
                         <p style={{ fontStyle: "italic", fontSize: "11px" }}>
-                            Ngày 22/12/2014 của Bộ Tài chính)
+                            Ngày 27/10/2025 của Bộ Tài chính)
                         </p>
                     </div>
                 </div>
@@ -304,6 +304,11 @@ const SalesReceiptPrint = forwardRef(
                 </div>
 
                 {/* ─── Bảng sản phẩm ─── */}
+                {/*
+                    Theo TT99, cột bảng chuẩn mẫu 02-VT:
+                    A: STT | B: Tên hàng | C: Mã số | D: ĐVT
+                    1: SL theo chứng từ | 2: SL thực xuất | 3: Đơn giá | 4: Thành tiền
+                */}
                 <table
                     style={{
                         width: "100%",
@@ -338,7 +343,7 @@ const SalesReceiptPrint = forwardRef(
                                 <br />
                                 phẩm chất vật tư, dụng cụ
                                 <br />
-                                sp, hàng hoá
+                                sản phẩm, hàng hoá
                             </th>
                             <th
                                 rowSpan={2}
@@ -492,7 +497,7 @@ const SalesReceiptPrint = forwardRef(
                                             textAlign: "right",
                                         }}
                                     >
-                                        {/* Thực xuất để trống để thủ kho điền tay */}
+                                        {/* Thực xuất — thủ kho điền tay */}
                                     </td>
                                     <td
                                         style={{
@@ -619,7 +624,7 @@ const SalesReceiptPrint = forwardRef(
                     </p>
                 </div>
 
-                {/* ─── Chữ ký (5 cột theo mẫu) ─── */}
+                {/* ─── Chữ ký (5 cột theo mẫu TT99) ─── */}
                 <div
                     style={{
                         display: "grid",
@@ -630,14 +635,14 @@ const SalesReceiptPrint = forwardRef(
                     }}
                 >
                     {[
-                        { title: "Người lập", sub: "(Ký, họ tên)" },
+                        { title: "Người lập phiếu", sub: "(Ký, họ tên)" },
                         { title: "Người nhận hàng", sub: "(Ký, họ tên)" },
                         { title: "Thủ kho", sub: "(Ký, họ tên)" },
                         {
                             title: "Kế toán trưởng",
                             sub: "(Hoặc bộ phận có nhu\ncầu xuất)",
                         },
-                        { title: "Giám đốc", sub: "(Ký, họ tên)" },
+                        { title: "Giám đốc", sub: "(Ký, họ tên, đóng dấu)" },
                     ].map((col) => (
                         <div key={col.title}>
                             <p

@@ -1,26 +1,13 @@
 import React, { forwardRef } from "react";
-import { format } from "date-fns";
-import { vi } from "date-fns/locale";
+import { formatNumber } from "@/admin/utils/helpers";
 
+/**
+ * GeneralLedgerPrint — Sổ cái của một tài khoản (Mẫu số S03b-DN)
+ * Căn cứ pháp lý:
+ *   • Thông tư 99/2025/TT-BTC ngày 27/10/2025 (hiệu lực 01/01/2026)
+ *     thay thế Thông tư 200/2014/TT-BTC ngày 22/12/2014
+ */
 const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
-    const formatDate = (dateString) => {
-        if (!dateString) return "";
-        try {
-            return format(new Date(dateString), "dd/MM/yyyy", { locale: vi });
-        } catch (error) {
-            return dateString;
-        }
-    };
-
-    const formatMoney = (value) => {
-        if (value === null || value === undefined || value === 0) return "";
-        const num = Number(value);
-        if (isNaN(num)) return "";
-        return Math.round(num)
-            .toString()
-            .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-    };
-
     if (!result || !result.data) {
         return <div ref={ref}>Không có dữ liệu</div>;
     }
@@ -48,10 +35,7 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
     const displayToDate = period.end_date || "10/01/2030";
     const balanceTypeLabel =
         accountInfo.normal_balance === "debit" ? "Nợ" : "Có";
-
     const filteredData = data.filter((item) => !item.is_opening);
-
-    // Count pages (simple: treat as 1 page for now)
     const totalPages = 1;
 
     const baseStyle = {
@@ -77,8 +61,6 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
         color: "#000",
     };
 
-    const now = new Date();
-
     return (
         <div
             ref={ref}
@@ -91,7 +73,7 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                 boxSizing: "border-box",
             }}
         >
-            {/* Top header row: company info left, form info right */}
+            {/* ─── Header ─── */}
             <div
                 style={{
                     display: "flex",
@@ -104,6 +86,8 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                     <div>{companyAddress}</div>
                     <div>{companyWebsite}</div>
                 </div>
+
+                {/* Cột phải: cập nhật sang TT99/2025 */}
                 <div
                     style={{
                         textAlign: "right",
@@ -118,13 +102,13 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                         (Ban hành theo Thông tư số
                     </div>
                     <div style={{ fontStyle: "italic" }}>
-                        200/2014/TT-BTC ngày 22/12/2014
+                        99/2025/TT-BTC ngày 27/10/2025
                     </div>
                     <div style={{ fontStyle: "italic" }}>của Bộ Tài Chính)</div>
                 </div>
             </div>
 
-            {/* Title */}
+            {/* ─── Tiêu đề ─── */}
             <div style={{ textAlign: "center", margin: "8px 0 4px 0" }}>
                 <div
                     style={{
@@ -144,7 +128,7 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                 </div>
             </div>
 
-            {/* Opening balance - right aligned above table */}
+            {/* ─── Số dư đầu kỳ ─── */}
             <div
                 style={{
                     textAlign: "right",
@@ -154,11 +138,11 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
             >
                 <strong>Số dư {balanceTypeLabel} đầu kỳ:</strong>&nbsp;&nbsp;
                 <span style={{ fontWeight: "bold" }}>
-                    {formatMoney(openingBalance)}
+                    {formatNumber(openingBalance)}
                 </span>
             </div>
 
-            {/* Main Table */}
+            {/* ─── Bảng chính ─── */}
             <table
                 style={{
                     width: "100%",
@@ -212,21 +196,17 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                         </th>
                     </tr>
                     <tr>{/* Empty row for rowSpan alignment */}</tr>
-                    {/* Column label row A B C D E G H 1 2 */}
                     <tr>
-                        <th style={{ ...thStyle }}>A</th>
-                        <th style={{ ...thStyle }}>B</th>
-                        <th style={{ ...thStyle }}>C</th>
-                        <th style={{ ...thStyle }}>D</th>
-                        <th style={{ ...thStyle }}>E</th>
-                        <th style={{ ...thStyle }}>G</th>
-                        <th style={{ ...thStyle }}>H</th>
-                        <th style={{ ...thStyle }}>1</th>
-                        <th style={{ ...thStyle }}>2</th>
+                        {["A", "B", "C", "D", "E", "G", "H", "1", "2"].map(
+                            (n) => (
+                                <th key={n} style={thStyle}>
+                                    {n}
+                                </th>
+                            ),
+                        )}
                     </tr>
                 </thead>
                 <tbody>
-                    {/* Data rows */}
                     {filteredData.length > 0 ? (
                         filteredData.map((row, index) => (
                             <tr key={index}>
@@ -260,18 +240,17 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                                     style={{ ...tdStyle, textAlign: "center" }}
                                 ></td>
                                 <td style={{ ...tdStyle, textAlign: "center" }}>
-                                    {row.contra_accounts &&
-                                    row.contra_accounts.length > 0
+                                    {row.contra_accounts?.length > 0
                                         ? row.contra_accounts
                                               .map((acc) => acc.code)
                                               .join(", ")
                                         : row.reference_type_label || ""}
                                 </td>
                                 <td style={{ ...tdStyle, textAlign: "right" }}>
-                                    {row.debit ? formatMoney(row.debit) : ""}
+                                    {row.debit ? formatNumber(row.debit) : ""}
                                 </td>
                                 <td style={{ ...tdStyle, textAlign: "right" }}>
-                                    {row.credit ? formatMoney(row.credit) : ""}
+                                    {row.credit ? formatNumber(row.credit) : ""}
                                 </td>
                             </tr>
                         ))
@@ -292,7 +271,7 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                 </tbody>
             </table>
 
-            {/* Footer info below table - left side page info, right side totals */}
+            {/* ─── Footer ─── */}
             <div
                 style={{
                     display: "flex",
@@ -311,21 +290,21 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                 <div style={{ textAlign: "right", lineHeight: "1.8" }}>
                     <div>
                         <strong>Tổng phát sinh nợ:</strong>&nbsp;&nbsp;
-                        <strong>{formatMoney(summary.total_debit)}</strong>
+                        <strong>{formatNumber(summary.total_debit)}</strong>
                     </div>
                     <div>
                         <strong>Tổng phát sinh có:</strong>&nbsp;&nbsp;
-                        <strong>{formatMoney(summary.total_credit)}</strong>
+                        <strong>{formatNumber(summary.total_credit)}</strong>
                     </div>
                     <div>
                         <strong>Số dư {balanceTypeLabel} cuối kỳ:</strong>
                         &nbsp;&nbsp;
-                        <strong>{formatMoney(closingBalance)}</strong>
+                        <strong>{formatNumber(closingBalance)}</strong>
                     </div>
                 </div>
             </div>
 
-            {/* Date right */}
+            {/* ─── Ngày ký ─── */}
             <div
                 style={{
                     textAlign: "right",
@@ -336,7 +315,7 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                 Ngày......tháng........năm...................
             </div>
 
-            {/* Signatures */}
+            {/* ─── Chữ ký ─── */}
             <div
                 style={{
                     display: "flex",

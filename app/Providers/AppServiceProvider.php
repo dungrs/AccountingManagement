@@ -29,6 +29,8 @@ class AppServiceProvider extends ServiceProvider
             'purchase_receipt' => 'App\Models\PurchaseReceipt',
             'receipt_voucher' => 'App\Models\ReceiptVoucher',
             'sales_receipt' => 'App\Models\SalesReceipt',
+            'sales_receipt_cogs' => 'App\Models\SalesReceipt',
+            'sales_receipt_cancellation' => 'App\Models\SalesReceipt'
             // Thêm các model khác nếu cần
         ]);
 

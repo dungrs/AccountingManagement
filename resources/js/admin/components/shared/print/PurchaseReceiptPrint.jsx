@@ -2,28 +2,33 @@ import React, { forwardRef } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
+/**
+ * PurchaseReceiptPrint — Phiếu nhập kho
+ * Căn cứ pháp lý cập nhật:
+ *   • Mẫu số 01-VT (Phụ lục 3) ban hành kèm theo
+ *     Thông tư 99/2025/TT-BTC ngày 27/10/2025
+ *     (có hiệu lực và áp dụng từ ngày 01/01/2026,
+ *      thay thế mẫu theo Thông tư 133/2016/TT-BTC và TT200/2014/TT-BTC)
+ */
 const PurchaseReceiptPrint = forwardRef(
     ({ receipt, totals, user, system_languages }, ref) => {
-        // Format date safely
+        /* ── Helpers ── */
         const formatDate = (dateString) => {
             if (!dateString) return "";
             try {
                 return format(new Date(dateString), "dd/MM/yyyy", {
                     locale: vi,
                 });
-            } catch (error) {
+            } catch {
                 return dateString;
             }
         };
 
-        // Format money with better handling
         const formatMoney = (value) => {
             if (value === null || value === undefined || value === "")
                 return "0";
-
             const num = Number(value);
             if (isNaN(num)) return "0";
-
             return num.toLocaleString("vi-VN", {
                 minimumFractionDigits: 0,
                 maximumFractionDigits: 2,
@@ -31,7 +36,6 @@ const PurchaseReceiptPrint = forwardRef(
         };
 
         const sys = system_languages || {};
-
         const companyName = sys.homepage_company || "";
         const officeAddress = sys.contact_office || "";
         const branchAddress = sys.contact_address || "";
@@ -40,21 +44,18 @@ const PurchaseReceiptPrint = forwardRef(
         const email = sys.contact_email || "";
         const website = sys.contact_website || "";
 
-        // Format date with full text
         const formatDateFull = (dateString) => {
             if (!dateString) return "";
             try {
                 const date = new Date(dateString);
                 return `Ngày ${format(date, "dd", { locale: vi })} tháng ${format(date, "MM", { locale: vi })} năm ${format(date, "yyyy", { locale: vi })}`;
-            } catch (error) {
+            } catch {
                 return dateString;
             }
         };
 
-        // Convert number to Vietnamese text - Improved version
         const numberToVietnameseText = (num) => {
             if (!num || num === 0) return "Không đồng";
-
             const units = ["", "nghìn", "triệu", "tỷ"];
             const digits = [
                 "không",
@@ -68,20 +69,16 @@ const PurchaseReceiptPrint = forwardRef(
                 "tám",
                 "chín",
             ];
-
             const readGroup = (group) => {
                 if (group === 0) return "";
-                
                 let result = "";
                 const hundred = Math.floor(group / 100);
                 const ten = Math.floor((group % 100) / 10);
                 const unit = group % 10;
-
                 if (hundred > 0) {
                     result += digits[hundred] + " trăm ";
                     if (ten === 0 && unit !== 0) result += "linh ";
                 }
-
                 if (ten > 1) {
                     result += digits[ten] + " mươi ";
                     if (unit === 1) result += "mốt ";
@@ -94,75 +91,53 @@ const PurchaseReceiptPrint = forwardRef(
                 } else if (unit > 0) {
                     result += digits[unit] + " ";
                 }
-
                 return result.trim();
             };
-
             let n = Math.floor(num);
             if (n === 0) return "Không đồng";
-
             let result = "";
             let unitIndex = 0;
-
             while (n > 0) {
                 const group = n % 1000;
-                if (group > 0) {
-                    const groupText = readGroup(group);
-                    result = groupText + " " + units[unitIndex] + " " + result;
-                }
+                if (group > 0)
+                    result =
+                        readGroup(group) +
+                        " " +
+                        units[unitIndex] +
+                        " " +
+                        result;
                 n = Math.floor(n / 1000);
                 unitIndex++;
             }
-
             result = result.trim();
             return (
-                result.charAt(0).toUpperCase() +
-                result.slice(1) +
-                " đồng chẵn."
+                result.charAt(0).toUpperCase() + result.slice(1) + " đồng chẵn."
             );
         };
 
-        // Get unit name with fallback
-        const getUnitName = (item) => {
-            // Ưu tiên lấy từ unit object
-            if (item.unit?.name) return item.unit.name;
-            
-            // Fallback về unit_name nếu có
-            if (item.unit_name) return item.unit_name;
-            
-            // Default
-            return "Cái";
-        };
+        /* ── Getters ── */
+        const getUnitName = (item) =>
+            item.unit?.name || item.unit_name || "Cái";
 
-        // Get product code with priority
-        const getProductCode = (item) => {
-            return item.sku || item.barcode || item.code || "";
-        };
+        const getProductCode = (item) =>
+            item.sku || item.barcode || item.code || "";
 
-        // Calculate total quantity for all products
-        const getTotalQuantity = () => {
-            if (!receipt.product_variants || receipt.product_variants.length === 0) return 0;
-            return receipt.product_variants.reduce((sum, item) => {
-                const qty = parseFloat(item.quantity) || 0;
-                return sum + qty;
-            }, 0);
-        };
+        const getTotalQuantity = () =>
+            receipt.product_variants?.reduce(
+                (sum, item) => sum + (parseFloat(item.quantity) || 0),
+                0,
+            ) || 0;
 
-        // Calculate amount before VAT for each item (Số lượng x Đơn giá)
-        const getAmountBeforeVAT = (item) => {
-            const quantity = parseFloat(item.quantity) || 0;
-            const price = parseFloat(item.price) || 0;
-            return quantity * price;
-        };
+        const getAmountBeforeVAT = (item) =>
+            (parseFloat(item.quantity) || 0) * (parseFloat(item.price) || 0);
 
-        // Calculate total amount before VAT
-        const getTotalBeforeVAT = () => {
-            if (!receipt.product_variants || receipt.product_variants.length === 0) return 0;
-            return receipt.product_variants.reduce((sum, item) => {
-                return sum + getAmountBeforeVAT(item);
-            }, 0);
-        };
+        const getTotalBeforeVAT = () =>
+            receipt.product_variants?.reduce(
+                (sum, item) => sum + getAmountBeforeVAT(item),
+                0,
+            ) || 0;
 
+        /* ── Render ── */
         return (
             <div
                 ref={ref}
@@ -176,16 +151,15 @@ const PurchaseReceiptPrint = forwardRef(
                     lineHeight: "1.4",
                 }}
             >
-                {/* Header */}
+                {/* ── Header ── */}
                 <div className="flex justify-between items-start mb-6">
+                    {/* Cột trái: thông tin công ty */}
                     <div style={{ width: "60%", fontSize: "12px" }}>
                         <p className="font-bold uppercase">
                             {companyName || "______________________________"}
                         </p>
-
                         {officeAddress && <p>{officeAddress}</p>}
                         {branchAddress && <p>{branchAddress}</p>}
-
                         {(phone || hotline) && (
                             <p>
                                 {phone && `ĐT: ${phone}`}
@@ -193,26 +167,26 @@ const PurchaseReceiptPrint = forwardRef(
                                 {hotline && `Hotline: ${hotline}`}
                             </p>
                         )}
-
                         {email && <p>Email: {email}</p>}
                         {website && <p>Website: {website}</p>}
                     </div>
 
+                    {/* Cột phải: mẫu số — cập nhật sang TT99/2025 ── */}
                     <div
                         style={{ width: "35%", fontSize: "12px" }}
                         className="text-right"
                     >
                         <p className="font-bold">Mẫu số: 01 - VT</p>
                         <p className="italic" style={{ fontSize: "11px" }}>
-                            (Ban hành theo Thông tư số 133/2016/TT-BTC
+                            (Ban hành theo Thông tư số 99/2025/TT-BTC
                         </p>
                         <p className="italic" style={{ fontSize: "11px" }}>
-                            Ngày 26/08/2016 của Bộ Tài chính)
+                            Ngày 27/10/2025 của Bộ Tài chính)
                         </p>
                     </div>
                 </div>
 
-                {/* Title */}
+                {/* ── Tiêu đề ── */}
                 <div className="text-center mb-4">
                     <h1 className="text-xl font-bold uppercase mb-2">
                         PHIẾU NHẬP KHO
@@ -223,7 +197,7 @@ const PurchaseReceiptPrint = forwardRef(
                     <p className="mb-1">Số: {receipt.code || "___________"}</p>
                 </div>
 
-                {/* Accounting info */}
+                {/* ── Hạch toán ── */}
                 <div
                     className="flex justify-end mb-4"
                     style={{ fontSize: "12px" }}
@@ -234,7 +208,7 @@ const PurchaseReceiptPrint = forwardRef(
                     </div>
                 </div>
 
-                {/* Supplier info */}
+                {/* ── Thông tin nhà cung cấp ── */}
                 <div className="mb-4" style={{ fontSize: "13px" }}>
                     <p className="mb-1">
                         - Họ và tên người giao:{" "}
@@ -270,7 +244,7 @@ const PurchaseReceiptPrint = forwardRef(
                     </p>
                 </div>
 
-                {/* Product table */}
+                {/* ── Bảng hàng hóa ── */}
                 <table
                     className="w-full border-collapse mb-4"
                     style={{ fontSize: "12px", border: "1px solid black" }}
@@ -350,30 +324,16 @@ const PurchaseReceiptPrint = forwardRef(
                             </th>
                         </tr>
                         <tr>
-                            <th className="border border-black p-1 text-center font-bold">
-                                A
-                            </th>
-                            <th className="border border-black p-1 text-center font-bold">
-                                B
-                            </th>
-                            <th className="border border-black p-1 text-center font-bold">
-                                C
-                            </th>
-                            <th className="border border-black p-1 text-center font-bold">
-                                D
-                            </th>
-                            <th className="border border-black p-1 text-center font-bold">
-                                1
-                            </th>
-                            <th className="border border-black p-1 text-center font-bold">
-                                2
-                            </th>
-                            <th className="border border-black p-1 text-center font-bold">
-                                3
-                            </th>
-                            <th className="border border-black p-1 text-center font-bold">
-                                4
-                            </th>
+                            {["A", "B", "C", "D", "1", "2", "3", "4"].map(
+                                (n) => (
+                                    <th
+                                        key={n}
+                                        className="border border-black p-1 text-center font-bold"
+                                    >
+                                        {n}
+                                    </th>
+                                ),
+                            )}
                         </tr>
                     </thead>
                     <tbody>
@@ -396,7 +356,7 @@ const PurchaseReceiptPrint = forwardRef(
                                         {formatMoney(item.quantity || 0)}
                                     </td>
                                     <td className="border border-black p-1 text-right">
-                                        {/* Thực nhập để trống */}
+                                        {/* Thực nhập — thủ kho điền tay */}
                                     </td>
                                     <td className="border border-black p-1 text-right">
                                         {formatMoney(item.price || 0)}
@@ -426,8 +386,8 @@ const PurchaseReceiptPrint = forwardRef(
                             <td className="border border-black p-1 text-right font-bold">
                                 {formatMoney(getTotalQuantity())}
                             </td>
-                            <td className="border border-black p-1"></td>
-                            <td className="border border-black p-1"></td>
+                            <td className="border border-black p-1" />
+                            <td className="border border-black p-1" />
                             <td className="border border-black p-1 text-right font-bold">
                                 {formatMoney(getTotalBeforeVAT())}
                             </td>
@@ -435,7 +395,7 @@ const PurchaseReceiptPrint = forwardRef(
                     </tbody>
                 </table>
 
-                {/* Total in words */}
+                {/* ── Tổng tiền bằng chữ ── */}
                 <div className="mb-6" style={{ fontSize: "13px" }}>
                     <p>
                         - Tổng số tiền (Viết bằng chữ):{" "}
@@ -451,16 +411,24 @@ const PurchaseReceiptPrint = forwardRef(
                     </p>
                 </div>
 
-                {/* Signatures */}
+                {/* ── Chữ ký ── */}
                 <div className="text-right mb-2" style={{ fontSize: "13px" }}>
                     <p className="italic">
                         {formatDateFull(receipt.receipt_date || new Date())}
                     </p>
                 </div>
 
+                {/*
+                 * TT99/2025 bổ sung thêm ô "Giám đốc (hoặc người được ủy quyền)"
+                 * so với mẫu TT133 trước đây chỉ có 4 cột.
+                 * Cập nhật thành 5 cột ký tên theo quy định mới.
+                 */}
                 <div
-                    className="grid grid-cols-4 gap-4 text-center"
-                    style={{ fontSize: "12px" }}
+                    className="grid gap-4 text-center"
+                    style={{
+                        fontSize: "12px",
+                        gridTemplateColumns: "repeat(5, 1fr)",
+                    }}
                 >
                     <div>
                         <p className="font-bold mb-1">Người lập phiếu</p>
@@ -478,6 +446,13 @@ const PurchaseReceiptPrint = forwardRef(
                         <p className="font-bold mb-1">Kế toán trưởng</p>
                         <p className="italic text-xs">
                             (Hoặc bộ phận có nhu cầu nhập)
+                        </p>
+                        <p className="italic text-xs mb-12">(Ký, họ tên)</p>
+                    </div>
+                    <div>
+                        <p className="font-bold mb-1">Giám đốc</p>
+                        <p className="italic text-xs">
+                            (Hoặc người được ủy quyền)
                         </p>
                         <p className="italic text-xs mb-12">(Ký, họ tên)</p>
                     </div>

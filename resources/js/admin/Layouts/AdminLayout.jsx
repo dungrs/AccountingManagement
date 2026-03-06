@@ -57,6 +57,7 @@ import {
     Menu,
     X,
     Store,
+    BookOpen,
 } from "lucide-react";
 
 import { useEventBus } from "@/EventBus";
@@ -328,6 +329,12 @@ export default function AdminLayout({ children, breadcrumb }) {
                     href: route("admin.accounting_account.index"),
                     description: "Quản lý tài khoản kế toán",
                     icon: Settings2,
+                },
+                {
+                    title: "Sổ nhật ký chung",
+                    href: route("admin.book.journal.index"),
+                    description: "Xem sổ nhật ký chung",
+                    icon: BookOpen,
                 },
                 {
                     title: "Sổ cái",

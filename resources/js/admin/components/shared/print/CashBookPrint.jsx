@@ -1,6 +1,7 @@
 import React, { forwardRef } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
+import { formatCurrency } from "@/admin/utils/helpers";
 
 const CashBookPrint = forwardRef(({ result, systems }, ref) => {
     const formatDate = (dateString) => {
@@ -10,16 +11,6 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
         } catch (error) {
             return dateString;
         }
-    };
-
-    // Format số - dùng dấu chấm ngăn cách hàng nghìn
-    const formatMoney = (value) => {
-        if (value === null || value === undefined || value === "") return "";
-        const num = Number(value);
-        if (isNaN(num)) return "";
-        return Math.abs(num)
-            .toString()
-            .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
     };
 
     if (!result || !result.data) {
@@ -141,7 +132,7 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
             >
                 <span style={{ fontWeight: "bold" }}>Số dư đầu kỳ: </span>
                 <span style={{ fontWeight: "bold", marginLeft: "10px" }}>
-                    {formatMoney(result.opening_balance || 0)}
+                    {formatCurrency(result.opening_balance || 0)}
                 </span>
             </div>
 
@@ -194,12 +185,12 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
                                 </td>
                                 <td style={{ ...tdStyle, textAlign: "right" }}>
                                     {row.receipt_amount > 0
-                                        ? formatMoney(row.receipt_amount)
+                                        ? formatCurrency(row.receipt_amount)
                                         : ""}
                                 </td>
                                 <td style={{ ...tdStyle, textAlign: "right" }}>
                                     {row.payment_amount > 0
-                                        ? formatMoney(row.payment_amount)
+                                        ? formatCurrency(row.payment_amount)
                                         : ""}
                                 </td>
                                 <td
@@ -209,7 +200,7 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
                                         fontWeight: "bold",
                                     }}
                                 >
-                                    {formatMoney(row.balance)}
+                                    {formatCurrency(row.balance)}
                                 </td>
                             </tr>
                         );
@@ -236,7 +227,7 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
                                 fontWeight: "bold",
                             }}
                         >
-                            {formatMoney(result.summary?.total_receipt || 0)}
+                            {formatCurrency(result.summary?.total_receipt || 0)}
                         </td>
                         <td
                             style={{
@@ -246,7 +237,7 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
                                 fontWeight: "bold",
                             }}
                         >
-                            {formatMoney(result.summary?.total_payment || 0)}
+                            {formatCurrency(result.summary?.total_payment || 0)}
                         </td>
                         <td
                             style={{
@@ -256,7 +247,7 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
                                 fontWeight: "bold",
                             }}
                         >
-                            {formatMoney(result.closing_balance || 0)}
+                            {formatCurrency(result.closing_balance || 0)}
                         </td>
                     </tr>
                 </tbody>
@@ -273,7 +264,7 @@ const CashBookPrint = forwardRef(({ result, systems }, ref) => {
             >
                 <span style={{ fontWeight: "bold" }}>Số dư cuối kỳ: </span>
                 <span style={{ fontWeight: "bold", marginLeft: "10px" }}>
-                    {formatMoney(result.closing_balance || 0)}
+                    {formatCurrency(result.closing_balance || 0)}
                 </span>
             </div>
 

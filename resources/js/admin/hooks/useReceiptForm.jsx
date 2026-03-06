@@ -65,6 +65,91 @@ export function useReceiptForm({
         }));
     }, [formData.product_variants, calculateAmount]);
 
+    // ✅ Effect để tạo bút toán hủy khi chọn status = cancelled
+    useEffect(() => {
+        if (formData.status === "cancelled" && type === "sale") {
+            // Kiểm tra nếu đã có bút toán hủy rồi thì không tạo lại
+            const hasCancellationEntry = journalEntriesRef.current.some(
+                (entry) =>
+                    entry.account_code === "521" ||
+                    entry.note?.includes("Hủy") ||
+                    entry.description?.includes("Hủy"),
+            );
+
+            if (
+                !hasCancellationEntry &&
+                formData.product_variants?.length > 0
+            ) {
+                const cancellationEntries = createCancellationJournalEntries();
+                if (cancellationEntries.length > 0) {
+                    setFormData((prev) => ({
+                        ...prev,
+                        journal_entries: cancellationEntries,
+                    }));
+                    journalEntriesRef.current = cancellationEntries;
+                }
+            }
+        }
+    }, [formData.status, formData.product_variants, type]);
+
+    // ✅ Hàm tạo bút toán hủy
+    const createCancellationJournalEntries = () => {
+        if (type !== "sale") return [];
+
+        const entries = [];
+
+        // Tính tổng doanh thu và VAT từ sản phẩm
+        let totalRevenue = 0;
+        let totalVAT = 0;
+
+        (formData.product_variants || []).forEach((item) => {
+            const amount =
+                (parseFloat(item.quantity) || 0) *
+                (parseFloat(item.price) || 0);
+            totalRevenue += amount;
+            totalVAT += parseFloat(item.vat_amount) || 0;
+        });
+
+        // Nếu có chiết khấu, điều chỉnh
+        const discountAmount = parseFloat(formData.discount_amount || 0);
+        if (discountAmount > 0) {
+            const vatRate = totalRevenue > 0 ? totalVAT / totalRevenue : 0.1;
+            const discountExcludingVAT = discountAmount / (1 + vatRate);
+            const vatOnDiscount = discountAmount - discountExcludingVAT;
+
+            totalRevenue -= discountExcludingVAT;
+            totalVAT -= vatOnDiscount;
+        }
+
+        // 1. Nợ TK 521 - Các khoản giảm trừ doanh thu
+        entries.push({
+            account_code: "521",
+            debit: totalRevenue,
+            credit: 0,
+            note: "Hủy hóa đơn - Giảm trừ doanh thu",
+        });
+
+        // 2. Nợ TK 3331 - Thuế GTGT phải nộp (nếu có VAT)
+        if (totalVAT > 0) {
+            entries.push({
+                account_code: "3331",
+                debit: totalVAT,
+                credit: 0,
+                note: "Hủy hóa đơn - Giảm thuế GTGT phải nộp",
+            });
+        }
+
+        // 3. Có TK 131 - Phải thu khách hàng
+        entries.push({
+            account_code: "131",
+            debit: 0,
+            credit: totalRevenue + totalVAT,
+            note: "Hủy hóa đơn - Giảm công nợ phải thu",
+        });
+
+        return entries;
+    };
+
     // ✅ Init form khi có receipt - CHỈ LẦN ĐẦU
     useEffect(() => {
         if (!receipt || hasInitializedRef.current) return;
@@ -300,6 +385,7 @@ export function useReceiptForm({
                     account_code: entry.account_code,
                     debit: parseFloat(entry.debit) || 0,
                     credit: parseFloat(entry.credit) || 0,
+                    note: entry.note || "",
                 }));
         }
 

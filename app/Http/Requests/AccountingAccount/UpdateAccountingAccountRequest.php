@@ -34,8 +34,8 @@ class UpdateAccountingAccountRequest extends FormRequest
             'parent_id' => [
                 'nullable',
                 'integer',
-                'exists:accounting_accounts,id',
-                Rule::notIn([$accountId]), // không cho làm cha của chính nó
+                // 'exists:accounting_accounts,id',
+                // Rule::notIn([$accountId]), // không cho làm cha của chính nó
             ],
 
             // Loại tài khoản
@@ -82,7 +82,7 @@ class UpdateAccountingAccountRequest extends FormRequest
             'account_code.max'      => 'Số hiệu tài khoản không được vượt quá 20 ký tự.',
 
             /* parent */
-            'parent_id.exists' => 'Tài khoản cha không tồn tại.',
+            // 'parent_id.exists' => 'Tài khoản cha không tồn tại.',
             'parent_id.not_in' => 'Không thể chọn chính tài khoản này làm tài khoản cha.',
 
             /* account_type */
@@ -104,62 +104,62 @@ class UpdateAccountingAccountRequest extends FormRequest
     /**
      * Validate nâng cao (nghiệp vụ kế toán)
      */
-    protected function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
+    // protected function withValidator($validator)
+    // {
+    //     $validator->after(function ($validator) {
             
-            $accountId   = $this->route('id') ?? $this->id;
-            $parentId    = $this->input('parent_id');
+    //         $accountId   = $this->route('id') ?? $this->id;
+    //         $parentId    = $this->input('parent_id');
 
-            $account = AccountingAccount::find($accountId);
+    //         $account = AccountingAccount::find($accountId);
 
-            if (!$account) {
-                $validator->errors()->add('id', 'Tài khoản không tồn tại.');
-                return;
-            }
+    //         if (!$account) {
+    //             $validator->errors()->add('id', 'Tài khoản không tồn tại.');
+    //             return;
+    //         }
 
-            /* Không cho đổi loại nếu đã phát sinh bút toán */
-            // if ($account->journalLines()->exists()
-            //     && $account->account_type->value !== $accountType) {
-            //     $validator->errors()->add(
-            //         'account_type',
-            //         'Không thể thay đổi loại tài khoản khi đã phát sinh hạch toán.'
-            //     );
-            // }
+    //         /* Không cho đổi loại nếu đã phát sinh bút toán */
+    //         // if ($account->journalLines()->exists()
+    //         //     && $account->account_type->value !== $accountType) {
+    //         //     $validator->errors()->add(
+    //         //         'account_type',
+    //         //         'Không thể thay đổi loại tài khoản khi đã phát sinh hạch toán.'
+    //         //     );
+    //         // }
 
-            /* Kiểm tra tài khoản con */
-            // $hasChildren = AccountingAccount::where('parent_id', $accountId)->exists();
-            // if ($hasChildren && $parentId != $account->parent_id) {
-            //     $validator->errors()->add(
-            //         'parent_id',
-            //         'Không thể thay đổi tài khoản cha khi đã có tài khoản con.'
-            //     );
-            // }
+    //         /* Kiểm tra tài khoản con */
+    //         // $hasChildren = AccountingAccount::where('parent_id', $accountId)->exists();
+    //         // if ($hasChildren && $parentId != $account->parent_id) {
+    //         //     $validator->errors()->add(
+    //         //         'parent_id',
+    //         //         'Không thể thay đổi tài khoản cha khi đã có tài khoản con.'
+    //         //     );
+    //         // }
 
-            /* Nếu có cha → phải cùng loại */
-            if ($parentId && $parentId > 0) {
-                $parent = AccountingAccount::find($parentId);
+    //         /* Nếu có cha → phải cùng loại */
+    //         if ($parentId && $parentId > 0) {
+    //             $parent = AccountingAccount::find($parentId);
 
-                if (!$parent) {
-                    $validator->errors()->add('parent_id', 'Tài khoản cha không tồn tại.');
-                    return;
-                }
+    //             if (!$parent) {
+    //                 $validator->errors()->add('parent_id', 'Tài khoản cha không tồn tại.');
+    //                 return;
+    //             }
 
-                // if ($parent->account_type->value !== $accountType) {
-                //     $validator->errors()->add(
-                //         'parent_id',
-                //         'Tài khoản con phải cùng loại với tài khoản cha.'
-                //     );
-                // }
+    //             // if ($parent->account_type->value !== $accountType) {
+    //             //     $validator->errors()->add(
+    //             //         'parent_id',
+    //             //         'Tài khoản con phải cùng loại với tài khoản cha.'
+    //             //     );
+    //             // }
 
-                /* Không cho chọn con làm cha */
-                if ($parent->lft > $account->lft && $parent->rgt < $account->rgt) {
-                    $validator->errors()->add(
-                        'parent_id',
-                        'Không thể chọn tài khoản con làm tài khoản cha.'
-                    );
-                }
-            }
-        });
-    }
+    //             /* Không cho chọn con làm cha */
+    //             if ($parent->lft > $account->lft && $parent->rgt < $account->rgt) {
+    //                 $validator->errors()->add(
+    //                     'parent_id',
+    //                     'Không thể chọn tài khoản con làm tài khoản cha.'
+    //                 );
+    //             }
+    //         }
+    //     });
+    // }
 }

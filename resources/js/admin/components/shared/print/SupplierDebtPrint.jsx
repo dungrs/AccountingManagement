@@ -28,13 +28,11 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
         return <div ref={ref}>Không có dữ liệu</div>;
     }
 
-    // Thay thế phần filteredTransactions và transactionsWithBalance
     const groupedTransactions = React.useMemo(() => {
         const nonPayable = result.transactions.filter(
             (item) => !item.is_payable_account,
         );
 
-        // Group theo reference_code + account_code để tránh duplicate
         const groupMap = new Map();
         nonPayable.forEach((item) => {
             const key = `${item.formatted_date}_${item.reference_code}_${item.reference_type_label}_${item.account_code}`;
@@ -136,6 +134,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                     </p>
                 </div>
 
+                {/* Bên phải: mẫu số — CẬP NHẬT THEO TT99/2025/TT-BTC */}
                 <div
                     style={{
                         width: "45%",
@@ -168,7 +167,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                             color: "#000000",
                         }}
                     >
-                        200/2014/TT-BTC ngày 22/12/2014
+                        99/2025/TT-BTC ngày 27/10/2025
                     </p>
                     <p
                         style={{
@@ -193,7 +192,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                         color: "#000000",
                     }}
                 >
-                    SỔ CHI TIẾT CÔNG NỢ
+                    SỔ CHI TIẾT THANH TOÁN VỚI NGƯỜI BÁN
                 </h1>
                 <p
                     style={{
@@ -211,7 +210,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                         color: "#000000",
                     }}
                 >
-                    Khách hàng: {result.supplier?.supplier_code} -{" "}
+                    Nhà cung cấp: {result.supplier?.supplier_code} -{" "}
                     {result.supplier?.name}
                 </p>
                 <p
@@ -226,7 +225,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                 </p>
             </div>
 
-            {/* Số dư đầu kỳ - góc phải, theo đúng mẫu */}
+            {/* Số dư đầu kỳ */}
             <div
                 style={{
                     textAlign: "right",
@@ -259,7 +258,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                             Diễn giải
                         </th>
                         <th rowSpan="2" style={{ ...thStyle, width: "8%" }}>
-                            Tk đối ứng
+                            TK đối ứng
                         </th>
                         <th colSpan="2" style={{ ...thStyle }}>
                             Số phát sinh
@@ -276,10 +275,27 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                         <th style={{ ...thStyle, width: "11%" }}>Nợ</th>
                         <th style={{ ...thStyle, width: "11%" }}>Có</th>
                     </tr>
+                    {/* Hàng ký hiệu cột theo mẫu TT99 */}
+                    <tr>
+                        {["A", "B", "C", "D", "1", "2", "3", "4"].map((h) => (
+                            <th
+                                key={h}
+                                style={{
+                                    ...thStyle,
+                                    fontWeight: "bold",
+                                    fontSize: "11px",
+                                }}
+                            >
+                                {h}
+                            </th>
+                        ))}
+                    </tr>
                 </thead>
                 <tbody>
                     {transactionsWithBalance.map((item, index) => (
-                        <tr key={`${item.reference_code}_${item.account_code}_${index}`}>
+                        <tr
+                            key={`${item.reference_code}_${item.account_code}_${index}`}
+                        >
                             <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.formatted_date || formatDate(item.date)}
                             </td>
@@ -302,7 +318,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                                     ? formatMoney(item.credit)
                                     : ""}
                             </td>
-                            {/* Số dư Nợ: khi running_balance < 0 (dư Nợ) */}
+                            {/* Số dư Nợ: khi running_balance < 0 */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.running_balance < 0
                                     ? formatMoney(
@@ -310,7 +326,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                                       )
                                     : ""}
                             </td>
-                            {/* Số dư Có: khi running_balance >= 0 (dư Có) */}
+                            {/* Số dư Có: khi running_balance >= 0 */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.running_balance >= 0
                                     ? formatMoney(item.running_balance)
@@ -364,7 +380,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                         >
                             {formatMoney(result.summary?.total_credit || 0)}
                         </td>
-                        {/* Tổng Số dư Nợ cuối kỳ */}
+                        {/* Số dư Nợ cuối kỳ */}
                         <td
                             style={{
                                 border: "1px solid black",
@@ -379,9 +395,9 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                         >
                             {closingBalance < 0
                                 ? formatMoney(Math.abs(closingBalance))
-                                : "0"}
+                                : ""}
                         </td>
-                        {/* Tổng Số dư Có cuối kỳ */}
+                        {/* Số dư Có cuối kỳ */}
                         <td
                             style={{
                                 border: "1px solid black",
@@ -402,7 +418,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                 </tbody>
             </table>
 
-            {/* Footer note - theo mẫu */}
+            {/* Footer note — theo mẫu TT99 */}
             <div
                 style={{
                     marginTop: "12px",
@@ -414,11 +430,11 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                     Sổ này có 01 trang, đánh số từ trang sổ 01 đến trang 01
                 </p>
                 <p style={{ margin: "4px 0" }}>
-                    Ngày mở sổ: {result.period?.end_date}
+                    Ngày mở sổ: {result.period?.start_date}
                 </p>
             </div>
 
-            {/* Signature date - bên phải theo mẫu */}
+            {/* Ngày ký */}
             <div
                 style={{
                     textAlign: "right",
@@ -431,7 +447,7 @@ const SupplierDebtPrint = forwardRef(({ result, systems }, ref) => {
                 </p>
             </div>
 
-            {/* Signatures */}
+            {/* Signatures — TT99 giữ nguyên 3 cột */}
             <div
                 style={{
                     display: "flex",

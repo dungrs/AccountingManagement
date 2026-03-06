@@ -161,7 +161,7 @@ class SalesReceiptController extends Controller
     }
 
     public function update(UpdateSalesReceiptRequest $request, $id)
-    {
+    {   
         try {
             $this->salesReceiptService->update($request, $id);
             return redirect()->route('admin.receipt.sales.index')

@@ -2,12 +2,18 @@ import React, { forwardRef } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
+/**
+ * CustomerDebtPrint — Sổ chi tiết công nợ (Mẫu số S31-DN)
+ * Căn cứ pháp lý:
+ *   • Thông tư 99/2025/TT-BTC ngày 27/10/2025 (hiệu lực 01/01/2026)
+ *     thay thế Thông tư 200/2014/TT-BTC ngày 22/12/2014
+ */
 const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
     const formatDate = (dateString) => {
         if (!dateString) return "";
         try {
             return format(new Date(dateString), "dd/MM/yyyy", { locale: vi });
-        } catch (error) {
+        } catch {
             return dateString;
         }
     };
@@ -25,13 +31,10 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
         return <div ref={ref}>Không có dữ liệu</div>;
     }
 
-    // Thay thế phần filteredTransactions và transactionsWithBalance
     const groupedTransactions = React.useMemo(() => {
         const nonPayable = result.transactions.filter(
             (item) => !item.is_payable_account,
         );
-
-        // Group theo reference_code + account_code để tránh duplicate
         const groupMap = new Map();
         nonPayable.forEach((item) => {
             const key = `${item.formatted_date}_${item.reference_code}_${item.reference_type_label}_${item.account_code}`;
@@ -47,13 +50,11 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                 existing.credit += Number(item.credit) || 0;
             }
         });
-
         return Array.from(groupMap.values()).sort(
             (a, b) => a.sort_key?.localeCompare(b.sort_key ?? "") ?? 0,
         );
     }, [result.transactions]);
 
-    // Tính running balance trên grouped data
     let runningBalance = result.opening_balance || 0;
     const transactionsWithBalance = groupedTransactions.map((item) => {
         const debitAmount = Number(item.debit) || 0;
@@ -62,7 +63,6 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
         return { ...item, running_balance: runningBalance };
     });
 
-    // Số dư cuối kỳ = dòng cuối cùng
     const closingBalance =
         transactionsWithBalance.length > 0
             ? transactionsWithBalance[transactionsWithBalance.length - 1]
@@ -90,6 +90,15 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
         padding: "4px",
         color: "#000000",
         fontSize: "11px",
+    };
+
+    const tdSumStyle = {
+        ...tdStyle,
+        textAlign: "right",
+        backgroundColor: "#e9e9e9",
+        fontWeight: "bold",
+        WebkitPrintColorAdjust: "exact",
+        printColorAdjust: "exact",
     };
 
     return (
@@ -127,6 +136,8 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                     <p style={{ margin: "2px 0" }}>{companyAddress}</p>
                     <p style={{ margin: "2px 0" }}>{companyWebsite}</p>
                 </div>
+
+                {/* Cột phải: cập nhật sang TT99/2025 */}
                 <div
                     style={{
                         width: "45%",
@@ -141,7 +152,7 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                         (Ban hành theo Thông tư số
                     </p>
                     <p style={{ fontStyle: "italic", margin: "2px 0" }}>
-                        200/2014/TT-BTC ngày 22/12/2014
+                        99/2025/TT-BTC ngày 27/10/2025
                     </p>
                     <p style={{ fontStyle: "italic", margin: "2px 0" }}>
                         của Bộ Tài Chính)
@@ -177,13 +188,12 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                 </p>
             </div>
 
-            {/* Số dư đầu kỳ - góc phải */}
+            {/* ─── Số dư đầu kỳ ─── */}
             <div
                 style={{
                     textAlign: "right",
                     marginBottom: "8px",
                     fontSize: "13px",
-                    color: "#000000",
                 }}
             >
                 <span>Số dư nợ đầu kỳ:</span>{" "}
@@ -212,10 +222,10 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                         <th rowSpan="2" style={{ ...thStyle, width: "8%" }}>
                             TK đối ứng
                         </th>
-                        <th colSpan="2" style={{ ...thStyle }}>
+                        <th colSpan="2" style={thStyle}>
                             Số phát sinh
                         </th>
-                        <th colSpan="2" style={{ ...thStyle }}>
+                        <th colSpan="2" style={thStyle}>
                             Số dư
                         </th>
                     </tr>
@@ -224,37 +234,33 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                         <th style={{ ...thStyle, width: "9%" }}>Số</th>
                         <th style={{ ...thStyle, width: "11%" }}>Nợ</th>
                         <th style={{ ...thStyle, width: "11%" }}>Có</th>
-                        {/* TK 131 dư Nợ → cột Nợ trước */}
                         <th style={{ ...thStyle, width: "11%" }}>Nợ</th>
                         <th style={{ ...thStyle, width: "11%" }}>Có</th>
                     </tr>
                 </thead>
                 <tbody>
                     {transactionsWithBalance.map((item, index) => (
-                        <tr key={`${item.reference_code}_${item.account_code}_${index}`}>
+                        <tr
+                            key={`${item.reference_code}_${item.account_code}_${index}`}
+                        >
                             <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.formatted_date || formatDate(item.date)}
                             </td>
                             <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.reference_code || ""}
                             </td>
-                            <td style={{ ...tdStyle }}>
-                                {item.reference_note || ""}
-                            </td>
+                            <td style={tdStyle}>{item.reference_note || ""}</td>
                             <td style={{ ...tdStyle, textAlign: "center" }}>
                                 {item.account_code || ""}
                             </td>
-                            {/* Phát sinh Nợ của TK đối ứng */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.debit > 0 ? formatMoney(item.debit) : ""}
                             </td>
-                            {/* Phát sinh Có của TK đối ứng */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.credit > 0
                                     ? formatMoney(item.credit)
                                     : ""}
                             </td>
-                            {/* Số dư Nợ: khi running_balance >= 0 */}
                             <td
                                 style={{
                                     ...tdStyle,
@@ -266,7 +272,6 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                                     ? formatMoney(item.running_balance)
                                     : ""}
                             </td>
-                            {/* Số dư Có: khi running_balance < 0 (KH ứng trước) */}
                             <td style={{ ...tdStyle, textAlign: "right" }}>
                                 {item.running_balance < 0
                                     ? formatMoney(
@@ -277,8 +282,8 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                         </tr>
                     ))}
 
-                    {/* ─── Dòng Tổng cộng ─── */}
-                    <tr style={{ fontWeight: "bold" }}>
+                    {/* ─── Dòng Cộng phát sinh ─── */}
+                    <tr>
                         <td
                             colSpan="4"
                             style={{
@@ -292,58 +297,18 @@ const CustomerDebtPrint = forwardRef(({ result, systems }, ref) => {
                         >
                             Cộng phát sinh
                         </td>
-                        {/* Tổng phát sinh Nợ (từ summary TK 131) */}
-                        <td
-                            style={{
-                                ...tdStyle,
-                                textAlign: "right",
-                                backgroundColor: "#e9e9e9",
-                                fontWeight: "bold",
-                                WebkitPrintColorAdjust: "exact",
-                                printColorAdjust: "exact",
-                            }}
-                        >
+                        <td style={tdSumStyle}>
                             {formatMoney(result.summary?.total_debit || 0)}
                         </td>
-                        {/* Tổng phát sinh Có (từ summary TK 131) */}
-                        <td
-                            style={{
-                                ...tdStyle,
-                                textAlign: "right",
-                                backgroundColor: "#e9e9e9",
-                                fontWeight: "bold",
-                                WebkitPrintColorAdjust: "exact",
-                                printColorAdjust: "exact",
-                            }}
-                        >
+                        <td style={tdSumStyle}>
                             {formatMoney(result.summary?.total_credit || 0)}
                         </td>
-                        {/* Số dư cuối kỳ - cột Nợ */}
-                        <td
-                            style={{
-                                ...tdStyle,
-                                textAlign: "right",
-                                backgroundColor: "#e9e9e9",
-                                fontWeight: "bold",
-                                WebkitPrintColorAdjust: "exact",
-                                printColorAdjust: "exact",
-                            }}
-                        >
+                        <td style={tdSumStyle}>
                             {closingBalance >= 0
                                 ? formatMoney(closingBalance)
                                 : ""}
                         </td>
-                        {/* Số dư cuối kỳ - cột Có (KH ứng trước) */}
-                        <td
-                            style={{
-                                ...tdStyle,
-                                textAlign: "right",
-                                backgroundColor: "#e9e9e9",
-                                fontWeight: "bold",
-                                WebkitPrintColorAdjust: "exact",
-                                printColorAdjust: "exact",
-                            }}
-                        >
+                        <td style={tdSumStyle}>
                             {closingBalance < 0
                                 ? formatMoney(Math.abs(closingBalance))
                                 : ""}

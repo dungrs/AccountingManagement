@@ -1,11 +1,15 @@
-<?php 
+<?php
+
 namespace App\Classes;
+
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
-class Nestedsetbie {
+class Nestedsetbie
+{
     // Constructor class, được gọi khi một đối tượng của class này được tạo ra.
-    function __construct($params = null) {
+    function __construct($params = null)
+    {
         // Gán các giá trị cho các thuộc tính của đối tượng.
         $this->params = $params;       // Lưu tham số truyền vào (có thể là mảng tham số).
         $this->checked = null;         // Đặt giá trị mặc định là null cho thuộc tính checked.
@@ -15,14 +19,23 @@ class Nestedsetbie {
         $this->lft = null;             // Đặt giá trị mặc định là null cho thuộc tính lft (trái).
         $this->rgt = null;             // Đặt giá trị mặc định là null cho thuộc tính rgt (phải).
         $this->level = null;           // Đặt giá trị mặc định là null cho thuộc tính level (cấp độ).
+
+        // MỞ RỘNG: Thêm thuộc tính để kiểm tra bảng có yêu cầu account_code không
+        $this->requiresAccountCode = false;
     }
 
     // Phương thức Get để lấy dữ liệu từ cơ sở dữ liệu.
-    public function Get() {
+    public function Get()
+    {
         // Kiểm tra nếu có tham số customLanguageTable (cho các bảng đặc biệt như accounting_account)
         if (isset($this->params['customLanguageTable']) && $this->params['customLanguageTable'] === true) {
             // Xử lý cho các bảng đặc biệt
             $this->getCustomLanguageTable();
+
+            // MỞ RỘNG: Kiểm tra nếu là bảng accounting_accounts thì bật flag
+            if ($this->params['table'] === 'accounting_accounts') {
+                $this->requiresAccountCode = true;
+            }
         } else {
             // Xử lý cho các catalogue thông thường (post_catalogue, product_catalogue, ...)
             $this->getStandardCatalogue();
@@ -30,12 +43,13 @@ class Nestedsetbie {
     }
 
     // Phương thức lấy dữ liệu cho catalogue thông thường
-    private function getStandardCatalogue() {
+    private function getStandardCatalogue()
+    {
         $catalogue = (isset($this->params['isMenu']) && $this->params['isMenu'] === TRUE) ? '' : '_catalogue';
-        
+
         // Xác định khóa ngoại nếu được truyền vào, nếu không thì mặc định là ''.
         $foreignkey = (isset($this->params['foreignkey'])) ? $this->params['foreignkey'] : 'post_catalogue_id';
-        
+
         // Tách tên bảng thành mảng dựa trên dấu gạch dưới.
         $moduleExtract = explode('_', $this->params['table']);
         $join = (isset($this->params['isMenu']) && $this->params['isMenu'] == true) ? substr($moduleExtract[0], 0, -1) : $moduleExtract[0];
@@ -56,34 +70,40 @@ class Nestedsetbie {
     }
 
     // Phương thức lấy dữ liệu cho bảng có tên ngôn ngữ đặc biệt
-    private function getCustomLanguageTable() {
+    private function getCustomLanguageTable()
+    {
         // Xác định foreignkey từ params
         $foreignkey = $this->params['foreignkey'] ?? 'id';
-        
+
         // Xác định tên bảng chính và bảng ngôn ngữ
         $mainTable = $this->params['table'];
-        
+
         // Xác định tên bảng ngôn ngữ
         // Nếu có languageTableName thì dùng, nếu không thì tự động thêm _languages
-        $languageTable = isset($this->params['languageTableName']) 
-            ? $this->params['languageTableName'] 
+        $languageTable = isset($this->params['languageTableName'])
+            ? $this->params['languageTableName']
             : $mainTable . '_languages';
-        
+
         // Các cột cần select
         $selectColumns = [
-            'tb1.id', 
-            'tb2.name', 
-            'tb1.parent_id', 
-            'tb1.lft', 
-            'tb1.rgt', 
+            'tb1.id',
+            'tb2.name',
+            'tb1.parent_id',
+            'tb1.lft',
+            'tb1.rgt',
             'tb1.level'
         ];
-        
+
+        // MỞ RỘNG: Nếu là bảng accounting_accounts, thêm account_code vào select
+        if ($mainTable === 'accounting_accounts') {
+            $selectColumns[] = 'tb1.account_code';
+        }
+
         // Nếu bảng có cột order thì thêm vào
         if (isset($this->params['hasOrderColumn']) && $this->params['hasOrderColumn'] === true) {
             $selectColumns[] = 'tb1.order';
         }
-        
+
         // Tạo câu truy vấn
         $result = DB::table($mainTable . ' as tb1')
             ->select($selectColumns)
@@ -100,7 +120,8 @@ class Nestedsetbie {
     }
 
     // Phương thức Set để xử lý và trả về dữ liệu đã được cấu trúc.
-    public function Set() {
+    public function Set()
+    {
         // Kiểm tra xem data đã được thiết lập và có phải là một mảng hay không.
         if (isset($this->data) && is_array($this->data)) {
             $arr = null;  // Khởi tạo mảng kết quả.
@@ -118,13 +139,14 @@ class Nestedsetbie {
     }
 
     // Duyệt qua cấu trúc phân cấp và gắn giá trị left right
-    public function Recursive($start = 0, $arr = null) {
+    public function Recursive($start = 0, $arr = null)
+    {
         // Gán giá trị biên trái cho nút hiện tại
         $this->lft[$start] = ++$this->count;
-    
+
         // Gán mức độ sâu hiện tại của nút
         $this->level[$start] = $this->count_level;
-    
+
         // Kiểm tra nếu mảng được đặt và là một mảng
         if (isset($arr) && is_array($arr)) {
             // Duyệt qua từng nút con tiềm năng
@@ -137,79 +159,143 @@ class Nestedsetbie {
                 ) {
                     // Tăng mức độ sâu cho nút con
                     $this->count_level++;
-    
+
                     // Đánh dấu kết nối là đã được kiểm tra để tránh duyệt lại
                     $this->checked[$start][$key] = 1;
                     $this->checked[$key][$start] = 1;
-    
+
                     // Đệ quy xử lý nút con
                     $this->Recursive($key, $arr);
-    
+
                     // Sau khi quay lại từ đệ quy, giảm mức độ sâu
                     $this->count_level--;
                 }
             }
         }
-    
+
         // Gán giá trị biên phải cho nút hiện tại
         $this->rgt[$start] = ++$this->count;
     }
-    
-    public function Action() {
+
+    public function Action()
+    {
         // Kiểm tra xem các thuộc tính `level`, `lft`, và `rgt` có tồn tại và là mảng hay không
-        if (isset($this->level) && is_array($this->level) && 
-            isset($this->lft) && is_array($this->lft) && 
-            isset($this->rgt) && is_array($this->rgt)) {
-            
+        if (
+            isset($this->level) && is_array($this->level) &&
+            isset($this->lft) && is_array($this->lft) &&
+            isset($this->rgt) && is_array($this->rgt)
+        ) {
+
             // Khởi tạo mảng dữ liệu trống
             $data = null;
-    
+
             // Duyệt qua từng phần tử trong mảng `level`
             foreach ($this->level as $key => $val) {
                 // Bỏ qua phần tử đầu tiên với `key` là 0 (thường là gốc cây hoặc phần tử đặc biệt)
                 if ($key == 0) continue;
-    
-                // Gán giá trị vào mảng `$data` với các thuộc tính `id`, `level`, `lft`, và `rgt`
-                $data[] = array(
+
+                // MỞ RỘNG: Tạo mảng dữ liệu cơ bản
+                $item = array(
                     'id' => $key,               // ID của nút hiện tại
                     'level' => $val,            // Mức độ sâu của nút hiện tại
                     'lft' => $this->lft[$key],  // Giá trị trái của nút hiện tại
                     'rgt' => $this->rgt[$key],  // Giá trị phải của nút hiện tại
                     'user_id' => Auth::id()
                 );
+
+                // MỞ RỘNG: Nếu bảng yêu cầu account_code và thiếu account_code
+                if ($this->requiresAccountCode) {
+                    // Tìm trong data gốc để lấy account_code
+                    $accountCode = null;
+                    foreach ($this->data as $originalItem) {
+                        if ($originalItem->id == $key && isset($originalItem->account_code)) {
+                            $accountCode = $originalItem->account_code;
+                            break;
+                        }
+                    }
+
+                    // Nếu không tìm thấy account_code trong data gốc, kiểm tra trong DB
+                    if (!$accountCode) {
+                        $existingRecord = DB::table($this->params['table'])
+                            ->select('account_code')
+                            ->where('id', $key)
+                            ->first();
+
+                        if ($existingRecord && $existingRecord->account_code) {
+                            $accountCode = $existingRecord->account_code;
+                        } else {
+                            // MỞ RỘNG: Tạo account_code tạm thời dựa trên ID
+                            // Bạn có thể điều chỉnh logic này theo nhu cầu
+                            $accountCode = 'TEMP_' . $key;
+                        }
+                    }
+
+                    // Thêm account_code vào item
+                    $item['account_code'] = $accountCode;
+                }
+
+                // Gán giá trị vào mảng `$data`
+                $data[] = $item;
             }
-    
+
             // Nếu mảng `$data` tồn tại và là mảng với ít nhất một phần tử
             if (isset($data) && is_array($data) && count($data)) {
+                // MỞ RỘNG: Xác định các cột cần cập nhật
+                $updateColumns = ['level', 'lft', 'rgt', 'user_id'];
+
+                // MỞ RỘNG: Nếu là bảng accounting_accounts và có account_code trong data
+                if ($this->requiresAccountCode) {
+                    // Kiểm tra từng item xem có account_code không
+                    $hasAccountCode = false;
+                    foreach ($data as $item) {
+                        if (isset($item['account_code'])) {
+                            $hasAccountCode = true;
+                            break;
+                        }
+                    }
+
+                    // MỞ RỘNG: Nếu có account_code, thêm vào danh sách cột cập nhật
+                    if ($hasAccountCode) {
+                        $updateColumns[] = 'account_code';
+                    }
+                }
+
                 // Sử dụng phương thức `upsert` để chèn hoặc cập nhật dữ liệu trong bảng
-                DB::table($this->params['table'])->upsert($data, 'id', ['level', 'lft', 'rgt', 'user_id']);
+                DB::table($this->params['table'])->upsert($data, 'id', $updateColumns);
                 // `upsert`: Cập nhật nếu ID đã tồn tại, chèn mới nếu chưa tồn tại
                 // `id`: Cột dùng để kiểm tra trùng lặp
-                // `['level', 'lft', 'rgt', 'user_id']`: Các cột sẽ được cập nhật nếu có trùng lặp
+                // `$updateColumns`: Các cột sẽ được cập nhật nếu có trùng lặp
             }
         }
     }
 
-    public function Dropdown($param = null) {
+    public function Dropdown($param = null)
+    {
         // Gọi hàm `Get()` để lấy dữ liệu phân cấp từ cơ sở dữ liệu
         $this->Get();
-    
+
         // Kiểm tra nếu dữ liệu đã được lấy và là một mảng
         if (isset($this->data) && is_array($this->data)) {
             // Khởi tạo mảng tạm thời để lưu trữ các mục cho dropdown
             $temp = null;
-    
+
             // Mục gốc (Root) được thêm vào với giá trị là 0
             // Nếu `param['text']` được cung cấp và không rỗng, sử dụng nó làm text, nếu không thì mặc định là `[Root]`
             $temp[0] = (isset($param['text']) && !empty($param['text'])) ? $param['text'] : '[Root]';
-    
+
             // Duyệt qua từng phần tử trong dữ liệu đã lấy
-            foreach($this->data as $key => $val) {
-                // Tạo chuỗi đại diện cho mỗi mục, với dấu gạch `|-----` được lặp lại theo cấp độ của mục
-                // Ví dụ: |-----Category, |-----|-----Subcategory
-                $temp[$val->id] = str_repeat('|-----', (($val->level > 0) ? ($val->level - 1) : 0)) . $val->name;
+            foreach ($this->data as $key => $val) {
+                // MỞ RỘNG: Nếu là bảng accounting_accounts, hiển thị cả account_code
+                if ($this->requiresAccountCode && isset($val->account_code)) {
+                    $temp[$val->id] = str_repeat('|-----', (($val->level > 0) ? ($val->level - 1) : 0)) .
+                        '[' . $val->account_code . '] ' . $val->name;
+                } else {
+                    // Tạo chuỗi đại diện cho mỗi mục, với dấu gạch `|-----` được lặp lại theo cấp độ của mục
+                    // Ví dụ: |-----Category, |-----|-----Subcategory
+                    $temp[$val->id] = str_repeat('|-----', (($val->level > 0) ? ($val->level - 1) : 0)) . $val->name;
+                }
             }
-    
+
             // Trả về mảng đã định dạng để dùng cho dropdown
             return $temp;
         }

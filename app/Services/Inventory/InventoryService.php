@@ -89,7 +89,7 @@ class InventoryService extends BaseService implements InventoryServiceInterface
             [
                 'table' => 'product_languages',
                 'on' => [
-                    ['product_languages.product_id','products.id'],
+                    ['product_languages.product_id', 'products.id'],
                 ],
             ],
             [
@@ -371,7 +371,7 @@ class InventoryService extends BaseService implements InventoryServiceInterface
         // Lấy tổng nhập trong tháng
         $startOfMonth = $asOfDate->copy()->startOfMonth();
         $monthlyInbound = $this->inventoryTransactionRepository->getAggregatedByProduct(
-            0, // 0 để lấy tất cả
+            0,
             $startOfMonth,
             $asOfDate,
             'inbound'
@@ -396,6 +396,120 @@ class InventoryService extends BaseService implements InventoryServiceInterface
             'monthly_outbound_quantity' => $monthlyOutbound['total_quantity'] ?? 0,
             'monthly_outbound_value' => $monthlyOutbound['total_value'] ?? 0,
             'as_of_date' => $balanceDate,
+        ];
+    }
+
+    /**
+     * Lấy tổng giá trị tồn kho
+     */
+    public function getTotalInventoryValue($asOfDate = null): float
+    {
+        $asOfDate = $asOfDate ?? Carbon::now();
+        $balanceDate = $asOfDate->format('Y-m-d');
+
+        $total = $this->inventoryBalanceRepository
+            ->findByCondition(
+                [['balance_date', '=', $balanceDate]],
+                true
+            )
+            ->sum('value');
+
+        return (float) $total;
+    }
+
+    /**
+     * Lấy tổng số lượng tồn kho
+     */
+    public function getTotalInventoryQuantity($asOfDate = null): float
+    {
+        $asOfDate = $asOfDate ?? Carbon::now();
+        $balanceDate = $asOfDate->format('Y-m-d');
+
+        $total = $this->inventoryBalanceRepository
+            ->findByCondition(
+                [['balance_date', '=', $balanceDate]],
+                true
+            )
+            ->sum('quantity');
+
+        return (float) $total;
+    }
+
+    /**
+     * Lấy số lượng sản phẩm đang có tồn
+     */
+    public function countProductsWithStock($asOfDate = null): int
+    {
+        $asOfDate = $asOfDate ?? Carbon::now();
+        $balanceDate = $asOfDate->format('Y-m-d');
+
+        return $this->inventoryBalanceRepository
+            ->findByCondition(
+                [
+                    ['balance_date', '=', $balanceDate],
+                    ['quantity', '>', 0]
+                ],
+                true
+            )
+            ->count();
+    }
+
+    /**
+     * Lấy số lượng sản phẩm tồn thấp
+     */
+    public function countLowStockProducts($threshold = 10, $asOfDate = null): int
+    {
+        $asOfDate = $asOfDate ?? Carbon::now();
+        $balanceDate = $asOfDate->format('Y-m-d');
+
+        return $this->inventoryBalanceRepository
+            ->findByCondition(
+                [
+                    ['balance_date', '=', $balanceDate],
+                    ['quantity', '>', 0],
+                    ['quantity', '<', $threshold]
+                ],
+                true
+            )
+            ->count();
+    }
+
+    /**
+     * Lấy số lượng sản phẩm hết hàng
+     */
+    public function countOutOfStockProducts($asOfDate = null): int
+    {
+        $asOfDate = $asOfDate ?? Carbon::now();
+        $balanceDate = $asOfDate->format('Y-m-d');
+
+        return $this->inventoryBalanceRepository
+            ->findByCondition(
+                [
+                    ['balance_date', '=', $balanceDate],
+                    ['quantity', '<=', 0]
+                ],
+                true
+            )
+            ->count();
+    }
+
+    /**
+     * Lấy tóm tắt tồn kho (dùng cho dashboard)
+     */
+    public function getInventorySummary($asOfDate = null): array
+    {
+        $asOfDate = $asOfDate ?? Carbon::now();
+        $startOfMonth = $asOfDate->copy()->startOfMonth();
+
+        return [
+            'total_value' => $this->getTotalInventoryValue($asOfDate),
+            'total_quantity' => $this->getTotalInventoryQuantity($asOfDate),
+            'product_with_stock' => $this->countProductsWithStock($asOfDate),
+            'low_stock' => $this->countLowStockProducts(10, $asOfDate),
+            'out_of_stock' => $this->countOutOfStockProducts($asOfDate),
+            'monthly_inbound' => $this->inventoryTransactionRepository->getAggregatedByProduct(0, $startOfMonth, $asOfDate, 'inbound'),
+            'monthly_outbound' => $this->inventoryTransactionRepository->getAggregatedByProduct(0, $startOfMonth, $asOfDate, 'outbound'),
+            'as_of_date' => $asOfDate->format('Y-m-d'),
         ];
     }
 

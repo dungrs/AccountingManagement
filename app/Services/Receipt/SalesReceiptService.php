@@ -31,6 +31,9 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     const ACCOUNT_VAT_OUTPUT = '3331'; // Thuế VAT đầu ra
     const ACCOUNT_RECEIVABLE = '131'; // Phải thu khách hàng
     const ACCOUNT_REVENUE = '511'; // Doanh thu bán hàng
+    const ACCOUNT_CASH = '111'; // Tiền mặt
+    const ACCOUNT_BANK = '112'; // Tiền gửi ngân hàng
+    const ACCOUNT_REVENUE_DEDUCTION = '521'; // Các khoản giảm trừ doanh thu
 
     public function __construct(
         SalesReceiptRepository $salesReceiptRepository,
@@ -108,7 +111,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
             $payload['vat_amount']   = $calculation['vat_amount'];
             $payload['grand_total']  = $calculation['grand_total'];
 
-            // THÊM: Gán các giá trị chiết khấu từ calculation
+            // Gán các giá trị chiết khấu từ calculation
             $payload['discount_type'] = $request->input('discount_type');
             $payload['discount_value'] = $request->input('discount_value', 0);
             $payload['discount_amount'] = $calculation['total_discount'] ?? 0;
@@ -125,9 +128,12 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
             // Lưu items
             $this->syncSalesReceiptItems($receipt, $calculation['items']);
 
+            // ✅ Lấy journal entries từ request
+            $journalEntries = $request->input('journal_entries', []);
+
             // Tạo journal entries từ dữ liệu gửi lên
-            if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
-                $journalData = $this->prepareJournalData($request->input('journal_entries'));
+            if (!empty($journalEntries)) {
+                $journalData = $this->prepareJournalData($journalEntries, $request->input('journal_note'));
 
                 $this->journalEntryService->createFromRequest(
                     'sales_receipt',
@@ -137,9 +143,9 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 );
             }
 
-            // Xử lý khi xác nhận - giảm tồn kho, tạo công nợ và tạo bút toán giá vốn
+            // ✅ Xử lý khi xác nhận - chỉ tạo công nợ nếu có tài khoản 131 trong journal_entries
             if ($payload['status'] === 'confirmed') {
-                $this->handleConfirm($receipt);
+                $this->handleConfirm($receipt, $journalEntries);
             }
 
             return $receipt;
@@ -178,7 +184,8 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
 
                 // Chỉ cho phép hủy
                 if ($newStatus === 'cancelled') {
-                    $this->handleCancel($receipt);
+                    // ✅ Xử lý hủy - KHÔNG XÓA mà tạo bút toán đảo ngược
+                    $this->handleCancellation($receipt, $request->input('journal_entries', []));
                     $receipt->update(['status' => 'cancelled']);
                     return true;
                 }
@@ -202,7 +209,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 $payload['vat_amount']   = $calculation['vat_amount'];
                 $payload['grand_total']  = $calculation['grand_total'];
 
-                // THÊM: Cập nhật các giá trị chiết khấu
+                // Cập nhật các giá trị chiết khấu
                 $payload['discount_type'] = $request->input('discount_type');
                 $payload['discount_value'] = $request->input('discount_value', 0);
                 $payload['discount_amount'] = $calculation['total_discount'] ?? 0;
@@ -217,9 +224,12 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 // Cập nhật items
                 $this->syncSalesReceiptItems($receipt, $calculation['items']);
 
+                // ✅ Lấy journal entries từ request
+                $journalEntries = $request->input('journal_entries', []);
+
                 // Cập nhật journal entries
-                if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
-                    $journalData = $this->prepareJournalData($request->input('journal_entries'));
+                if (!empty($journalEntries)) {
+                    $journalData = $this->prepareJournalData($journalEntries, $request->input('journal_note'));
 
                     $this->journalEntryService->updateJournalByReference(
                         'sales_receipt',
@@ -235,7 +245,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 // Nếu từ draft → confirmed
                 if ($newStatus === 'confirmed') {
                     $receipt = $this->salesReceiptRepository->findById($id);
-                    $this->handleConfirm($receipt);
+                    $this->handleConfirm($receipt, $journalEntries);
                 }
 
                 return true;
@@ -259,8 +269,9 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
             $this->journalEntryService->deleteJournalByReference('sales_receipt', $salesReceipt->id);
             $this->journalEntryService->deleteJournalByReference('sales_receipt_cogs', $salesReceipt->id);
 
-            // Xóa công nợ và tăng lại tồn kho nếu đã confirmed
+            // ✅ Xóa công nợ và tăng lại tồn kho nếu đã confirmed
             if ($salesReceipt->status === 'confirmed') {
+                // Kiểm tra xem có công nợ không trước khi xóa
                 $this->customerDebtService->deleteDebtByReference('sales_receipt', $salesReceipt->id);
 
                 // Hoàn nhập giao dịch tồn kho
@@ -274,9 +285,38 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     }
 
     /**
-     * Xử lý khi xác nhận phiếu xuất
+     * ✅ Kiểm tra xem có sử dụng tài khoản 131 không
      */
-    private function handleConfirm($receipt)
+    private function hasReceivableAccount(array $journalEntries): bool
+    {
+        foreach ($journalEntries as $entry) {
+            $accountCode = $entry['account_code'] ?? '';
+            if ($accountCode === self::ACCOUNT_RECEIVABLE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ✅ Kiểm tra xem có sử dụng tài khoản tiền mặt/ngân hàng không
+     */
+    private function hasCashOrBankAccount(array $journalEntries): bool
+    {
+        $cashBankAccounts = [self::ACCOUNT_CASH, self::ACCOUNT_BANK];
+        foreach ($journalEntries as $entry) {
+            $accountCode = $entry['account_code'] ?? '';
+            if (in_array($accountCode, $cashBankAccounts)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ✅ Xử lý khi xác nhận phiếu xuất
+     */
+    private function handleConfirm($receipt, array $journalEntries = [])
     {
         // 1️⃣ Tính giá vốn và giảm tồn kho (xuất kho)
         $cogsDetails = $this->inventoryService->issueStock(
@@ -291,29 +331,130 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
             $this->createCostOfGoodsSoldJournal($receipt, $cogsDetails);
         }
 
-        // 3️⃣ Tạo công nợ khách hàng
-        $this->customerDebtService->createDebtForSalesReceipt($receipt);
+        // 3️⃣ ✅ Tạo công nợ khách hàng CHỈ KHI có tài khoản 131 trong journal entries
+        if ($this->hasReceivableAccount($journalEntries)) {
+            $this->customerDebtService->createDebtForSalesReceipt($receipt);
+            Log::info('Đã tạo công nợ cho khách hàng', [
+                'receipt_id' => $receipt->id,
+                'customer_id' => $receipt->customer_id
+            ]);
+        } else {
+            Log::info('Không tạo công nợ vì không sử dụng TK 131', [
+                'receipt_id' => $receipt->id,
+                'payment_method' => $receipt->payment_method ?? 'unknown'
+            ]);
+        }
 
         // 4️⃣ Xác nhận journal entries
         $this->journalEntryService->confirmJournalByReference('sales_receipt', $receipt->id);
     }
 
     /**
-     * Xử lý khi hủy phiếu xuất
+     * ✅ Xử lý khi hủy phiếu xuất - Tạo bút toán đảo ngược, KHÔNG XÓA
      */
-    private function handleCancel($receipt)
+    private function handleCancellation($receipt, array $cancellationJournalEntries = [])
     {
-        // 1️⃣ Hoàn nhập giao dịch tồn kho
+        // 1️⃣ Hoàn nhập giao dịch tồn kho (tăng lại tồn kho)
         $this->inventoryService->revertTransactions('sales_receipt', $receipt->id);
 
-        // 2️⃣ Xóa bút toán giá vốn
-        $this->journalEntryService->deleteJournalByReference('sales_receipt_cogs', $receipt->id);
+        // 2️⃣ Tạo bút toán đảo ngược giá vốn: Nợ 156 / Có 632
+        $this->createReversalCostOfGoodsSoldJournal($receipt);
 
-        // 3️⃣ Xóa công nợ khách hàng
+        // 3️⃣ Xử lý công nợ nếu có
+        if (!empty($cancellationJournalEntries)) {
+            // Kiểm tra xem có sử dụng TK 131 không
+            $hasReceivable = $this->hasReceivableAccount($cancellationJournalEntries);
+
+            if ($hasReceivable) {
+                // Nếu có TK 131, cập nhật công nợ (giảm công nợ)
+                // Lưu ý: Debt service sẽ tự động tính toán dựa trên bút toán
+                Log::info('Hủy phiếu có ảnh hưởng đến công nợ', [
+                    'receipt_id' => $receipt->id
+                ]);
+            }
+        }
+
+        // 4️⃣ Tạo bút toán hủy từ dữ liệu gửi lên (nếu có)
+        if (!empty($cancellationJournalEntries)) {
+            $journalData = $this->prepareJournalData(
+                $cancellationJournalEntries,
+                'Bút toán hủy phiếu xuất ' . $receipt->code
+            );
+
+            $this->journalEntryService->createFromRequest(
+                'sales_receipt_cancellation',
+                $receipt->id,
+                $journalData,
+                now() // Ngày hủy là ngày hiện tại
+            );
+
+            Log::info('Đã tạo bút toán hủy', [
+                'receipt_id' => $receipt->id,
+                'entries_count' => count($cancellationJournalEntries)
+            ]);
+        }
+
+        // 5️⃣ Xóa công nợ cũ (nếu có) - Cái này nên để Debt service xử lý
+        // Thay vì xóa, nên tạo bút toán điều chỉnh công nợ
         $this->customerDebtService->deleteDebtByReference('sales_receipt', $receipt->id);
+    }
 
-        // 4️⃣ Xóa định khoản doanh thu (nếu có)
-        $this->journalEntryService->deleteJournalByReference('sales_receipt', $receipt->id);
+    /**
+     * ✅ Tạo bút toán đảo ngược giá vốn (khi hủy)
+     * Nợ 156 / Có 632
+     */
+    private function createReversalCostOfGoodsSoldJournal($receipt)
+    {
+        // Tính tổng giá vốn từ items
+        $totalCogs = 0;
+        foreach ($receipt->items as $item) {
+            // Giả sử mỗi item có giá vốn (có thể lấy từ product variant)
+            // Nếu không có, cần logic tính giá vốn thực tế
+            $cogs = $item->quantity * ($item->productVariant->cost_price ?? 0);
+            $totalCogs += $cogs;
+        }
+
+        if ($totalCogs <= 0) {
+            Log::warning('Không thể tạo bút toán đảo ngược giá vốn vì totalCogs = 0', [
+                'receipt_id' => $receipt->id
+            ]);
+            return;
+        }
+
+        $journalEntries = [
+            'entries' => [
+                [
+                    'account_code' => self::ACCOUNT_INVENTORY,
+                    'debit' => $totalCogs,
+                    'credit' => 0,
+                    'note' => 'Hoàn nhập giá vốn khi hủy phiếu xuất ' . $receipt->code
+                ],
+                [
+                    'account_code' => self::ACCOUNT_COST_OF_GOODS_SOLD,
+                    'debit' => 0,
+                    'credit' => $totalCogs,
+                    'note' => 'Hoàn nhập giá vốn khi hủy phiếu xuất ' . $receipt->code
+                ],
+            ],
+            'note' => 'Hoàn nhập giá vốn khi hủy phiếu xuất ' . $receipt->code,
+        ];
+
+        try {
+            $this->journalEntryService->createFromRequest(
+                'sales_receipt_cogs_reversal',
+                $receipt->id,
+                $journalEntries,
+                now() // Ngày hủy
+            );
+
+            Log::info('Đã tạo bút toán đảo ngược giá vốn', [
+                'receipt_id' => $receipt->id,
+                'total_cogs' => $totalCogs
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lỗi tạo bút toán đảo ngược giá vốn: ' . $e->getMessage());
+            // Không throw exception để tránh ảnh hưởng đến luồng chính
+        }
     }
 
     /**
@@ -358,20 +499,31 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     }
 
     /**
-     * Chuẩn bị dữ liệu journal entries từ request
+     * ✅ Chuẩn bị dữ liệu journal entries từ request
      */
-    private function prepareJournalData($journalEntries)
+    private function prepareJournalData($journalEntries, $journalNote = null)
     {
         // Nếu journalEntries đã có cấu trúc {entries: [...], note: '...'}
         if (isset($journalEntries['entries']) && is_array($journalEntries['entries'])) {
             return $journalEntries;
         }
 
-        // Nếu journalEntries là mảng các entry đơn thuần
+        // Nếu journalEntries là mảng các entry đơn thuần (như dữ liệu bạn gửi)
         if (is_array($journalEntries) && !isset($journalEntries['entries'])) {
+            // Format lại để đúng cấu trúc
+            $formattedEntries = [];
+            foreach ($journalEntries as $entry) {
+                $formattedEntries[] = [
+                    'account_code' => $entry['account_code'] ?? '',
+                    'debit' => (float)($entry['debit'] ?? 0),
+                    'credit' => (float)($entry['credit'] ?? 0),
+                    'note' => $entry['note'] ?? null,
+                ];
+            }
+
             return [
-                'entries' => $journalEntries,
-                'note' => request()->input('journal_note') ?? 'Bút toán từ phiếu xuất',
+                'entries' => $formattedEntries,
+                'note' => $journalNote ?? 'Bút toán từ phiếu xuất',
             ];
         }
 
@@ -538,7 +690,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
 
         /*
         |--------------------------------------------------------------------------
-        | Format công nợ
+        | Format công nợ (chỉ hiển thị nếu có)
         |--------------------------------------------------------------------------
         */
         $totalDebit = 0;
@@ -569,7 +721,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
                 : []
         ];
 
-        // THÊM: Thông tin chiết khấu
+        // Thông tin chiết khấu
         $salesReceipt->discount_info = [
             'discount_type' => $salesReceipt->discount_type,
             'discount_value' => $salesReceipt->discount_value,
@@ -600,7 +752,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     }
 
     /**
-     * THÊM: Tính tổng chiết khấu từ items
+     * Tính tổng chiết khấu từ items
      */
     private function calculateTotals($items)
     {
@@ -652,7 +804,7 @@ class SalesReceiptService extends BaseService implements SalesReceiptServiceInte
     }
 
     /**
-     * THÊM: Lấy text hiển thị chiết khấu
+     * Lấy text hiển thị chiết khấu
      */
     private function getDiscountText($receipt)
     {

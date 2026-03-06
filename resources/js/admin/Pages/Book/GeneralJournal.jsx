@@ -33,20 +33,18 @@ import {
     BookOpen,
     ArrowRight,
     Loader2,
-    Search,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
-import GeneralLedgerTable from "@/admin/components/pages/book/GeneralLedgerTable";
+import GeneralJournalTable from "@/admin/components/pages/book/GeneralJournalTable";
 import { Head } from "@inertiajs/react";
 import useFlashToast from "@/admin/hooks/useFlashToast";
 import { formatCurrency } from "@/admin/utils/helpers";
 import { useReactToPrint } from "react-to-print";
-import GeneralLedgerPrint from "@/admin/components/shared/print/GeneralLedgerPrint";
-import SelectCombobox from "@/admin/components/ui/select-combobox";
+import GeneralJournalPrint from "@/admin/components/shared/print/GeneralJournalPrint";
 import { RangeDatePicker } from "@/admin/components/ui/date-picker";
 
-export default function GeneralLedgerIndex({ initialFilters, accounts }) {
+export default function GeneralJournalIndex({ initialFilters }) {
     useFlashToast();
 
     const [data, setData] = useState([]);
@@ -58,28 +56,22 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
         initialFilters?.end_date || getDefaultEndDate(),
     );
     const [accountCode, setAccountCode] = useState(
-        initialFilters?.account_code || "111",
+        initialFilters?.account_code || "all",
     );
     const [summary, setSummary] = useState({
         total_debit: 0,
         total_credit: 0,
-        transaction_count: 0,
+        total_entries: 0,
+        balance_diff: 0,
     });
-    const [openingBalance, setOpeningBalance] = useState(0);
-    const [closingBalance, setClosingBalance] = useState(0);
-    const [period, setPeriod] = useState({
-        start_date: "",
-        end_date: "",
-    });
+    const [period, setPeriod] = useState({ start_date: "", end_date: "" });
     const [accountInfo, setAccountInfo] = useState({
-        code: "111",
-        name: "Tiền mặt",
-        normal_balance: "debit",
+        account_code: "all",
+        account_name: "Tất cả tài khoản",
     });
     const [systems, setSystems] = useState({});
     const [isPrinting, setIsPrinting] = useState(false);
 
-    // Ref cho component in
     const printRef = useRef(null);
 
     // Hàm lấy ngày mặc định
@@ -94,7 +86,19 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
         return date.toISOString().split("T")[0];
     }
 
-    // Các tùy chọn khoảng thời gian nhanh
+    const accounts = [
+        { value: "all", label: "Tất cả tài khoản" },
+        { value: "111", label: "111 - Tiền mặt" },
+        { value: "112", label: "112 - Tiền gửi ngân hàng" },
+        { value: "131", label: "131 - Phải thu khách hàng" },
+        { value: "156", label: "156 - Hàng hóa" },
+        { value: "331", label: "331 - Phải trả người bán" },
+        { value: "511", label: "511 - Doanh thu bán hàng" },
+        { value: "632", label: "632 - Giá vốn hàng bán" },
+        { value: "641", label: "641 - Chi phí bán hàng" },
+        { value: "642", label: "642 - Chi phí quản lý" },
+    ];
+
     const quickRanges = [
         { label: "Hôm nay", days: 0 },
         { label: "7 ngày qua", days: 7 },
@@ -105,7 +109,6 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
         { label: "Năm nay", type: "year" },
     ];
 
-    // Xử lý chọn khoảng thời gian nhanh
     const handleQuickRange = (range) => {
         const today = new Date();
         let start = new Date();
@@ -125,11 +128,9 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
             start = new Date(today.getFullYear(), 0, 1);
             end = new Date(today.getFullYear(), 11, 31);
         } else if (range.days === 0) {
-            // Hôm nay
             start = today;
             end = today;
         } else {
-            // days ago
             start = new Date(today);
             start.setDate(today.getDate() - range.days);
             end = today;
@@ -147,58 +148,36 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                 end_date: endDate,
                 account_code: accountCode,
             };
-
             const res = await axios.post(
-                route("admin.book.ledger.filter"),
+                route("admin.book.journal.filter"),
                 params,
             );
-
             const response = res.data;
 
-            if (!response.success) {
+            if (!response.success)
                 throw new Error(response.message || "Không thể tải dữ liệu");
-            }
 
-            console.log("Dữ liệu từ API:", response.data);
-
-            // Lưu thông tin tài khoản
-            if (response.data.account) {
+            if (response.data.account_code) {
                 setAccountInfo({
-                    code: response.data.account.code,
-                    name: response.data.account.name,
-                    normal_balance:
-                        response.data.account.normal_balance || "debit",
+                    account_code: response.data.account_code,
+                    account_name: response.data.account_name,
                 });
             }
 
-            // Lưu dữ liệu giao dịch
             setData(response.data.data || []);
 
-            // Lưu summary
             if (response.data.summary) {
                 setSummary({
                     total_debit: response.data.summary.total_debit || 0,
                     total_credit: response.data.summary.total_credit || 0,
-                    transaction_count:
-                        response.data.summary.transaction_count || 0,
+                    total_entries: response.data.summary.total_entries || 0,
+                    balance_diff: response.data.summary.balance_diff || 0,
                 });
             }
 
-            // Lưu số dư
-            setOpeningBalance(response.data.opening_balance || 0);
-            setClosingBalance(response.data.closing_balance || 0);
-
-            // Lưu kỳ báo cáo
-            if (response.data.period) {
-                setPeriod(response.data.period);
-            }
-
-            // Lưu systems từ response
-            if (response.systems) {
-                setSystems(response.systems);
-            }
+            if (response.data.period) setPeriod(response.data.period);
+            if (response.systems) setSystems(response.systems);
         } catch (error) {
-            console.error("Lỗi khi tải dữ liệu:", error);
             toast.error(
                 error.response?.data?.message || "Không thể tải dữ liệu!",
             );
@@ -217,28 +196,14 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
         toast.success("Đã làm mới dữ liệu");
     };
 
-    const handleExport = () => {
-        toast.success("Đang xuất báo cáo...");
-        // Implement export functionality
-    };
-
-    // Xử lý in trực tiếp
     const handlePrint = useReactToPrint({
         contentRef: printRef,
-        documentTitle: `So-cai-${accountInfo.code}-${startDate}-${endDate}`,
+        documentTitle: `So-nhat-ky-chung-${startDate}-${endDate}`,
         pageStyle: `
-            @page {
-                size: A4 landscape;
-                margin: 10mm;
-            }
+            @page { size: A4 landscape; margin: 10mm; }
             @media print {
-                body {
-                    -webkit-print-color-adjust: exact;
-                    print-color-adjust: exact;
-                }
-                .no-print {
-                    display: none !important;
-                }
+                body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                .no-print { display: none !important; }
             }
         `,
         onBeforeGetContent: async () => {
@@ -253,43 +218,29 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
         onPrintError: (error) => {
             setIsPrinting(false);
             toast.dismiss("print-loading");
-            console.error("Print error:", error);
             toast.error("Có lỗi khi in! Vui lòng thử lại.");
         },
     });
 
-    // Format options cho SelectCombobox
-    const accountOptions = accounts.map((account) => ({
-        value: account.code,
-        label: account.display_name,
-    }));
-
-    const balanceTypeLabel =
-        accountInfo.normal_balance === "debit" ? "Nợ" : "Có";
-
     return (
         <AdminLayout
             breadcrumb={[
-                {
-                    label: "Dashboard",
-                    link: route("admin.dashboard.index"),
-                },
-                {
-                    label: "Sổ Cái",
-                },
+                { label: "Dashboard", link: route("admin.dashboard.index") },
+                { label: "Sổ Nhật Ký Chung" },
             ]}
         >
-            <Head title="Sổ Cái" />
+            <Head title="Sổ Nhật Ký Chung" />
 
             {/* Component in ẩn */}
             <div style={{ display: "none" }}>
-                <GeneralLedgerPrint
+                <GeneralJournalPrint
                     ref={printRef}
-                    result={{
-                        account: accountInfo,
+                    data={{
+                        account_code: accountInfo.account_code,
+                        account_name: accountInfo.account_name,
+                        start_date: period.start_date,
+                        end_date: period.end_date,
                         period: period,
-                        opening_balance: openingBalance,
-                        closing_balance: closingBalance,
                         data: data,
                         summary: summary,
                     }}
@@ -297,47 +248,23 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                 />
             </div>
 
-            {/* Period Info */}
-            <div className="mb-6 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                            <BookOpen className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                            <h2 className="text-xl font-bold">
-                                SỔ CÁI - TÀI KHOẢN {accountInfo.code}
-                            </h2>
-                            <p className="text-white/80 text-sm mt-1">
-                                {accountInfo.name} | Từ ngày {period.start_date}{" "}
-                                đến ngày {period.end_date}
-                            </p>
-                        </div>
-                    </div>
-                    <Badge className="bg-white/20 text-white border-0">
-                        <BookOpen className="h-4 w-4 mr-1" />
-                        Sổ cái
-                    </Badge>
-                </div>
-            </div>
-
-            {/* Summary Cards */}
+            {/* Summary Cards - Giống General Ledger */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-medium text-slate-500">
-                                Dư {balanceTypeLabel} đầu kỳ
+                                Tổng phát sinh Nợ
                             </p>
                             <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
-                                <DollarSign className="h-4 w-4 text-blue-600" />
+                                <TrendingUp className="h-4 w-4 text-blue-600" />
                             </div>
                         </div>
                         <p className="text-2xl font-bold text-blue-600">
-                            {formatCurrency(openingBalance)}
+                            {formatCurrency(summary.total_debit)}
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
-                            Tại ngày {period.start_date}
+                            {summary.total_entries} chứng từ
                         </p>
                     </CardContent>
                 </Card>
@@ -346,14 +273,17 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-medium text-slate-500">
-                                Phát sinh Nợ
+                                Tổng phát sinh Có
                             </p>
                             <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                                <TrendingUp className="h-4 w-4 text-green-600" />
+                                <TrendingDown className="h-4 w-4 text-green-600" />
                             </div>
                         </div>
                         <p className="text-2xl font-bold text-green-600">
-                            {formatCurrency(summary.total_debit)}
+                            {formatCurrency(summary.total_credit)}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            {summary.total_entries} chứng từ
                         </p>
                     </CardContent>
                 </Card>
@@ -362,14 +292,39 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-medium text-slate-500">
-                                Phát sinh Có
+                                Chênh lệch
                             </p>
-                            <div className="h-8 w-8 rounded-full bg-red-100 flex items-center justify-center">
-                                <TrendingDown className="h-4 w-4 text-red-600" />
+                            <div
+                                className={`h-8 w-8 rounded-full ${
+                                    summary.balance_diff === 0
+                                        ? "bg-green-100"
+                                        : "bg-red-100"
+                                } flex items-center justify-center`}
+                            >
+                                <BarChart3
+                                    className={`h-4 w-4 ${
+                                        summary.balance_diff === 0
+                                            ? "text-green-600"
+                                            : "text-red-600"
+                                    }`}
+                                />
                             </div>
                         </div>
-                        <p className="text-2xl font-bold text-red-600">
-                            {formatCurrency(summary.total_credit)}
+                        <p
+                            className={`text-2xl font-bold ${
+                                summary.balance_diff === 0
+                                    ? "text-green-600"
+                                    : "text-red-600"
+                            }`}
+                        >
+                            {formatCurrency(Math.abs(summary.balance_diff))}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                            {summary.balance_diff === 0
+                                ? "Cân đối"
+                                : summary.balance_diff > 0
+                                  ? "Nợ > Có"
+                                  : "Có > Nợ"}
                         </p>
                     </CardContent>
                 </Card>
@@ -378,50 +333,59 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                     <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
                             <p className="text-sm font-medium text-slate-500">
-                                Dư {balanceTypeLabel} cuối kỳ
+                                Số chứng từ
                             </p>
                             <div className="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                                <DollarSign className="h-4 w-4 text-purple-600" />
+                                <FileText className="h-4 w-4 text-purple-600" />
                             </div>
                         </div>
                         <p className="text-2xl font-bold text-purple-600">
-                            {formatCurrency(closingBalance)}
+                            {summary.total_entries}
                         </p>
-                        <p className="text-xs text-slate-400 mt-1">
-                            Tại ngày {period.end_date}
-                        </p>
+                        <p className="text-xs text-slate-400 mt-1">Trong kỳ</p>
                     </CardContent>
                 </Card>
             </div>
 
             <Card className="rounded-md shadow-lg border-slate-200 overflow-hidden">
-                {/* HEADER - Gradient Header */}
+                {/* HEADER - Gradient Header giống General Ledger */}
                 <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <CardTitle className="text-2xl font-bold text-white mb-1 flex items-center gap-2">
                                 <BookOpen className="h-6 w-6" />
-                                Sổ Cái - Tài khoản {accountInfo.code}
+                                Sổ Nhật Ký Chung
+                                {accountInfo.account_code !== "all" &&
+                                    ` - Tài khoản ${accountInfo.account_code}`}
                             </CardTitle>
                             <CardDescription className="text-white/80">
-                                Chi tiết phát sinh của tài khoản{" "}
-                                {accountInfo.name} trong kỳ.
+                                {accountInfo.account_code !== "all"
+                                    ? `Chi tiết phát sinh của tài khoản ${accountInfo.account_name} trong kỳ.`
+                                    : "Theo dõi tất cả các nghiệp vụ kinh tế phát sinh trong kỳ."}
                             </CardDescription>
                         </div>
 
                         <div className="flex items-center gap-2">
-                            {/* Account Filter - Sử dụng SelectCombobox */}
-                            <div className="w-[300px]">
-                                <SelectCombobox
-                                    label=""
-                                    value={accountCode}
-                                    onChange={setAccountCode}
-                                    options={accountOptions}
-                                    placeholder="Chọn tài khoản..."
-                                    searchPlaceholder="Tìm kiếm tài khoản..."
-                                    icon={<Search className="h-4 w-4" />}
-                                />
-                            </div>
+                            {/* Account Filter */}
+                            <Select
+                                value={accountCode}
+                                onValueChange={setAccountCode}
+                            >
+                                <SelectTrigger className="w-[220px] bg-white/20 text-white border-white/30 focus:ring-white">
+                                    <SelectValue placeholder="Chọn tài khoản" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {accounts.map((account) => (
+                                        <SelectItem
+                                            key={account.value}
+                                            value={account.value}
+                                            className="cursor-pointer"
+                                        >
+                                            {account.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
 
                             <Button
                                 onClick={handleRefresh}
@@ -431,15 +395,6 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                                 <RefreshCw className="mr-2 h-4 w-4" />
                                 Làm mới
                             </Button>
-
-                            {/* <Button
-                                onClick={handleExport}
-                                variant="secondary"
-                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Xuất Excel
-                            </Button> */}
 
                             <Button
                                 onClick={handlePrint}
@@ -452,14 +407,14 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                                 ) : (
                                     <Printer className="w-4 h-4 mr-2" />
                                 )}
-                                {isPrinting ? "Đang in..." : "In sổ cái"}
+                                {isPrinting ? "Đang in..." : "In sổ"}
                             </Button>
                         </div>
                     </div>
                 </div>
 
                 <CardContent className="p-6 space-y-4">
-                    {/* Filter Section */}
+                    {/* Filter Section - Giống General Ledger */}
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
                         <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-end">
                             <div className="flex-1">
@@ -509,13 +464,11 @@ export default function GeneralLedgerIndex({ initialFilters, accounts }) {
                         </div>
                     </div>
 
-                    <GeneralLedgerTable
+                    {/* Table */}
+                    <GeneralJournalTable
                         data={data}
                         loading={loading}
                         accountInfo={accountInfo}
-                        openingBalance={openingBalance}
-                        closingBalance={closingBalance}
-                        summary={summary}
                     />
                 </CardContent>
             </Card>

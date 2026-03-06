@@ -282,11 +282,6 @@ export default function CustomerDebtIndex({ initialFilters }) {
         toast.success("Đã làm mới dữ liệu");
     };
 
-    const handleExport = () => {
-        toast.success("Đang xuất báo cáo...");
-        // Implement export functionality
-    };
-
     const handlePrint = () => {
         router.get(route("admin.debt.customer.print"), {
             start_date: startDate,

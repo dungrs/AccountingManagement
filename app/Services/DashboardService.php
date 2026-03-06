@@ -13,6 +13,7 @@ use App\Repositories\SupplierRepository;
 use App\Repositories\Journal\JournalEntryDetailRepository;
 use App\Repositories\Debt\CustomerDebtRepository;
 use App\Repositories\Debt\SupplierDebtRepository;
+use App\Services\Inventory\InventoryService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,7 @@ class DashboardService extends BaseService
     protected $journalEntryDetailRepository;
     protected $customerDebtRepository;
     protected $supplierDebtRepository;
+    protected $inventoryService;
 
     // Mã tài khoản
     const ACCOUNT_REVENUE = '511';
@@ -49,7 +51,8 @@ class DashboardService extends BaseService
         SupplierRepository $supplierRepository,
         JournalEntryDetailRepository $journalEntryDetailRepository,
         CustomerDebtRepository $customerDebtRepository,
-        SupplierDebtRepository $supplierDebtRepository
+        SupplierDebtRepository $supplierDebtRepository,
+        InventoryService $inventoryService,
     ) {
         $this->salesReceiptRepository = $salesReceiptRepository;
         $this->purchaseReceiptRepository = $purchaseReceiptRepository;
@@ -61,6 +64,7 @@ class DashboardService extends BaseService
         $this->journalEntryDetailRepository = $journalEntryDetailRepository;
         $this->customerDebtRepository = $customerDebtRepository;
         $this->supplierDebtRepository = $supplierDebtRepository;
+        $this->inventoryService = $inventoryService;
     }
 
     /**
@@ -90,7 +94,7 @@ class DashboardService extends BaseService
             'debts' => $this->getDebtData(),
 
             // Tồn kho
-            'inventory' => $this->productVariantRepository->getInventorySummary(),
+            'inventory' => $this->inventoryService->getInventorySummary(),
 
             // Hoạt động gần đây
             'recent_activities' => $this->getRecentActivities(),
@@ -131,7 +135,7 @@ class DashboardService extends BaseService
         $totalProducts = $this->productVariantRepository->countActiveProducts();
 
         // Giá trị tồn kho
-        $inventoryValue = $this->productVariantRepository->getTotalInventoryValue();
+        $inventoryValue = $this->inventoryService->getTotalInventoryValue();
 
         // Tỷ lệ tăng trưởng so với tháng trước
         $lastMonthStart = $startOfMonth->copy()->subMonth();

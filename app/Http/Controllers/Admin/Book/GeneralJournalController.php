@@ -4,53 +4,53 @@ namespace App\Http\Controllers\Admin\Book;
 
 use App\Http\Controllers\Admin\Controller;
 use Illuminate\Http\Request;
-use App\Services\Book\CashBookService;
+use App\Services\Book\GeneralJournalService;
 use App\Services\SystemService;
 use Inertia\Inertia;
 
-class CashBookController extends Controller
+class GeneralJournalController extends Controller
 {
-    protected $cashBookService;
+    protected $generalJournalService;
     protected $systemService;
 
     public function __construct(
-        CashBookService $cashBookService,
+        GeneralJournalService $generalJournalService,
         SystemService $systemService
     ) {
-        $this->cashBookService = $cashBookService;
+        $this->generalJournalService = $generalJournalService;
         $this->systemService = $systemService;
     }
 
     /**
-     * Hiển thị trang sổ quỹ
+     * Hiển thị trang sổ nhật ký chung
      */
     public function index()
     {
-        $this->authorize('modules', 'book.cash.index');
+        // $this->authorize('modules', 'book.journal.index');
 
         // Mặc định lấy tháng hiện tại
         $now = now();
         $startDate = $now->copy()->startOfMonth()->format('Y-m-d');
         $endDate = $now->copy()->endOfMonth()->format('Y-m-d');
 
-        return Inertia::render('Book/CashBook', [
+        return Inertia::render('Book/GeneralJournal', [
             'initialFilters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,
-                'payment_method' => 'cash'
+                'account_code' => 'all'
             ]
         ]);
     }
 
     /**
-     * Lấy dữ liệu sổ quỹ
+     * Lấy dữ liệu sổ nhật ký chung
      */
     public function filter(Request $request)
     {
-        $this->authorize('modules', 'book.cash.index');
+        // $this->authorize('modules', 'book.journal.index');
 
         try {
-            $cashBook = $this->cashBookService->getCashBook($request);
+            $generalJournal = $this->generalJournalService->getGeneralJournal($request);
             $systems = $this->systemService->getSystemDetails();
             $system_languages = $systems
                 ->where('language_id', 1)
@@ -59,7 +59,7 @@ class CashBookController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => $cashBook,
+                'data' => $generalJournal,
                 'systems' => $system_languages,
             ]);
         } catch (\Exception $e) {

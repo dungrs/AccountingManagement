@@ -42,7 +42,7 @@ class SystemController extends Controller
 
     public function create(Request $request)
     {
-        $this->authorize('modules', 'system.create');
+        $this->authorize('modules', 'system.update');
 
         try {
             $this->systemService->create($request);

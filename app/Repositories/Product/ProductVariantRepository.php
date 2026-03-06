@@ -80,6 +80,11 @@ class ProductVariantRepository extends BaseRepository implements ProductVariantR
             ->get();
     }
 
+    public function countActiveProducts(): int
+    {
+        return $this->model->where('publish', 1)->count();
+    }
+
     /**
      * Tìm variant theo attribute
      */

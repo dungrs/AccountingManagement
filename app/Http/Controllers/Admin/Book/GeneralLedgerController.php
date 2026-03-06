@@ -36,7 +36,7 @@ class GeneralLedgerController extends Controller
         $startDate = $now->copy()->startOfMonth()->format('Y-m-d');
         $endDate = $now->copy()->endOfMonth()->format('Y-m-d');
 
-        return Inertia::render('GeneralLedger/Home', [
+        return Inertia::render('Book/GeneralLedger', [
             'initialFilters' => [
                 'start_date' => $startDate,
                 'end_date' => $endDate,

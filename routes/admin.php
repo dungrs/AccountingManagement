@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\Attribute\AttributeCatalogueController;
 use App\Http\Controllers\Admin\Attribute\AttributeController;
 use App\Http\Controllers\Admin\BankController;
 use App\Http\Controllers\Admin\Book\CashBookController;
+use App\Http\Controllers\Admin\Book\GeneralJournalController;
 use App\Http\Controllers\Admin\Customer\CustomerCatalogueController;
 use App\Http\Controllers\Admin\Customer\CustomerController;
 use App\Http\Controllers\Admin\Debt\CustomerDebtController;
@@ -281,6 +282,12 @@ Route::middleware('auth')->group(function () {
         Route::get('index', [GeneralLedgerController::class, 'index'])->name('admin.book.ledger.index');
         Route::post('filter', [GeneralLedgerController::class, 'filter'])->name('admin.book.ledger.filter');
         Route::get('accounts', [GeneralLedgerController::class, 'getAccounts'])->name('admin.book.ledger.accounts');
+    });
+
+    // GENERAL JOURNAL (SỔ NHẬT KÝ CHUNG)
+    Route::prefix('book/journal')->group(function () {
+        Route::get('index', [GeneralJournalController::class, 'index'])->name('admin.book.journal.index');
+        Route::post('filter', [GeneralJournalController::class, 'filter'])->name('admin.book.journal.filter');
     });
 
     // UNIT

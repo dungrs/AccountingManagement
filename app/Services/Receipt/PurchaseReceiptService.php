@@ -12,6 +12,7 @@ use App\Services\Inventory\InventoryService;
 use App\Services\JournalEntryService;
 use App\Services\Product\ProductVariantService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 
 class PurchaseReceiptService extends BaseService implements PurchaseReceiptServiceInterface
@@ -23,6 +24,13 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     protected $supplierDebtService;
     protected $productVariantService;
     protected $inventoryService;
+
+    // Tài khoản kế toán
+    const ACCOUNT_PAYABLE = '331'; // Phải trả người bán
+    const ACCOUNT_INVENTORY = '156'; // Hàng hóa
+    const ACCOUNT_VAT_INPUT = '133'; // Thuế VAT đầu vào
+    const ACCOUNT_CASH = '111'; // Tiền mặt
+    const ACCOUNT_BANK = '112'; // Tiền gửi ngân hàng
 
     public function __construct(
         PurchaseReceiptRepository $purchaseReceiptRepository,
@@ -88,7 +96,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             // Lấy items từ request
             $items = $request->input('product_variants', []);
 
-            // Tính toán từ product_variants (nếu cần, nhưng có thể dùng journal_entries để tính)
+            // Tính toán từ product_variants
             $calculation = $this->calculateTotals($items);
 
             $payload['total_amount'] = $calculation['total_amount'];
@@ -105,9 +113,12 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             // Lưu items
             $this->syncPurchaseReceiptItems($receipt, $calculation['items']);
 
+            // ✅ Lấy journal entries từ request
+            $journalEntries = $request->input('journal_entries', []);
+
             // Tạo journal entries từ dữ liệu gửi lên
-            if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
-                $journalData = $this->prepareJournalData($request->input('journal_entries'));
+            if (!empty($journalEntries)) {
+                $journalData = $this->prepareJournalData($journalEntries, $request->input('journal_note'));
 
                 $this->journalEntryService->createFromRequest(
                     'purchase_receipt',
@@ -117,9 +128,9 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 );
             }
 
-            // Xử lý khi xác nhận - tăng tồn kho và tạo công nợ
+            // ✅ Xử lý khi xác nhận - chỉ tạo công nợ nếu có tài khoản 331 trong journal_entries
             if ($payload['status'] === 'confirmed') {
-                $this->handleConfirm($receipt);
+                $this->handleConfirm($receipt, $journalEntries);
             }
 
             return $receipt;
@@ -190,9 +201,12 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 // Cập nhật items
                 $this->syncPurchaseReceiptItems($receipt, $calculation['items']);
 
+                // ✅ Lấy journal entries từ request
+                $journalEntries = $request->input('journal_entries', []);
+
                 // Cập nhật journal entries
-                if ($request->has('journal_entries') && !empty($request->input('journal_entries'))) {
-                    $journalData = $this->prepareJournalData($request->input('journal_entries'));
+                if (!empty($journalEntries)) {
+                    $journalData = $this->prepareJournalData($journalEntries, $request->input('journal_note'));
 
                     $this->journalEntryService->updateJournalByReference(
                         'purchase_receipt',
@@ -205,7 +219,7 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
                 // Nếu từ draft → confirmed
                 if ($newStatus === 'confirmed') {
                     $receipt = $this->purchaseReceiptRepository->findById($id);
-                    $this->handleConfirm($receipt);
+                    $this->handleConfirm($receipt, $journalEntries);
                 }
 
                 return true;
@@ -243,9 +257,23 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     }
 
     /**
-     * Xử lý khi xác nhận phiếu nhập
+     * ✅ Kiểm tra xem có sử dụng tài khoản 331 không
      */
-    private function handleConfirm($receipt)
+    private function hasPayableAccount(array $journalEntries): bool
+    {
+        foreach ($journalEntries as $entry) {
+            $accountCode = $entry['account_code'] ?? '';
+            if ($accountCode === self::ACCOUNT_PAYABLE) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ✅ Xử lý khi xác nhận phiếu nhập
+     */
+    private function handleConfirm($receipt, array $journalEntries = [])
     {
         // 1️⃣ Tăng tồn kho và ghi nhận giao dịch nhập kho với giá nhập
         $this->inventoryService->receiveStock(
@@ -255,22 +283,33 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
             Carbon::parse($receipt->receipt_date)
         );
 
-        // 2️⃣ Tạo công nợ nhà cung cấp (dựa vào tổng tiền từ phiếu nhập)
-        $this->supplierDebtService->createDebtForPurchaseReceipt($receipt);
+        // 2️⃣ ✅ Tạo công nợ nhà cung cấp CHỈ KHI có tài khoản 331 trong journal entries
+        if ($this->hasPayableAccount($journalEntries)) {
+            $this->supplierDebtService->createDebtForPurchaseReceipt($receipt);
+            Log::info('Đã tạo công nợ cho nhà cung cấp', [
+                'receipt_id' => $receipt->id,
+                'supplier_id' => $receipt->supplier_id
+            ]);
+        } else {
+            Log::info('Không tạo công nợ vì không sử dụng TK 331', [
+                'receipt_id' => $receipt->id,
+                'payment_method' => $receipt->payment_method ?? 'unknown'
+            ]);
+        }
 
         // 3️⃣ Xác nhận journal entries (nếu cần)
         $this->journalEntryService->confirmJournalByReference('purchase_receipt', $receipt->id);
     }
 
     /**
-     * Xử lý khi hủy phiếu nhập
+     * ✅ Xử lý khi hủy phiếu nhập
      */
     private function handleCancel($receipt)
     {
         // 1️⃣ Hoàn nhập giao dịch tồn kho
         $this->inventoryService->revertTransactions('purchase_receipt', $receipt->id);
 
-        // 2️⃣ Xóa công nợ nhà cung cấp
+        // 2️⃣ Xóa công nợ nhà cung cấp (nếu có)
         $this->supplierDebtService->deleteDebtByReference('purchase_receipt', $receipt->id);
 
         // 3️⃣ Xóa định khoản
@@ -278,41 +317,25 @@ class PurchaseReceiptService extends BaseService implements PurchaseReceiptServi
     }
 
     /**
-     * Chuẩn bị dữ liệu journal entries từ request
+     * ✅ Chuẩn bị dữ liệu journal entries từ request
      */
-    private function prepareJournalData($journalEntries)
+    private function prepareJournalData($journalEntries, $journalNote = null)
     {
         $formattedEntries = [];
 
         foreach ($journalEntries as $entry) {
-            // Lấy account_id từ account_code
-            $accountId = $this->getAccountIdByCode($entry['account_code']);
-
-            if ($accountId) {
-                $formattedEntries[] = [
-                    'account_id' => $accountId,
-                    'debit' => $entry['debit'],
-                    'credit' => $entry['credit'],
-                ];
-            }
+            $formattedEntries[] = [
+                'account_code' => $entry['account_code'] ?? '',
+                'debit' => (float)($entry['debit'] ?? 0),
+                'credit' => (float)($entry['credit'] ?? 0),
+                'note' => $entry['note'] ?? null,
+            ];
         }
 
         return [
             'entries' => $formattedEntries,
-            'note' => request()->input('journal_note') ?? 'Bút toán từ phiếu nhập',
+            'note' => $journalNote ?? 'Bút toán từ phiếu nhập',
         ];
-    }
-
-    /**
-     * Lấy account_id từ account_code
-     */
-    private function getAccountIdByCode($accountCode)
-    {
-        $account = DB::table('accounting_accounts')
-            ->where('account_code', $accountCode)
-            ->first();
-
-        return $account ? $account->id : null;
     }
 
     private function syncPurchaseReceiptItems($purchaseReceipt, $items)
