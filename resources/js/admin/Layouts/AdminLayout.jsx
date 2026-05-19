@@ -58,6 +58,8 @@ import {
     X,
     Store,
     BookOpen,
+    FileDown,
+    FileUp,
 } from "lucide-react";
 
 import { useEventBus } from "@/EventBus";
@@ -309,14 +311,26 @@ export default function AdminLayout({ children, breadcrumb }) {
                 {
                     title: "Công nợ nhà cung cấp",
                     href: route("admin.debt.supplier.index"),
-                    description: "Theo dõi công nợ NCC",
+                    description: "Theo dõi công nợ nhà cung cấp",
                     icon: Truck,
                 },
                 {
                     title: "Công nợ khách hàng",
                     href: route("admin.debt.customer.index"),
-                    description: "Theo dõi công nợ KH",
+                    description: "Theo dõi công nợ khách hàng",
                     icon: User,
+                },
+                {
+                    title: "Giấy báo nợ",
+                    href: route("admin.note.debit.index"),
+                    description: "Theo dõi giấy báo nợ",
+                    icon: FileDown,
+                },
+                {
+                    title: "Giấy báo có",
+                    href: route("admin.note.credit.index"),
+                    description: "Theo dõi giấy báo có",
+                    icon: FileUp,
                 },
             ],
         },

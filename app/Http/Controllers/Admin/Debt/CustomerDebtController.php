@@ -48,6 +48,13 @@ class CustomerDebtController extends Controller
     public function filter(Request $request)
     {
         $this->authorize('modules', 'debt.customer.index');
+        // Lấy thông tin công ty
+        $systems = $this->systemService->getSystemDetails();
+
+        $system_languages = $systems
+            ->where('language_id', 1)
+            ->pluck('content', 'keyword')
+            ->toArray();
 
         try {
             $customerDebts = $this->customerDebtService->paginate($request);
@@ -64,7 +71,8 @@ class CustomerDebtController extends Controller
                     'total' => 0,
                     'from' => 0,
                     'to' => 0
-                ]
+                ],
+                'systems' => $system_languages,
             ]);
         } catch (\Exception $e) {
             return response()->json([

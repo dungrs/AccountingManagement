@@ -51,6 +51,13 @@ class SupplierDebtController extends Controller
 
         try {
             $supplierDebts = $this->supplierDebtService->paginate($request);
+            // Lấy thông tin công ty
+            $systems = $this->systemService->getSystemDetails();
+
+            $system_languages = $systems
+                ->where('language_id', 1)
+                ->pluck('content', 'keyword')
+                ->toArray();
 
             return response()->json([
                 'success' => true,
@@ -64,7 +71,8 @@ class SupplierDebtController extends Controller
                     'total' => 0,
                     'from' => 0,
                     'to' => 0
-                ]
+                ],
+                'systems' => $system_languages,
             ]);
         } catch (\Exception $e) {
             return response()->json([

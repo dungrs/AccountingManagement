@@ -241,10 +241,10 @@ const GeneralLedgerPrint = forwardRef(({ result, systems }, ref) => {
                                 ></td>
                                 <td style={{ ...tdStyle, textAlign: "center" }}>
                                     {row.contra_accounts?.length > 0
-                                        ? row.contra_accounts
+                                        ? row.contra_account_code
                                               .map((acc) => acc.code)
                                               .join(", ")
-                                        : row.reference_type_label || ""}
+                                        : row.contra_account_code || ""}
                                 </td>
                                 <td style={{ ...tdStyle, textAlign: "right" }}>
                                     {row.debit ? formatNumber(row.debit) : ""}

@@ -12,6 +12,8 @@ use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Models\SalesReceipt;
 use App\Models\ReceiptVoucher;
+use App\Models\DebitNote;
+use App\Models\CreditNote;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -19,6 +21,8 @@ use Illuminate\Pagination\LengthAwarePaginator;
 class CustomerDebtService extends BaseService implements CustomerDebtServiceInterface
 {
     protected const ACCOUNT_RECEIVABLE = '131'; // Phải thu khách hàng
+    protected const REF_TYPE_DEBIT_NOTE = 'debit_note';
+    protected const REF_TYPE_CREDIT_NOTE = 'credit_note';
     protected const REF_TYPE_SALES = 'sales_receipt';
     protected const REF_TYPE_RECEIPT = 'receipt_voucher';
     protected const TAX_ACCOUNT = '3331'; // Thuế GTGT đầu ra
@@ -117,6 +121,417 @@ class CustomerDebtService extends BaseService implements CustomerDebtServiceInte
             'opening_balance' => $openingBalance,
             'transactions'    => $transactions,
             'summary'         => $summary
+        ];
+    }
+
+        /**
+     * Tạo công nợ khi lập giấy báo nợ (Debit Note) cho khách hàng
+     * Báo nợ khách hàng: Tăng công nợ phải thu (ghi Nợ TK 131)
+     * 
+     * @param DebitNote $debitNote Giấy báo nợ
+     * @return mixed
+     */
+    public function createDebtForDebitNote($debitNote)
+    {
+        // Chỉ xử lý nếu debit note có customer_id (báo nợ khách hàng)
+        if (!$debitNote->customer_id) {
+            return null;
+        }
+
+        return DB::transaction(
+            fn() =>
+            $this->customerDebtRepository->create([
+                'customer_id'      => $debitNote->customer_id,
+                'reference_type'   => self::REF_TYPE_DEBIT_NOTE,
+                'reference_id'     => $debitNote->id,
+                'debit'            => $debitNote->total_amount,  // Giấy báo nợ: ghi Nợ (tăng công nợ)
+                'credit'           => 0,
+                'transaction_date' => $debitNote->issue_date ?? now(),
+            ])
+        );
+    }
+
+    /**
+     * Tạo công nợ khi lập giấy báo có (Credit Note) cho khách hàng
+     * Báo có khách hàng: Giảm công nợ phải thu (ghi Có TK 131)
+     * 
+     * @param CreditNote $creditNote Giấy báo có
+     * @return mixed
+     */
+    public function createDebtForCreditNote($creditNote)
+    {
+        // Chỉ xử lý nếu credit note có customer_id (báo có khách hàng)
+        if (!$creditNote->customer_id) {
+            return null;
+        }
+
+        return DB::transaction(
+            fn() =>
+            $this->customerDebtRepository->create([
+                'customer_id'      => $creditNote->customer_id,
+                'reference_type'   => self::REF_TYPE_CREDIT_NOTE,
+                'reference_id'     => $creditNote->id,
+                'debit'            => 0,
+                'credit'           => $creditNote->total_amount,  // Giấy báo có: ghi Có (giảm công nợ)
+                'transaction_date' => $creditNote->issue_date ?? now(),
+            ])
+        );
+    }
+
+    /**
+     * Cập nhật hoặc tạo mới công nợ cho Debit Note (nếu cần điều chỉnh)
+     * 
+     * @param DebitNote $debitNote Giấy báo nợ
+     * @param array $data Dữ liệu cập nhật
+     * @return mixed
+     */
+    public function updateDebtForDebitNote($debitNote, array $data = [])
+    {
+        if (!$debitNote->customer_id) {
+            return null;
+        }
+
+        $existingDebt = $this->customerDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_DEBIT_NOTE],
+            ['reference_id', '=', $debitNote->id],
+        ], false);
+
+        $debtData = [
+            'customer_id'      => $debitNote->customer_id,
+            'reference_type'   => self::REF_TYPE_DEBIT_NOTE,
+            'reference_id'     => $debitNote->id,
+            'debit'            => $data['debit'] ?? $debitNote->total_amount,
+            'credit'           => $data['credit'] ?? 0,
+            'transaction_date' => $data['transaction_date'] ?? ($debitNote->issue_date ?? now()),
+        ];
+
+        if ($existingDebt) {
+            return $this->customerDebtRepository->update($existingDebt->id, $debtData);
+        }
+
+        return $this->customerDebtRepository->create($debtData);
+    }
+
+    /**
+     * Cập nhật hoặc tạo mới công nợ cho Credit Note (nếu cần điều chỉnh)
+     * 
+     * @param CreditNote $creditNote Giấy báo có
+     * @param array $data Dữ liệu cập nhật
+     * @return mixed
+     */
+    public function updateDebtForCreditNote($creditNote, array $data = [])
+    {
+        if (!$creditNote->customer_id) {
+            return null;
+        }
+
+        $existingDebt = $this->customerDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_CREDIT_NOTE],
+            ['reference_id', '=', $creditNote->id],
+        ], false);
+
+        $debtData = [
+            'customer_id'      => $creditNote->customer_id,
+            'reference_type'   => self::REF_TYPE_CREDIT_NOTE,
+            'reference_id'     => $creditNote->id,
+            'debit'            => $data['debit'] ?? 0,
+            'credit'           => $data['credit'] ?? $creditNote->total_amount,
+            'transaction_date' => $data['transaction_date'] ?? ($creditNote->issue_date ?? now()),
+        ];
+
+        if ($existingDebt) {
+            return $this->customerDebtRepository->update($existingDebt->id, $debtData);
+        }
+
+        return $this->customerDebtRepository->create($debtData);
+    }
+
+    /**
+     * Lấy công nợ theo Debit Note
+     * 
+     * @param int $debitNoteId ID giấy báo nợ
+     * @return mixed
+     */
+    public function getDebtByDebitNote(int $debitNoteId)
+    {
+        return $this->customerDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_DEBIT_NOTE],
+            ['reference_id', '=', $debitNoteId],
+        ], false);
+    }
+
+    /**
+     * Lấy công nợ theo Credit Note
+     * 
+     * @param int $creditNoteId ID giấy báo có
+     * @return mixed
+     */
+    public function getDebtByCreditNote(int $creditNoteId)
+    {
+        return $this->customerDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_CREDIT_NOTE],
+            ['reference_id', '=', $creditNoteId],
+        ], false);
+    }
+
+    /**
+     * Lấy tổng số tiền từ Debit Notes trong kỳ cho khách hàng
+     * 
+     * @param int $customerId ID khách hàng
+     * @param Carbon $startDate Ngày bắt đầu
+     * @param Carbon $endDate Ngày kết thúc
+     * @return float
+     */
+    public function getTotalDebitNoteAmount(int $customerId, Carbon $startDate, Carbon $endDate): float
+    {
+        $debts = $this->customerDebtRepository->findByCondition([
+            ['customer_id', '=', $customerId],
+            ['reference_type', '=', self::REF_TYPE_DEBIT_NOTE],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ], true);
+
+        return (float) $debts->sum('debit');
+    }
+
+    /**
+     * Lấy tổng số tiền từ Credit Notes trong kỳ cho khách hàng
+     * 
+     * @param int $customerId ID khách hàng
+     * @param Carbon $startDate Ngày bắt đầu
+     * @param Carbon $endDate Ngày kết thúc
+     * @return float
+     */
+    public function getTotalCreditNoteAmount(int $customerId, Carbon $startDate, Carbon $endDate): float
+    {
+        $debts = $this->customerDebtRepository->findByCondition([
+            ['customer_id', '=', $customerId],
+            ['reference_type', '=', self::REF_TYPE_CREDIT_NOTE],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ], true);
+
+        return (float) $debts->sum('credit');
+    }
+
+    // =========================================================================
+    // CORE CALCULATION - Cập nhật để bao gồm Debit Note và Credit Note
+    // =========================================================================
+
+    /**
+     * ✅ Cập nhật: Tính số dư tại một thời điểm từ bảng customer_debts
+     * Đã bao gồm cả Debit Note và Credit Note
+     * Với TK 131: Số dư = Nợ (tăng nợ) - Có (giảm nợ)
+     */
+    protected function calculateCustomerBalanceFromDebts(int $customerId, ?Carbon $endDate): float
+    {
+        $condition = [['customer_id', '=', $customerId]];
+
+        if ($endDate) {
+            $condition[] = ['transaction_date', '<=', $endDate];
+        }
+
+        $debts = $this->customerDebtRepository->findByCondition(
+            $condition,
+            true,
+            [],
+            [],
+            ['debit', 'credit'],
+            [],
+            null,
+            []
+        );
+
+        // debit = tăng nợ (Sales Receipt + Debit Note)
+        // credit = giảm nợ (Receipt Voucher + Credit Note)
+        return (float)($debts->sum('debit') - $debts->sum('credit'));
+    }
+
+    /**
+     * ✅ Cập nhật: Tính phát sinh trong kỳ từ bảng customer_debts
+     * Đã bao gồm cả Debit Note và Credit Note
+     */
+    protected function calculateCustomerPeriodTransactions(
+        int $customerId,
+        Carbon $startDate,
+        Carbon $endDate
+    ): array {
+        $condition = [
+            ['customer_id', '=', $customerId],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ];
+
+        $debts = $this->customerDebtRepository->findByCondition(
+            $condition,
+            true,
+            [],
+            [],
+            ['debit', 'credit'],
+            [],
+            null,
+            []
+        );
+
+        return [
+            'total_debit'  => (float)$debts->sum('debit'),
+            'total_credit' => (float)$debts->sum('credit'),
+            'count'        => $debts->count(),
+        ];
+    }
+
+    // =========================================================================
+    // THÊM REFERENCE TYPE VÀO getReferenceDetails
+    // =========================================================================
+
+    /**
+     * Cập nhật: Lấy thông tin chi tiết của chứng từ tham chiếu
+     * Đã bao gồm Debit Note và Credit Note
+     */
+    protected function getReferenceDetails(string $referenceType, int $referenceId): array
+    {
+        $result = ['code' => null, 'note' => null];
+
+        $reference = match ($referenceType) {
+            self::REF_TYPE_SALES        => SalesReceipt::find($referenceId),
+            self::REF_TYPE_RECEIPT      => ReceiptVoucher::find($referenceId),
+            self::REF_TYPE_DEBIT_NOTE   => DebitNote::find($referenceId),
+            self::REF_TYPE_CREDIT_NOTE  => CreditNote::find($referenceId),
+            default                     => null,
+        };
+
+        if ($reference) {
+            $result['code'] = $reference->code;
+            $result['note'] = $reference->note ?? $reference->reason ?? null;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Cập nhật: Áp dụng filter journal entry cho khách hàng
+     * Đã bao gồm Debit Note và Credit Note
+     */
+    protected function applyJournalEntryFilters(
+        $query,
+        int $customerId,
+        ?Carbon $startDate,
+        ?Carbon $endDate
+    ): void {
+        $query->where(function ($q) use ($customerId) {
+            // Sales Receipt (Phiếu xuất bán)
+            $q->where(function ($sub) use ($customerId) {
+                $sub->where('reference_type', self::REF_TYPE_SALES)
+                    ->whereExists(function ($exists) use ($customerId) {
+                        $exists->select(DB::raw(1))
+                            ->from('sales_receipts')
+                            ->whereColumn('sales_receipts.id', 'journal_entries.reference_id')
+                            ->where('sales_receipts.customer_id', $customerId);
+                    });
+            })
+            // Receipt Voucher (Phiếu thu)
+            ->orWhere(function ($sub) use ($customerId) {
+                $sub->where('reference_type', self::REF_TYPE_RECEIPT)
+                    ->whereExists(function ($exists) use ($customerId) {
+                        $exists->select(DB::raw(1))
+                            ->from('receipt_vouchers')
+                            ->whereColumn('receipt_vouchers.id', 'journal_entries.reference_id')
+                            ->where('receipt_vouchers.customer_id', $customerId);
+                    });
+            })
+            // Debit Note (Giấy báo nợ)
+            ->orWhere(function ($sub) use ($customerId) {
+                $sub->where('reference_type', self::REF_TYPE_DEBIT_NOTE)
+                    ->whereExists(function ($exists) use ($customerId) {
+                        $exists->select(DB::raw(1))
+                            ->from('debit_notes')
+                            ->whereColumn('debit_notes.id', 'journal_entries.reference_id')
+                            ->where('debit_notes.customer_id', $customerId);
+                    });
+            })
+            // Credit Note (Giấy báo có)
+            ->orWhere(function ($sub) use ($customerId) {
+                $sub->where('reference_type', self::REF_TYPE_CREDIT_NOTE)
+                    ->whereExists(function ($exists) use ($customerId) {
+                        $exists->select(DB::raw(1))
+                            ->from('credit_notes')
+                            ->whereColumn('credit_notes.id', 'journal_entries.reference_id')
+                            ->where('credit_notes.customer_id', $customerId);
+                    });
+            });
+        });
+
+        if ($startDate) {
+            $query->where('entry_date', '>=', $startDate);
+        }
+        if ($endDate) {
+            $query->where('entry_date', '<=', $endDate);
+        }
+    }
+
+    // =========================================================================
+    // BUILD FALLBACK TRANSACTION (Cập nhật thêm nhãn cho Debit/Credit Note)
+    // =========================================================================
+
+    /**
+     * Xây dựng dòng transaction fallback khi chưa có journal entry.
+     * Cập nhật thêm nhãn cho Debit Note và Credit Note
+     */
+    protected function buildFallbackTransaction(
+        array $ref,
+        array $referenceInfo,
+        string $referenceTypeLabel
+    ): array {
+        // Xác định label phù hợp cho từng loại chứng từ
+        $typeLabel = match ($ref['reference_type']) {
+            self::REF_TYPE_SALES        => 'PXK',
+            self::REF_TYPE_RECEIPT      => 'PT',
+            self::REF_TYPE_DEBIT_NOTE   => 'BN',
+            self::REF_TYPE_CREDIT_NOTE  => 'BC',
+            default                     => $referenceTypeLabel,
+        };
+
+        // Lấy thông tin trực tiếp từ phiếu gốc
+        $debtRecord = $this->customerDebtRepository->findByCondition(
+            [
+                ['reference_type', '=', $ref['reference_type']],
+                ['reference_id', '=', $ref['reference_id']],
+            ],
+            true,
+            [],
+            [],
+            ['*'],
+            [],
+            null,
+            []
+        )->first();
+
+        $transactionDate = $debtRecord
+            ? Carbon::parse($debtRecord->transaction_date)->format('d/m/Y')
+            : now()->format('d/m/Y');
+
+        $debit  = $debtRecord ? (float)$debtRecord->debit  : 0;
+        $credit = $debtRecord ? (float)$debtRecord->credit : 0;
+
+        return [
+            'journal_entry_id'        => null,
+            'journal_entry_detail_id' => null,
+            'formatted_date'          => $transactionDate,
+            'reference_code'          => $referenceInfo['code'],
+            'reference_type_label'    => $typeLabel,
+            'reference_note'          => $referenceInfo['note'] ?? '',
+            'account_id'              => null,
+            'account_code'            => self::ACCOUNT_RECEIVABLE,
+            'account_name'            => 'Phải thu khách hàng',
+            'debit'                   => $debit,
+            'credit'                  => $credit,
+            'is_receivable_account'   => true,
+            'is_tax_account'          => false,
+            'has_journal_entry'       => false,
+            'running_balance'         => 0,
+            'sort_key'                => ($debtRecord
+                ? $debtRecord->transaction_date
+                : now()->format('Y-m-d')) . '_0_' . $ref['reference_id'],
         ];
     }
 
@@ -233,70 +648,6 @@ class CustomerDebtService extends BaseService implements CustomerDebtServiceInte
             [],
             $limit
         );
-    }
-
-    // =========================================================================
-    // CORE CALCULATION — dùng customer_debts (nguồn dữ liệu chính)
-    // =========================================================================
-
-    /**
-     * ✅ Tính số dư tại một thời điểm từ bảng customer_debts
-     * Đây là nguồn sự thật duy nhất — cả danh sách lẫn chi tiết đều dùng hàm này
-     */
-    protected function calculateCustomerBalanceFromDebts(int $customerId, ?Carbon $endDate): float
-    {
-        $condition = [['customer_id', '=', $customerId]];
-
-        if ($endDate) {
-            $condition[] = ['transaction_date', '<=', $endDate];
-        }
-
-        $debts = $this->customerDebtRepository->findByCondition(
-            $condition,
-            true,
-            [],
-            [],
-            ['debit', 'credit'],
-            [],
-            null,
-            []
-        );
-
-        // Với TK 131: Số dư = Nợ - Có (công nợ phải thu)
-        return (float)($debts->sum('debit') - $debts->sum('credit'));
-    }
-
-    /**
-     * ✅ Tính phát sinh trong kỳ từ bảng customer_debts
-     * Nhất quán với calculateCustomerBalanceFromDebts
-     */
-    protected function calculateCustomerPeriodTransactions(
-        int $customerId,
-        Carbon $startDate,
-        Carbon $endDate
-    ): array {
-        $condition = [
-            ['customer_id', '=', $customerId],
-            ['transaction_date', '>=', $startDate],
-            ['transaction_date', '<=', $endDate],
-        ];
-
-        $debts = $this->customerDebtRepository->findByCondition(
-            $condition,
-            true,
-            [],
-            [],
-            ['debit', 'credit'],
-            [],
-            null,
-            []
-        );
-
-        return [
-            'total_debit'  => (float)$debts->sum('debit'),
-            'total_credit' => (float)$debts->sum('credit'),
-            'count'        => $debts->count(),
-        ];
     }
 
     /**
@@ -525,7 +876,8 @@ class CustomerDebtService extends BaseService implements CustomerDebtServiceInte
             $journalEntry = $this->findJournalEntry($ref);
 
             $referenceInfo      = $this->getReferenceDetails($ref['reference_type'], $ref['reference_id']);
-            $referenceTypeLabel = $ref['reference_type'] === self::REF_TYPE_SALES ? 'PXK' : 'PT';
+                        $referenceTypeLabel =
+                $ref['reference_type'] === self::REF_TYPE_SALES ? 'PN' : ($ref['reference_type'] === self::REF_TYPE_DEBIT_NOTE ? 'BN' : ($ref['reference_type'] === self::REF_TYPE_CREDIT_NOTE ? 'BC' : 'PC'));
 
             if ($journalEntry) {
                 // --- Có journal entry: lấy chi tiết bút toán để hiển thị ---
@@ -580,63 +932,6 @@ class CustomerDebtService extends BaseService implements CustomerDebtServiceInte
     }
 
     /**
-     * Xây dựng dòng transaction fallback khi chưa có journal entry.
-     * Lấy dữ liệu trực tiếp từ customer_debts và reference (phiếu xuất/phiếu thu).
-     */
-    protected function buildFallbackTransaction(
-        array $ref,
-        array $referenceInfo,
-        string $referenceTypeLabel
-    ): array {
-        // Lấy thông tin trực tiếp từ phiếu gốc
-        $debtRecord = $this->customerDebtRepository->findByCondition(
-            [
-                ['reference_type', '=', $ref['reference_type']],
-                ['reference_id', '=', $ref['reference_id']],
-            ],
-            true,
-            [],
-            [],
-            ['*'],
-            [],
-            null,
-            []
-        )->first();
-
-        $transactionDate = $debtRecord
-            ? Carbon::parse($debtRecord->transaction_date)->format('d/m/Y')
-            : now()->format('d/m/Y');
-
-        $debit  = $debtRecord ? (float)$debtRecord->debit  : 0;
-        $credit = $debtRecord ? (float)$debtRecord->credit : 0;
-
-        // Xác định tài khoản đối ứng hiển thị (TK 131 phía công nợ)
-        $isSales = $ref['reference_type'] === self::REF_TYPE_SALES;
-
-        return [
-            'journal_entry_id'        => null,
-            'journal_entry_detail_id' => null,
-            'formatted_date'          => $transactionDate,
-            'reference_code'          => $referenceInfo['code'],
-            'reference_type_label'    => $referenceTypeLabel,
-            'reference_note'          => $referenceInfo['note'] ?? '',
-            'account_id'              => null,
-            'account_code'            => self::ACCOUNT_RECEIVABLE,  // Hiển thị TK 131
-            'account_name'            => 'Phải thu khách hàng',
-            'debit'                   => $debit,
-            'credit'                  => $credit,
-            'is_receivable_account'   => true,   // Luôn là TK 131 → tính vào running balance
-            'is_tax_account'          => false,
-            'has_journal_entry'       => false,  // Frontend có thể dùng flag này để highlight
-            'running_balance'         => 0,
-            // sort_key dùng transaction_date + reference_id để đảm bảo thứ tự đúng
-            'sort_key'                => ($debtRecord
-                ? $debtRecord->transaction_date
-                : now()->format('Y-m-d')) . '_0_' . $ref['reference_id'],
-        ];
-    }
-
-    /**
      * ✅ Cập nhật running balance dựa trên dòng TK 131 trong journal entries
      * Opening balance đã được tính đúng từ customer_debts nên running balance sẽ khớp
      */
@@ -679,62 +974,6 @@ class CustomerDebtService extends BaseService implements CustomerDebtServiceInte
             ->where('journal_entry_id', $journalEntryId)
             ->orderBy('id', 'ASC')
             ->get();
-    }
-
-    protected function applyJournalEntryFilters(
-        $query,
-        int $customerId,
-        ?Carbon $startDate,
-        ?Carbon $endDate
-    ): void {
-        $query->where(function ($q) use ($customerId) {
-            $q->where(function ($sub) use ($customerId) {
-                $sub->where('reference_type', self::REF_TYPE_SALES)
-                    ->whereExists(function ($exists) use ($customerId) {
-                        $exists->select(DB::raw(1))
-                            ->from('sales_receipts')
-                            ->whereColumn('sales_receipts.id', 'journal_entries.reference_id')
-                            ->where('sales_receipts.customer_id', $customerId);
-                    });
-            })->orWhere(function ($sub) use ($customerId) {
-                $sub->where('reference_type', self::REF_TYPE_RECEIPT)
-                    ->whereExists(function ($exists) use ($customerId) {
-                        $exists->select(DB::raw(1))
-                            ->from('receipt_vouchers')
-                            ->whereColumn('receipt_vouchers.id', 'journal_entries.reference_id')
-                            ->where('receipt_vouchers.customer_id', $customerId);
-                    });
-            });
-        });
-
-        if ($startDate) {
-            $query->where('entry_date', '>=', $startDate);
-        }
-        if ($endDate) {
-            $query->where('entry_date', '<=', $endDate);
-        }
-    }
-
-    // =========================================================================
-    // REFERENCE HELPERS
-    // =========================================================================
-
-    protected function getReferenceDetails(string $referenceType, int $referenceId): array
-    {
-        $result = ['code' => null, 'note' => null];
-
-        $reference = match ($referenceType) {
-            self::REF_TYPE_SALES  => SalesReceipt::find($referenceId),
-            self::REF_TYPE_RECEIPT => ReceiptVoucher::find($referenceId),
-            default                => null,
-        };
-
-        if ($reference) {
-            $result['code'] = $reference->code;
-            $result['note'] = $reference->note;
-        }
-
-        return $result;
     }
 
     // =========================================================================

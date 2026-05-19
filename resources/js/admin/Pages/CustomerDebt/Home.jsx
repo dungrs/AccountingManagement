@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Button } from "@/admin/components/ui/button";
 import { Badge } from "@/admin/components/ui/badge";
@@ -29,9 +29,11 @@ import {
     Calendar,
     Users,
     FileText,
-    ArrowRight,
     BarChart3,
+    ArrowRight,
     Loader2,
+    FileSpreadsheet,
+    AlertCircle,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -42,6 +44,9 @@ import { Head, router } from "@inertiajs/react";
 import useFlashToast from "@/admin/hooks/useFlashToast";
 import { formatCurrency } from "@/admin/utils/helpers";
 import { RangeDatePicker } from "@/admin/components/ui/date-picker";
+import { useReactToPrint } from "react-to-print";
+import CustomerDebtSummaryPrint from "@/admin/components/shared/print/CustomerDebtSummaryPrint";
+import CustomerOverdueDebtPrint from "@/admin/components/shared/print/CustomerOverdueDebtPrint";
 
 export default function CustomerDebtIndex({ initialFilters }) {
     useFlashToast();
@@ -79,6 +84,14 @@ export default function CustomerDebtIndex({ initialFilters }) {
         from: 0,
         to: 0,
     });
+
+    const [systems, setSystems] = useState({});
+
+    // Refs cho in ấn
+    const summaryPrintRef = useRef(null);
+    const overduePrintRef = useRef(null);
+    const [isPrintingSummary, setIsPrintingSummary] = useState(false);
+    const [isPrintingOverdue, setIsPrintingOverdue] = useState(false);
 
     // Hàm lấy ngày mặc định
     function getDefaultStartDate() {
@@ -123,11 +136,9 @@ export default function CustomerDebtIndex({ initialFilters }) {
             start = new Date(today.getFullYear(), 0, 1);
             end = new Date(today.getFullYear(), 11, 31);
         } else if (range.days === 0) {
-            // Hôm nay
             start = today;
             end = today;
         } else {
-            // days ago
             start = new Date(today);
             start.setDate(today.getDate() - range.days);
             end = today;
@@ -186,6 +197,7 @@ export default function CustomerDebtIndex({ initialFilters }) {
                     total_credit: parseFloat(item.total_credit) || 0,
                     closing_balance: parseFloat(item.closing_balance) || 0,
                     transaction_count: item.transaction_count || 0,
+                    last_transaction_date: item.last_transaction_date || null,
                 }));
 
                 console.log("Dữ liệu mapped:", mappedData);
@@ -204,6 +216,10 @@ export default function CustomerDebtIndex({ initialFilters }) {
 
                 if (response.period) {
                     setPeriod(response.period);
+                }
+
+                if (res.data.systems) {
+                    setSystems(response.systems);
                 }
 
                 setPaginationData({
@@ -251,7 +267,7 @@ export default function CustomerDebtIndex({ initialFilters }) {
         if (selectedRows.length === data.length && data.length > 0) {
             setSelectedRows([]);
         } else {
-            setSelectedRows(data.map((item) => item.customer_id));
+            setSelectedRows(data.map((item) => item.id));
         }
     };
 
@@ -282,14 +298,73 @@ export default function CustomerDebtIndex({ initialFilters }) {
         toast.success("Đã làm mới dữ liệu");
     };
 
-    const handlePrint = () => {
-        router.get(route("admin.debt.customer.print"), {
-            start_date: startDate,
-            end_date: endDate,
-            reference_type: referenceType !== "all" ? referenceType : undefined,
-            keyword: debouncedKeyword,
-        });
-    };
+    // In báo cáo tổng hợp
+    const handlePrintSummary = useReactToPrint({
+        contentRef: summaryPrintRef,
+        documentTitle: `Bao-cao-cong-no-tong-hop-${startDate}-${endDate}`,
+        pageStyle: `
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            @media print {
+                body {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+            }
+        `,
+        onBeforeGetContent: async () => {
+            setIsPrintingSummary(true);
+            toast.loading("Đang chuẩn bị in báo cáo tổng hợp...", {
+                id: "print-summary",
+            });
+        },
+        onAfterPrint: () => {
+            setIsPrintingSummary(false);
+            toast.dismiss("print-summary");
+            toast.success("Đã gửi lệnh in báo cáo tổng hợp!");
+        },
+        onPrintError: () => {
+            setIsPrintingSummary(false);
+            toast.dismiss("print-summary");
+            toast.error("Có lỗi khi in báo cáo tổng hợp!");
+        },
+    });
+
+    // In báo cáo nợ quá hạn
+    const handlePrintOverdue = useReactToPrint({
+        contentRef: overduePrintRef,
+        documentTitle: `Bao-cao-no-qua-han-${startDate}-${endDate}`,
+        pageStyle: `
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            @media print {
+                body {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+            }
+        `,
+        onBeforeGetContent: async () => {
+            setIsPrintingOverdue(true);
+            toast.loading("Đang chuẩn bị in báo cáo nợ quá hạn...", {
+                id: "print-overdue",
+            });
+        },
+        onAfterPrint: () => {
+            setIsPrintingOverdue(false);
+            toast.dismiss("print-overdue");
+            toast.success("Đã gửi lệnh in báo cáo nợ quá hạn!");
+        },
+        onPrintError: () => {
+            setIsPrintingOverdue(false);
+            toast.dismiss("print-overdue");
+            toast.error("Có lỗi khi in báo cáo nợ quá hạn!");
+        },
+    });
 
     return (
         <AdminLayout
@@ -305,25 +380,43 @@ export default function CustomerDebtIndex({ initialFilters }) {
         >
             <Head title="Công Nợ Khách Hàng" />
 
+            {/* Components in ẩn */}
+            <div style={{ display: "none" }}>
+                <div ref={summaryPrintRef}>
+                    <CustomerDebtSummaryPrint
+                        data={{ data, summary }}
+                        systems={systems}
+                        filters={{ start_date: startDate, end_date: endDate }}
+                    />
+                </div>
+                <div ref={overduePrintRef}>
+                    <CustomerOverdueDebtPrint
+                        data={data}
+                        systems={systems}
+                        filters={{ start_date: startDate, end_date: endDate }}
+                    />
+                </div>
+            </div>
+
             {/* Period Info */}
-            <div className="mb-6 p-3 sm:p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-                            <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+            <div className="mb-6 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                            <Calendar className="h-6 w-6 text-white" />
                         </div>
                         <div>
-                            <h2 className="text-base sm:text-xl font-bold">
+                            <h2 className="text-xl font-bold">
                                 Báo cáo công nợ khách hàng
                             </h2>
-                            <p className="text-white/80 text-xs sm:text-sm mt-0.5 sm:mt-1">
+                            <p className="text-white/80 text-sm mt-1">
                                 Từ ngày {period.start_date} đến ngày{" "}
                                 {period.end_date}
                             </p>
                         </div>
                     </div>
-                    <Badge className="bg-white/20 text-white border-0 text-[10px] sm:text-xs h-6 sm:h-7 w-fit">
-                        <BarChart3 className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                    <Badge className="bg-white/20 text-white border-0">
+                        <BarChart3 className="h-4 w-4 mr-1" />
                         Báo cáo công nợ
                     </Badge>
                 </div>
@@ -340,24 +433,25 @@ export default function CustomerDebtIndex({ initialFilters }) {
                         color: "blue",
                         bgColor: "bg-blue-100",
                         textColor: "text-blue-600",
+                        subText: `Tại ngày ${period.start_date}`,
                     },
                     {
                         title: "PS Nợ",
                         value: summary.total_debit,
-                        subText: "Bán hàng trong kỳ",
                         icon: TrendingUp,
                         color: "green",
                         bgColor: "bg-green-100",
                         textColor: "text-green-600",
+                        subText: "Bán hàng trong kỳ",
                     },
                     {
                         title: "PS Có",
                         value: summary.total_credit,
-                        subText: "Thu tiền trong kỳ",
                         icon: TrendingDown,
                         color: "red",
                         bgColor: "bg-red-100",
                         textColor: "text-red-600",
+                        subText: "Thu tiền trong kỳ",
                     },
                     {
                         title: "Dư cuối kỳ",
@@ -367,6 +461,7 @@ export default function CustomerDebtIndex({ initialFilters }) {
                         color: "purple",
                         bgColor: "bg-purple-100",
                         textColor: "text-purple-600",
+                        subText: `Tại ngày ${period.end_date}`,
                     },
                 ].map((stat, index) => (
                     <Card
@@ -374,80 +469,74 @@ export default function CustomerDebtIndex({ initialFilters }) {
                         className={`border-l-4 border-l-${stat.color}-500 shadow-sm hover:shadow-md transition-shadow`}
                     >
                         <CardContent className="p-3">
-                            <div className="flex items-start justify-between">
+                            <div className="flex items-start justify-between mb-1">
                                 <p className="text-xs text-slate-500">
                                     {stat.title}
                                 </p>
                                 <div
-                                    className={`h-6 w-6 sm:h-7 sm:w-7 rounded-full ${stat.bgColor} flex items-center justify-center`}
+                                    className={`h-6 w-6 rounded-full ${stat.bgColor} flex items-center justify-center`}
                                 >
                                     <stat.icon
-                                        className={`h-3 w-3 sm:h-4 sm:w-4 ${stat.textColor}`}
+                                        className={`h-3 w-3 ${stat.textColor}`}
                                     />
                                 </div>
                             </div>
                             <p
-                                className={`text-base sm:text-lg font-bold ${stat.textColor}`}
+                                className={`text-base font-bold ${stat.textColor}`}
                             >
                                 {formatCurrency(stat.value)}
                             </p>
-                            {stat.date ? (
-                                <p className="text-[10px] sm:text-xs text-slate-400 mt-1">
-                                    Tại ngày {stat.date}
-                                </p>
-                            ) : (
-                                <p className="text-[10px] sm:text-xs text-slate-400 mt-1">
-                                    {stat.subText}
-                                </p>
-                            )}
+                            <p className="text-[10px] text-slate-400 mt-1">
+                                {stat.subText}
+                            </p>
                         </CardContent>
                     </Card>
                 ))}
             </div>
 
             {/* Balance Trend */}
-            <div className="mb-6 p-3 sm:p-4 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-200">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-                    <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
-                        <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+            <div className="mb-6 p-4 bg-gradient-to-r from-slate-50 to-white rounded-lg border border-slate-200">
+                <div className="flex items-center gap-4">
+                    <div className="h-10 w-10 rounded-full bg-gradient-to-r from-blue-100 to-purple-100 flex items-center justify-center">
+                        <BarChart3 className="h-5 w-5 text-blue-600" />
                     </div>
-                    <div className="flex-1 w-full">
-                        <p className="text-xs sm:text-sm font-medium text-slate-700 mb-2">
+                    <div className="flex-1">
+                        <p className="text-sm font-medium text-slate-700 mb-1">
                             Biến động công nợ
                         </p>
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4 flex-wrap">
+                        <div className="flex items-center gap-4 flex-wrap">
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] sm:text-xs text-slate-500">
+                                <span className="text-xs text-slate-500">
                                     Dư đầu:
                                 </span>
-                                <span className="text-xs sm:text-sm font-semibold text-blue-600">
+                                <span className="text-sm font-semibold text-blue-600">
                                     {formatCurrency(summary.opening_balance)}
                                 </span>
                             </div>
-                            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hidden sm:block" />
+                            <ArrowRight className="h-4 w-4 text-slate-400" />
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] sm:text-xs text-slate-500">
+                                <span className="text-xs text-slate-500">
                                     Bán hàng:
                                 </span>
-                                <span className="text-xs sm:text-sm font-semibold text-green-600">
+                                <span className="text-sm font-semibold text-green-600">
                                     +{formatCurrency(summary.total_debit)}
                                 </span>
                             </div>
-                            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hidden sm:block" />
+                            <ArrowRight className="h-4 w-4 text-slate-400" />
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] sm:text-xs text-slate-500">
+                                <span className="text-xs text-slate-500">
                                     Thu tiền:
                                 </span>
-                                <span className="text-xs sm:text-sm font-semibold text-red-600">
+                                <span className="text-sm font-semibold text-red-600">
                                     -{formatCurrency(summary.total_credit)}
                                 </span>
                             </div>
-                            <ArrowRight className="h-3 w-3 sm:h-4 sm:w-4 text-slate-400 hidden sm:block" />
+                            <ArrowRight className="h-4 w-4 text-slate-400" />
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] sm:text-xs text-slate-500">
+                                <span className="text-xs text-slate-500">
                                     Dư cuối:
                                 </span>
-                                <span className="text-xs sm:text-sm font-semibold text-purple-600">
+                                <span className="text-sm font-semibold text-purple-600">
                                     {formatCurrency(summary.closing_balance)}
                                 </span>
                             </div>
@@ -480,22 +569,38 @@ export default function CustomerDebtIndex({ initialFilters }) {
                                 Làm mới
                             </Button>
 
-                            {/* <Button
-                                onClick={handleExport}
-                                variant="secondary"
-                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Xuất Excel
-                            </Button> */}
-
+                            {/* Nút in báo cáo tổng hợp */}
                             <Button
-                                onClick={handlePrint}
+                                onClick={handlePrintSummary}
                                 variant="secondary"
                                 className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                                disabled={isPrintingSummary || loading}
                             >
-                                <Printer className="mr-2 h-4 w-4" />
-                                In báo cáo
+                                {isPrintingSummary ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                                )}
+                                {isPrintingSummary
+                                    ? "Đang in..."
+                                    : "In tổng hợp"}
+                            </Button>
+
+                            {/* Nút in báo cáo nợ quá hạn */}
+                            <Button
+                                onClick={handlePrintOverdue}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                                disabled={isPrintingOverdue || loading}
+                            >
+                                {isPrintingOverdue ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <AlertCircle className="w-4 h-4 mr-2" />
+                                )}
+                                {isPrintingOverdue
+                                    ? "Đang in..."
+                                    : "In nợ quá hạn"}
                             </Button>
                         </div>
                     </div>

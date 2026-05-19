@@ -3,7 +3,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
 /**
- * ReceiptVoucherPrint — Phiếu chi (Mẫu số 02 – TT)
+ * ReceiptVoucherPrint — Phiếu thu (Mẫu số 01 – TT)
  * Căn cứ pháp lý:
  *   • Thông tư 99/2025/TT-BTC ngày 27/10/2025 (hiệu lực 01/01/2026)
  *     thay thế Thông tư 200/2014/TT-BTC và Thông tư 133/2016/TT-BTC
@@ -132,10 +132,10 @@ const ReceiptVoucherPrint = forwardRef(
         const getCreatedByName = () =>
             voucher?.created_by_name || user?.name || "";
         const getCashierName = () => voucher?.cashier_name || user?.name || "";
-        const getReceiverName = () =>
-            voucher?.receiver_name || partner?.name || "";
-        const getReceiverInfo = () => {
-            let info = getReceiverName();
+        // Phiếu thu: người nộp tiền (thay vì người nhận tiền)
+        const getPayerName = () => voucher?.payer_name || partner?.name || "";
+        const getPayerInfo = () => {
+            let info = getPayerName();
             if (partner?.tax_code) info += ` - ${partner.tax_code}`;
             return info;
         };
@@ -184,12 +184,12 @@ const ReceiptVoucherPrint = forwardRef(
                         )}
                     </div>
 
-                    {/* Cột phải: cập nhật sang TT99/2025 */}
+                    {/* Mẫu số 01-TT — Phiếu thu theo TT99/2025 */}
                     <div
                         style={{ width: "35%", fontSize: "12px" }}
                         className="text-right"
                     >
-                        <p className="font-bold">Mẫu số: 02 - TT</p>
+                        <p className="font-bold">Mẫu số: 01 - TT</p>
                         <p className="italic" style={{ fontSize: "11px" }}>
                             (Ban hành kèm theo Thông tư số 99/2025/TT-BTC
                         </p>
@@ -202,7 +202,7 @@ const ReceiptVoucherPrint = forwardRef(
                 {/* ── Tiêu đề ── */}
                 <div className="text-center mb-6">
                     <h1 className="text-2xl font-bold uppercase mb-2">
-                        PHIẾU CHI
+                        PHIẾU THU
                     </h1>
                     <p className="text-base mb-1">
                         {formatDateFull(voucher?.voucher_date || new Date())}
@@ -212,7 +212,7 @@ const ReceiptVoucherPrint = forwardRef(
                             Quyển số: .........................
                         </p>
                         <p className="text-base font-semibold">
-                            Số: {voucher?.code || "PC00001"}
+                            Số: {voucher?.code || "PT00001"}
                         </p>
                     </div>
                 </div>
@@ -220,13 +220,11 @@ const ReceiptVoucherPrint = forwardRef(
                 {/* ── Nội dung ── */}
                 <div className="mb-8" style={{ fontSize: "14px" }}>
                     <p className="mb-3">
-                        Họ tên người nhận tiền:{" "}
-                        <span className="font-semibold">
-                            {getReceiverInfo()}
-                        </span>
+                        Họ tên người nộp tiền:{" "}
+                        <span className="font-semibold">{getPayerInfo()}</span>
                     </p>
                     <p className="mb-3">Địa chỉ: {partner?.address || ""}</p>
-                    <p className="mb-3">Lý do chi: {getReason()}</p>
+                    <p className="mb-3">Lý do thu: {getReason()}</p>
                     <p className="mb-3">
                         Số tiền:{" "}
                         <span className="font-semibold">
@@ -250,8 +248,8 @@ const ReceiptVoucherPrint = forwardRef(
                 </div>
 
                 {/*
-                 * TT99/2025: phiếu chi cần đủ 5 chữ ký:
-                 * Giám đốc, Kế toán trưởng, Người lập, Thủ quỹ, Người nhận tiền
+                 * TT99/2025: phiếu thu đủ 5 chữ ký:
+                 * Giám đốc, Kế toán trưởng, Người lập, Thủ quỹ, Người nộp tiền
                  */}
                 <div
                     className="grid gap-4 text-center"
@@ -285,10 +283,10 @@ const ReceiptVoucherPrint = forwardRef(
                         <p className="text-sm mt-2">{getCashierName()}</p>
                     </div>
                     <div>
-                        <p className="font-bold mb-1">Người nhận tiền</p>
+                        <p className="font-bold mb-1">Người nộp tiền</p>
                         <p className="italic text-xs mb-2">&nbsp;</p>
                         <p className="italic text-xs mb-16">(Ký, họ tên)</p>
-                        <p className="text-sm mt-2">{getReceiverName()}</p>
+                        <p className="text-sm mt-2">{getPayerName()}</p>
                     </div>
                 </div>
 
@@ -298,7 +296,7 @@ const ReceiptVoucherPrint = forwardRef(
                     style={{ fontSize: "13px" }}
                 >
                     <p>
-                        Đã nhận đủ số tiền (Viết bằng chữ):{" "}
+                        Đã thu đủ số tiền (Viết bằng chữ):{" "}
                         {numberToVietnameseText(getAmount())}
                     </p>
                 </div>

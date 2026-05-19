@@ -15,12 +15,16 @@ use App\Models\PaymentVoucher;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use App\Models\DebitNote;
+use App\Models\CreditNote;
 
 class SupplierDebtService extends BaseService implements SupplierDebtServiceInterface
 {
     protected const ACCOUNT_PAYABLE = '331';
     protected const REF_TYPE_PURCHASE = 'purchase_receipt';
     protected const REF_TYPE_PAYMENT = 'payment_voucher';
+    protected const REF_TYPE_DEBIT_NOTE = 'debit_note';
+    protected const REF_TYPE_CREDIT_NOTE = 'credit_note';
     protected const TAX_ACCOUNT = '1331';
 
     protected SupplierDebtRepository $supplierDebtRepository;
@@ -233,69 +237,6 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
             [],
             $limit
         );
-    }
-
-    // =========================================================================
-    // CORE CALCULATION — dùng supplier_debts (nguồn dữ liệu chính)
-    // =========================================================================
-
-    /**
-     * ✅ Tính số dư tại một thời điểm từ bảng supplier_debts
-     * Đây là nguồn sự thật duy nhất — cả danh sách lẫn chi tiết đều dùng hàm này
-     */
-    protected function calculateSupplierBalanceFromDebts(int $supplierId, ?Carbon $endDate): float
-    {
-        $condition = [['supplier_id', '=', $supplierId]];
-
-        if ($endDate) {
-            $condition[] = ['transaction_date', '<=', $endDate];
-        }
-
-        $debts = $this->supplierDebtRepository->findByCondition(
-            $condition,
-            true,
-            [],
-            [],
-            ['debit', 'credit'],
-            [],
-            null,
-            []
-        );
-
-        return (float)($debts->sum('credit') - $debts->sum('debit'));
-    }
-
-    /**
-     * ✅ Tính phát sinh trong kỳ từ bảng supplier_debts
-     * Nhất quán với calculateSupplierBalanceFromDebts
-     */
-    protected function calculateSupplierPeriodTransactions(
-        int $supplierId,
-        Carbon $startDate,
-        Carbon $endDate
-    ): array {
-        $condition = [
-            ['supplier_id', '=', $supplierId],
-            ['transaction_date', '>=', $startDate],
-            ['transaction_date', '<=', $endDate],
-        ];
-
-        $debts = $this->supplierDebtRepository->findByCondition(
-            $condition,
-            true,
-            [],
-            [],
-            ['debit', 'credit'],
-            [],
-            null,
-            []
-        );
-
-        return [
-            'total_debit'  => (float)$debts->sum('debit'),
-            'total_credit' => (float)$debts->sum('credit'),
-            'count'        => $debts->count(),
-        ];
     }
 
     /**
@@ -524,8 +465,8 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
             $journalEntry = $this->findJournalEntry($ref);
 
             $referenceInfo      = $this->getReferenceDetails($ref['reference_type'], $ref['reference_id']);
-            $referenceTypeLabel = $ref['reference_type'] === self::REF_TYPE_PURCHASE ? 'PN' : 'PC';
-
+            $referenceTypeLabel =
+                $ref['reference_type'] === self::REF_TYPE_PURCHASE ? 'PN' : ($ref['reference_type'] === self::REF_TYPE_DEBIT_NOTE ? 'BN' : ($ref['reference_type'] === self::REF_TYPE_CREDIT_NOTE ? 'BC' : 'PC'));
             if ($journalEntry) {
                 // --- Có journal entry: lấy chi tiết bút toán để hiển thị ---
                 $details = $this->getJournalEntryDetails($journalEntry->id);
@@ -680,6 +621,293 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
             ->get();
     }
 
+    /**
+     * Tạo công nợ khi lập giấy báo nợ (Debit Note) cho nhà cung cấp
+     * Báo nợ nhà cung cấp: Tăng công nợ phải trả (ghi Có)
+     * 
+     * @param DebitNote $debitNote Giấy báo nợ
+     * @return mixed
+     */
+    public function createDebtForDebitNote($debitNote)
+    {
+        // Chỉ xử lý nếu debit note có supplier_id (báo nợ nhà cung cấp)
+        if (!$debitNote->supplier_id) {
+            return null;
+        }
+
+        return DB::transaction(
+            fn() =>
+            $this->supplierDebtRepository->create([
+                'supplier_id'      => $debitNote->supplier_id,
+                'reference_type'   => self::REF_TYPE_DEBIT_NOTE,
+                'reference_id'     => $debitNote->id,
+                'debit'            => 0,  // Giấy báo nợ: ghi Có (tăng công nợ)
+                'credit'           => $debitNote->total_amount,
+                'transaction_date' => $debitNote->issue_date ?? now(),
+            ])
+        );
+    }
+
+    /**
+     * Tạo công nợ khi lập giấy báo có (Credit Note) cho nhà cung cấp
+     * Báo có nhà cung cấp: Giảm công nợ phải trả (ghi Nợ)
+     * 
+     * @param CreditNote $creditNote Giấy báo có
+     * @return mixed
+     */
+    public function createDebtForCreditNote($creditNote)
+    {
+        // Chỉ xử lý nếu credit note có supplier_id (báo có nhà cung cấp)
+        if (!$creditNote->supplier_id) {
+            return null;
+        }
+
+        return DB::transaction(
+            fn() =>
+            $this->supplierDebtRepository->create([
+                'supplier_id'      => $creditNote->supplier_id,
+                'reference_type'   => self::REF_TYPE_CREDIT_NOTE,
+                'reference_id'     => $creditNote->id,
+                'debit'            => $creditNote->total_amount,  // Giấy báo có: ghi Nợ (giảm công nợ)
+                'credit'           => 0,
+                'transaction_date' => $creditNote->issue_date ?? now(),
+            ])
+        );
+    }
+
+    /**
+     * Cập nhật hoặc tạo mới công nợ cho Debit Note (nếu cần điều chỉnh)
+     * 
+     * @param DebitNote $debitNote Giấy báo nợ
+     * @param array $data Dữ liệu cập nhật
+     * @return mixed
+     */
+    public function updateDebtForDebitNote($debitNote, array $data = [])
+    {
+        if (!$debitNote->supplier_id) {
+            return null;
+        }
+
+        $existingDebt = $this->supplierDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_DEBIT_NOTE],
+            ['reference_id', '=', $debitNote->id],
+        ], false);
+
+        $debtData = [
+            'supplier_id'      => $debitNote->supplier_id,
+            'reference_type'   => self::REF_TYPE_DEBIT_NOTE,
+            'reference_id'     => $debitNote->id,
+            'debit'            => $data['debit'] ?? 0,
+            'credit'           => $data['credit'] ?? $debitNote->total_amount,
+            'transaction_date' => $data['transaction_date'] ?? ($debitNote->issue_date ?? now()),
+        ];
+
+        if ($existingDebt) {
+            return $this->supplierDebtRepository->update($existingDebt->id, $debtData);
+        }
+
+        return $this->supplierDebtRepository->create($debtData);
+    }
+
+    /**
+     * Cập nhật hoặc tạo mới công nợ cho Credit Note (nếu cần điều chỉnh)
+     * 
+     * @param CreditNote $creditNote Giấy báo có
+     * @param array $data Dữ liệu cập nhật
+     * @return mixed
+     */
+    public function updateDebtForCreditNote($creditNote, array $data = [])
+    {
+        if (!$creditNote->supplier_id) {
+            return null;
+        }
+
+        $existingDebt = $this->supplierDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_CREDIT_NOTE],
+            ['reference_id', '=', $creditNote->id],
+        ], false);
+
+        $debtData = [
+            'supplier_id'      => $creditNote->supplier_id,
+            'reference_type'   => self::REF_TYPE_CREDIT_NOTE,
+            'reference_id'     => $creditNote->id,
+            'debit'            => $data['debit'] ?? $creditNote->total_amount,
+            'credit'           => $data['credit'] ?? 0,
+            'transaction_date' => $data['transaction_date'] ?? ($creditNote->issue_date ?? now()),
+        ];
+
+        if ($existingDebt) {
+            return $this->supplierDebtRepository->update($existingDebt->id, $debtData);
+        }
+
+        return $this->supplierDebtRepository->create($debtData);
+    }
+
+    /**
+     * Lấy công nợ theo Debit Note
+     * 
+     * @param int $debitNoteId ID giấy báo nợ
+     * @return mixed
+     */
+    public function getDebtByDebitNote(int $debitNoteId)
+    {
+        return $this->supplierDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_DEBIT_NOTE],
+            ['reference_id', '=', $debitNoteId],
+        ], false);
+    }
+
+    /**
+     * Lấy công nợ theo Credit Note
+     * 
+     * @param int $creditNoteId ID giấy báo có
+     * @return mixed
+     */
+    public function getDebtByCreditNote(int $creditNoteId)
+    {
+        return $this->supplierDebtRepository->findByCondition([
+            ['reference_type', '=', self::REF_TYPE_CREDIT_NOTE],
+            ['reference_id', '=', $creditNoteId],
+        ], false);
+    }
+
+    /**
+     * Lấy tổng số tiền từ Debit Notes trong kỳ
+     * 
+     * @param int $supplierId ID nhà cung cấp
+     * @param Carbon $startDate Ngày bắt đầu
+     * @param Carbon $endDate Ngày kết thúc
+     * @return float
+     */
+    public function getTotalDebitNoteAmount(int $supplierId, Carbon $startDate, Carbon $endDate): float
+    {
+        $debts = $this->supplierDebtRepository->findByCondition([
+            ['supplier_id', '=', $supplierId],
+            ['reference_type', '=', self::REF_TYPE_DEBIT_NOTE],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ], true);
+
+        return (float) $debts->sum('credit');
+    }
+
+    /**
+     * Lấy tổng số tiền từ Credit Notes trong kỳ
+     * 
+     * @param int $supplierId ID nhà cung cấp
+     * @param Carbon $startDate Ngày bắt đầu
+     * @param Carbon $endDate Ngày kết thúc
+     * @return float
+     */
+    public function getTotalCreditNoteAmount(int $supplierId, Carbon $startDate, Carbon $endDate): float
+    {
+        $debts = $this->supplierDebtRepository->findByCondition([
+            ['supplier_id', '=', $supplierId],
+            ['reference_type', '=', self::REF_TYPE_CREDIT_NOTE],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ], true);
+
+        return (float) $debts->sum('debit');
+    }
+
+    // =========================================================================
+    // CORE CALCULATION - Cập nhật để bao gồm Debit Note và Credit Note
+    // =========================================================================
+
+    /**
+     * ✅ Cập nhật: Tính số dư tại một thời điểm từ bảng supplier_debts
+     * Đã bao gồm cả Debit Note và Credit Note
+     */
+    protected function calculateSupplierBalanceFromDebts(int $supplierId, ?Carbon $endDate): float
+    {
+        $condition = [['supplier_id', '=', $supplierId]];
+
+        if ($endDate) {
+            $condition[] = ['transaction_date', '<=', $endDate];
+        }
+
+        $debts = $this->supplierDebtRepository->findByCondition(
+            $condition,
+            true,
+            [],
+            [],
+            ['debit', 'credit'],
+            [],
+            null,
+            []
+        );
+
+        // credit = tăng nợ (Purchase Receipt + Debit Note)
+        // debit = giảm nợ (Payment Voucher + Credit Note)
+        return (float)($debts->sum('credit') - $debts->sum('debit'));
+    }
+
+    /**
+     * ✅ Cập nhật: Tính phát sinh trong kỳ từ bảng supplier_debts
+     * Đã bao gồm cả Debit Note và Credit Note
+     */
+    protected function calculateSupplierPeriodTransactions(
+        int $supplierId,
+        Carbon $startDate,
+        Carbon $endDate
+    ): array {
+        $condition = [
+            ['supplier_id', '=', $supplierId],
+            ['transaction_date', '>=', $startDate],
+            ['transaction_date', '<=', $endDate],
+        ];
+
+        $debts = $this->supplierDebtRepository->findByCondition(
+            $condition,
+            true,
+            [],
+            [],
+            ['debit', 'credit'],
+            [],
+            null,
+            []
+        );
+
+        return [
+            'total_debit'  => (float)$debts->sum('debit'),
+            'total_credit' => (float)$debts->sum('credit'),
+            'count'        => $debts->count(),
+        ];
+    }
+
+    // =========================================================================
+    // THÊM REFERENCE TYPE VÀO getReferenceDetails
+    // =========================================================================
+
+    /**
+     * Cập nhật: Lấy thông tin chi tiết của chứng từ tham chiếu
+     * Đã bao gồm Debit Note và Credit Note
+     */
+    protected function getReferenceDetails(string $referenceType, int $referenceId): array
+    {
+        $result = ['code' => null, 'note' => null];
+
+        $reference = match ($referenceType) {
+            self::REF_TYPE_PURCHASE    => PurchaseReceipt::find($referenceId),
+            self::REF_TYPE_PAYMENT     => PaymentVoucher::find($referenceId),
+            self::REF_TYPE_DEBIT_NOTE  => DebitNote::find($referenceId),
+            self::REF_TYPE_CREDIT_NOTE => CreditNote::find($referenceId),
+            default                    => null,
+        };
+
+        if ($reference) {
+            $result['code'] = $reference->code;
+            $result['note'] = $reference->note ?? $reference->reason ?? null;
+        }
+
+        return $result;
+    }
+
+    /**
+     * Cập nhật: Áp dụng filter journal entry cho supplier
+     * Đã bao gồm Debit Note và Credit Note
+     */
     protected function applyJournalEntryFilters(
         $query,
         int $supplierId,
@@ -687,6 +915,7 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         ?Carbon $endDate
     ): void {
         $query->where(function ($q) use ($supplierId) {
+            // Purchase Receipt
             $q->where(function ($sub) use ($supplierId) {
                 $sub->where('reference_type', self::REF_TYPE_PURCHASE)
                     ->whereExists(function ($exists) use ($supplierId) {
@@ -695,15 +924,37 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
                             ->whereColumn('purchase_receipts.id', 'journal_entries.reference_id')
                             ->where('purchase_receipts.supplier_id', $supplierId);
                     });
-            })->orWhere(function ($sub) use ($supplierId) {
-                $sub->where('reference_type', self::REF_TYPE_PAYMENT)
-                    ->whereExists(function ($exists) use ($supplierId) {
-                        $exists->select(DB::raw(1))
-                            ->from('payment_vouchers')
-                            ->whereColumn('payment_vouchers.id', 'journal_entries.reference_id')
-                            ->where('payment_vouchers.supplier_id', $supplierId);
-                    });
-            });
+            })
+                // Payment Voucher
+                ->orWhere(function ($sub) use ($supplierId) {
+                    $sub->where('reference_type', self::REF_TYPE_PAYMENT)
+                        ->whereExists(function ($exists) use ($supplierId) {
+                            $exists->select(DB::raw(1))
+                                ->from('payment_vouchers')
+                                ->whereColumn('payment_vouchers.id', 'journal_entries.reference_id')
+                                ->where('payment_vouchers.supplier_id', $supplierId);
+                        });
+                })
+                // Debit Note
+                ->orWhere(function ($sub) use ($supplierId) {
+                    $sub->where('reference_type', self::REF_TYPE_DEBIT_NOTE)
+                        ->whereExists(function ($exists) use ($supplierId) {
+                            $exists->select(DB::raw(1))
+                                ->from('debit_notes')
+                                ->whereColumn('debit_notes.id', 'journal_entries.reference_id')
+                                ->where('debit_notes.supplier_id', $supplierId);
+                        });
+                })
+                // Credit Note
+                ->orWhere(function ($sub) use ($supplierId) {
+                    $sub->where('reference_type', self::REF_TYPE_CREDIT_NOTE)
+                        ->whereExists(function ($exists) use ($supplierId) {
+                            $exists->select(DB::raw(1))
+                                ->from('credit_notes')
+                                ->whereColumn('credit_notes.id', 'journal_entries.reference_id')
+                                ->where('credit_notes.supplier_id', $supplierId);
+                        });
+                });
         });
 
         if ($startDate) {
@@ -712,28 +963,6 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
         if ($endDate) {
             $query->where('entry_date', '<=', $endDate);
         }
-    }
-
-    // =========================================================================
-    // REFERENCE HELPERS
-    // =========================================================================
-
-    protected function getReferenceDetails(string $referenceType, int $referenceId): array
-    {
-        $result = ['code' => null, 'note' => null];
-
-        $reference = match ($referenceType) {
-            self::REF_TYPE_PURCHASE => PurchaseReceipt::find($referenceId),
-            self::REF_TYPE_PAYMENT  => PaymentVoucher::find($referenceId),
-            default                 => null,
-        };
-
-        if ($reference) {
-            $result['code'] = $reference->code;
-            $result['note'] = $reference->note;
-        }
-
-        return $result;
     }
 
     // =========================================================================
@@ -816,27 +1045,6 @@ class SupplierDebtService extends BaseService implements SupplierDebtServiceInte
                 'from'         => 0,
                 'to'           => 0,
             ]
-        ];
-    }
-
-    // =========================================================================
-    // DEPRECATED — giữ lại để tránh break nếu có nơi khác gọi
-    // =========================================================================
-
-    /** @deprecated Dùng calculateSupplierBalanceFromDebts() */
-    protected function calculateSupplierBalance(int $supplierId, Carbon $endDate): float
-    {
-        return $this->calculateSupplierBalanceFromDebts($supplierId, $endDate);
-    }
-
-    /** @deprecated Dùng calculateSummaryFromDebts() */
-    protected function calculateSummary(Collection $transactions): array
-    {
-        $payableTransactions = $transactions->filter(fn($item) => $item['is_payable_account']);
-
-        return [
-            'total_debit'  => $payableTransactions->sum('debit'),
-            'total_credit' => $payableTransactions->sum('credit'),
         ];
     }
 

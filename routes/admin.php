@@ -29,6 +29,8 @@ use App\Http\Controllers\Admin\UnitController;
 use App\Http\Controllers\Admin\VatTaxController;
 use App\Http\Controllers\Admin\Voucher\PaymentVoucherController;
 use App\Http\Controllers\Admin\Voucher\ReceiptVoucherController;
+use App\Http\Controllers\Admin\Note\DebitNoteController;
+use App\Http\Controllers\Admin\Note\CreditNoteController;
 use App\Http\Controllers\Admin\Report\BusinessResultController;
 use App\Http\Controllers\LocationController;
 use Illuminate\Support\Facades\Route;
@@ -269,6 +271,30 @@ Route::middleware('auth')->group(function () {
         Route::get('index', [CustomerDebtController::class, 'index'])->name('admin.debt.customer.index');
         Route::post('filter', [CustomerDebtController::class, 'filter'])->name('admin.debt.customer.filter');
         Route::get('details/{customer_id}', [CustomerDebtController::class, 'details'])->name('admin.debt.customer.details')->where(['customer_id' => '[0-9]+']);
+    });
+
+    // DEBIT NOTES (Giấy báo nợ)
+    Route::prefix('note/debit')->group(function () {
+        Route::get('index', [DebitNoteController::class, 'index'])->name('admin.note.debit.index');
+        Route::get('create', [DebitNoteController::class, 'create'])->name('admin.note.debit.create');
+        Route::get('edit/{id}', [DebitNoteController::class, 'edit'])->name('admin.note.debit.edit')->where(['id' => '[0-9]+']);
+
+        Route::post('filter', [DebitNoteController::class, 'filter'])->name('admin.note.debit.filter');
+        Route::post('store', [DebitNoteController::class, 'store'])->name('admin.note.debit.store');
+        Route::put('update/{id}', [DebitNoteController::class, 'update'])->name('admin.note.debit.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [DebitNoteController::class, 'delete'])->name('admin.note.debit.delete')->where(['id' => '[0-9]+']);
+    });
+
+    // CREDIT NOTES (Giấy báo có)
+    Route::prefix('note/credit')->group(function () {
+        Route::get('index', [CreditNoteController::class, 'index'])->name('admin.note.credit.index');
+        Route::get('create', [CreditNoteController::class, 'create'])->name('admin.note.credit.create');
+        Route::get('edit/{id}', [CreditNoteController::class, 'edit'])->name('admin.note.credit.edit')->where(['id' => '[0-9]+']);
+
+        Route::post('filter', [CreditNoteController::class, 'filter'])->name('admin.note.credit.filter');
+        Route::post('store', [CreditNoteController::class, 'store'])->name('admin.note.credit.store');
+        Route::put('update/{id}', [CreditNoteController::class, 'update'])->name('admin.note.credit.update')->where(['id' => '[0-9]+']);
+        Route::post('delete/{id}', [CreditNoteController::class, 'delete'])->name('admin.note.credit.delete')->where(['id' => '[0-9]+']);
     });
 
     // CASH BOOK

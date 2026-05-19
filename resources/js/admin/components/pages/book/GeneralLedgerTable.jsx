@@ -194,7 +194,7 @@ export default function GeneralLedgerTable({
                                                         : "text-slate-600",
                                                 )}
                                             >
-                                                {row.voucher_note}
+                                                {row.description}
                                             </span>
                                         </div>
                                     </TableCell>

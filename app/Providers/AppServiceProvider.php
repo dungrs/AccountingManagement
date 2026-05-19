@@ -24,14 +24,23 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Vite::prefetch(concurrency: 3);
+        
         Relation::morphMap([
+            // Chứng từ thanh toán
             'payment_voucher' => 'App\Models\PaymentVoucher',
-            'purchase_receipt' => 'App\Models\PurchaseReceipt',
             'receipt_voucher' => 'App\Models\ReceiptVoucher',
+            
+            // Chứng từ mua bán
+            'purchase_receipt' => 'App\Models\PurchaseReceipt',
             'sales_receipt' => 'App\Models\SalesReceipt',
+            
+            // Chứng từ điều chỉnh
             'sales_receipt_cogs' => 'App\Models\SalesReceipt',
-            'sales_receipt_cancellation' => 'App\Models\SalesReceipt'
-            // Thêm các model khác nếu cần
+            'sales_receipt_cancellation' => 'App\Models\SalesReceipt',
+            
+            // Giấy báo nợ và báo có
+            'debit_note' => 'App\Models\DebitNote',
+            'credit_note' => 'App\Models\CreditNote',
         ]);
 
         if (app()->environment('production')) {

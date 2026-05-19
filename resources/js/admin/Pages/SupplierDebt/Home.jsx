@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import AdminLayout from "@/admin/layouts/AdminLayout";
 import { Button } from "@/admin/components/ui/button";
 import { Badge } from "@/admin/components/ui/badge";
@@ -29,11 +29,11 @@ import {
     Calendar,
     Users,
     FileText,
-    ArrowUpRight,
-    ArrowDownRight,
     BarChart3,
     ArrowRight,
     Loader2,
+    FileSpreadsheet,
+    AlertCircle,
 } from "lucide-react";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -44,6 +44,9 @@ import { Head, router } from "@inertiajs/react";
 import useFlashToast from "@/admin/hooks/useFlashToast";
 import { formatCurrency } from "@/admin/utils/helpers";
 import { RangeDatePicker } from "@/admin/components/ui/date-picker";
+import { useReactToPrint } from "react-to-print";
+import SupplierDebtSummaryPrint from "@/admin/components/shared/print/SupplierDebtSummaryPrint";
+import SupplierOverdueDebtPrint from "@/admin/components/shared/print/SupplierOverdueDebtPrint";
 
 export default function SupplierDebtIndex({ initialFilters }) {
     useFlashToast();
@@ -81,6 +84,14 @@ export default function SupplierDebtIndex({ initialFilters }) {
         from: 0,
         to: 0,
     });
+
+    const [systems, setSystems] = useState({});
+
+    // Refs cho in ấn
+    const summaryPrintRef = useRef(null);
+    const overduePrintRef = useRef(null);
+    const [isPrintingSummary, setIsPrintingSummary] = useState(false);
+    const [isPrintingOverdue, setIsPrintingOverdue] = useState(false);
 
     // Hàm lấy ngày mặc định
     function getDefaultStartDate() {
@@ -125,11 +136,9 @@ export default function SupplierDebtIndex({ initialFilters }) {
             start = new Date(today.getFullYear(), 0, 1);
             end = new Date(today.getFullYear(), 11, 31);
         } else if (range.days === 0) {
-            // Hôm nay
             start = today;
             end = today;
         } else {
-            // days ago
             start = new Date(today);
             start.setDate(today.getDate() - range.days);
             end = today;
@@ -189,6 +198,7 @@ export default function SupplierDebtIndex({ initialFilters }) {
                     total_credit: parseFloat(item.total_credit) || 0,
                     closing_balance: parseFloat(item.closing_balance) || 0,
                     transaction_count: item.transaction_count || 0,
+                    last_transaction_date: item.last_transaction_date || null,
                 }));
 
                 console.log("Dữ liệu mapped:", mappedData);
@@ -207,6 +217,10 @@ export default function SupplierDebtIndex({ initialFilters }) {
 
                 if (response.period) {
                     setPeriod(response.period);
+                }
+                
+                if (res.data.systems) {
+                    setSystems(response.systems);
                 }
 
                 setPaginationData({
@@ -285,19 +299,73 @@ export default function SupplierDebtIndex({ initialFilters }) {
         toast.success("Đã làm mới dữ liệu");
     };
 
-    const handleExport = () => {
-        toast.success("Đang xuất báo cáo...");
-        // Implement export functionality
-    };
+    // In báo cáo tổng hợp
+    const handlePrintSummary = useReactToPrint({
+        contentRef: summaryPrintRef,
+        documentTitle: `Bao-cao-cong-no-tong-hop-${startDate}-${endDate}`,
+        pageStyle: `
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            @media print {
+                body {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+            }
+        `,
+        onBeforeGetContent: async () => {
+            setIsPrintingSummary(true);
+            toast.loading("Đang chuẩn bị in báo cáo tổng hợp...", {
+                id: "print-summary",
+            });
+        },
+        onAfterPrint: () => {
+            setIsPrintingSummary(false);
+            toast.dismiss("print-summary");
+            toast.success("Đã gửi lệnh in báo cáo tổng hợp!");
+        },
+        onPrintError: () => {
+            setIsPrintingSummary(false);
+            toast.dismiss("print-summary");
+            toast.error("Có lỗi khi in báo cáo tổng hợp!");
+        },
+    });
 
-    const handlePrint = () => {
-        router.get(route("admin.debt.supplier.print"), {
-            start_date: startDate,
-            end_date: endDate,
-            reference_type: referenceType !== "all" ? referenceType : undefined,
-            keyword: debouncedKeyword,
-        });
-    };
+    // In báo cáo nợ quá hạn
+    const handlePrintOverdue = useReactToPrint({
+        contentRef: overduePrintRef,
+        documentTitle: `Bao-cao-no-qua-han-${startDate}-${endDate}`,
+        pageStyle: `
+            @page {
+                size: A4 landscape;
+                margin: 10mm;
+            }
+            @media print {
+                body {
+                    -webkit-print-color-adjust: exact;
+                    print-color-adjust: exact;
+                }
+            }
+        `,
+        onBeforeGetContent: async () => {
+            setIsPrintingOverdue(true);
+            toast.loading("Đang chuẩn bị in báo cáo nợ quá hạn...", {
+                id: "print-overdue",
+            });
+        },
+        onAfterPrint: () => {
+            setIsPrintingOverdue(false);
+            toast.dismiss("print-overdue");
+            toast.success("Đã gửi lệnh in báo cáo nợ quá hạn!");
+        },
+        onPrintError: () => {
+            setIsPrintingOverdue(false);
+            toast.dismiss("print-overdue");
+            toast.error("Có lỗi khi in báo cáo nợ quá hạn!");
+        },
+    });
 
     return (
         <AdminLayout
@@ -312,6 +380,24 @@ export default function SupplierDebtIndex({ initialFilters }) {
             ]}
         >
             <Head title="Công Nợ Nhà Cung Cấp" />
+
+            {/* Components in ẩn */}
+            <div style={{ display: "none" }}>
+                <div ref={summaryPrintRef}>
+                    <SupplierDebtSummaryPrint
+                        data={{ data, summary }}
+                        systems={systems}
+                        filters={{ start_date: startDate, end_date: endDate }}
+                    />
+                </div>
+                <div ref={overduePrintRef}>
+                    <SupplierOverdueDebtPrint
+                        data={data}
+                        systems={systems}
+                        filters={{ start_date: startDate, end_date: endDate }}
+                    />
+                </div>
+            </div>
 
             {/* Period Info */}
             <div className="mb-6 p-4 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg text-white shadow-lg">
@@ -485,22 +571,38 @@ export default function SupplierDebtIndex({ initialFilters }) {
                                 Làm mới
                             </Button>
 
-                            {/* <Button
-                                onClick={handleExport}
-                                variant="secondary"
-                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
-                            >
-                                <Download className="mr-2 h-4 w-4" />
-                                Xuất Excel
-                            </Button> */}
-
+                            {/* Nút in báo cáo tổng hợp */}
                             <Button
-                                onClick={handlePrint}
+                                onClick={handlePrintSummary}
                                 variant="secondary"
                                 className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                                disabled={isPrintingSummary || loading}
                             >
-                                <Printer className="mr-2 h-4 w-4" />
-                                In báo cáo
+                                {isPrintingSummary ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
+                                )}
+                                {isPrintingSummary
+                                    ? "Đang in..."
+                                    : "In tổng hợp"}
+                            </Button>
+
+                            {/* Nút in báo cáo nợ quá hạn */}
+                            <Button
+                                onClick={handlePrintOverdue}
+                                variant="secondary"
+                                className="bg-white/20 text-white hover:bg-white/30 border-0 rounded-md"
+                                disabled={isPrintingOverdue || loading}
+                            >
+                                {isPrintingOverdue ? (
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                ) : (
+                                    <AlertCircle className="w-4 h-4 mr-2" />
+                                )}
+                                {isPrintingOverdue
+                                    ? "Đang in..."
+                                    : "In nợ quá hạn"}
                             </Button>
                         </div>
                     </div>
