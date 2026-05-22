@@ -10,6 +10,8 @@ use App\Repositories\Voucher\PaymentVoucherRepository;
 use App\Repositories\Voucher\ReceiptVoucherRepository;
 use App\Repositories\Receipt\PurchaseReceiptRepository;
 use App\Repositories\Receipt\SalesReceiptRepository;
+use App\Repositories\Note\DebitNoteRepository;
+use App\Repositories\Note\CreditNoteRepository;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -25,13 +27,18 @@ class GeneralJournalService extends BaseService implements GeneralJournalService
     protected $purchaseReceiptRepository;
     protected $salesReceiptRepository;
 
+    protected $debitNoteRepository;    // Thêm
+    protected $creditNoteRepository;   // Thêm
+
     public function __construct(
         JournalEntryRepository $journalEntryRepository,
         JournalEntryDetailRepository $journalEntryDetailRepository,
         PaymentVoucherRepository $paymentVoucherRepository,
         ReceiptVoucherRepository $receiptVoucherRepository,
         PurchaseReceiptRepository $purchaseReceiptRepository,
-        SalesReceiptRepository $salesReceiptRepository
+        SalesReceiptRepository $salesReceiptRepository,
+        DebitNoteRepository $debitNoteRepository,      // Thêm
+        CreditNoteRepository $creditNoteRepository     // Thêm
     ) {
         $this->journalEntryRepository = $journalEntryRepository;
         $this->journalEntryDetailRepository = $journalEntryDetailRepository;
@@ -39,6 +46,8 @@ class GeneralJournalService extends BaseService implements GeneralJournalService
         $this->receiptVoucherRepository = $receiptVoucherRepository;
         $this->purchaseReceiptRepository = $purchaseReceiptRepository;
         $this->salesReceiptRepository = $salesReceiptRepository;
+        $this->debitNoteRepository = $debitNoteRepository;        // Thêm
+        $this->creditNoteRepository = $creditNoteRepository;      // Thêm
     }
 
     /**
@@ -131,7 +140,7 @@ class GeneralJournalService extends BaseService implements GeneralJournalService
             // Xử lý ngày tháng
             $entryDate = $this->parseDate($entry->entry_date);
 
-            // Lấy thông tin tham chiếu từ chứng từ gốc
+            // Lấy thông tin tham chiếu từ chứng từ gốc (bao gồm cả debit_note và credit_note)
             $referenceInfo = $this->getReferenceInfo($entry->reference_type, $entry->reference_id);
 
             // Xác định loại chứng từ
@@ -149,12 +158,19 @@ class GeneralJournalService extends BaseService implements GeneralJournalService
                 // Lấy tên tài khoản
                 $accountName = $this->getAccountNameFromDetail($detail);
 
+                // === QUAN TRỌNG: Lấy code từ chứng từ gốc (ưu tiên) ===
+                // Nếu có referenceInfo['code'] thì dùng, nếu không thì fallback sang $entry->code
+                $referenceCode = $referenceInfo['code'] ?? $entry->code;
+
+                // Nếu là debit_note hoặc credit_note, referenceInfo['code'] sẽ là code của giấy báo nợ/báo có
+                // Các trường hợp khác vẫn hoạt động bình thường
+
                 $item = [
                     'stt' => $firstDetail ? $stt : '',
                     'ngay_ct' => $firstDetail && $entryDate ? $entryDate->format('d') : '',
                     'thang_ct' => $firstDetail && $entryDate ? $entryDate->format('m') : '',
                     'nam_ct' => $firstDetail && $entryDate ? $entryDate->format('Y') : '',
-                    'so_hieu_ct' => $firstDetail ? $entry->code : '',
+                    'so_hieu_ct' => $firstDetail ? $referenceCode : '', // Đã sửa: lấy code từ chứng từ gốc
                     'ngay_thang_ct' => $firstDetail && $entryDate ? $entryDate->format('d/m/Y') : '',
                     'dien_giai' => $firstDetail ? $description : '',
                     'tk_no' => $detail->debit > 0 ? $detail->account->account_code : '',
@@ -164,7 +180,7 @@ class GeneralJournalService extends BaseService implements GeneralJournalService
                     'so_tien_no_display' => $detail->debit > 0 ? $detail->debit : null,
                     'so_tien_co_display' => $detail->credit > 0 ? $detail->credit : null,
                     'reference_type_label' => $firstDetail ? $referenceTypeLabel : '',
-                    'reference_code' => $firstDetail ? ($referenceInfo['code'] ?? '') : '',
+                    'reference_code' => $firstDetail ? $referenceCode : '', // Cũng cập nhật ở đây
                     'partner_info' => $firstDetail ? $partnerInfo : '',
                     'reference_note' => $firstDetail ? $referenceNote : '',
                     'rowspan' => $firstDetail ? $detailCount : 0,
@@ -266,6 +282,31 @@ class GeneralJournalService extends BaseService implements GeneralJournalService
                             'code'         => $info['code'],
                             'note'         => $info['note'],
                             'voucher_date' => $info['receipt_date'],
+                        ]);
+                    }
+                    break;
+
+                // === THÊM XỬ LÝ CHO DEBIT_NOTE VÀ CREDIT_NOTE ===
+                case 'debit_note':
+                    // Giả sử bạn có repository cho DebitNote
+                    $info = $this->debitNoteRepository->getBasicInfo($referenceId);
+                    if (!empty($info)) {
+                        $result = array_merge($result, [
+                            'code'         => $info['code'],
+                            'note'         => $info['note'],
+                            'voucher_date' => $info['voucher_date'] ?? $info['note_date'] ?? null,
+                        ]);
+                    }
+                    break;
+
+                case 'credit_note':
+                    // Giả sử bạn có repository cho CreditNote
+                    $info = $this->creditNoteRepository->getBasicInfo($referenceId);
+                    if (!empty($info)) {
+                        $result = array_merge($result, [
+                            'code'         => $info['code'],
+                            'note'         => $info['note'],
+                            'voucher_date' => $info['voucher_date'] ?? $info['note_date'] ?? null,
                         ]);
                     }
                     break;

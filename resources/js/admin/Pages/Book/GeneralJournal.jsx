@@ -153,6 +153,7 @@ export default function GeneralJournalIndex({ initialFilters }) {
                 params,
             );
             const response = res.data;
+            console.log(response);
 
             if (!response.success)
                 throw new Error(response.message || "Không thể tải dữ liệu");

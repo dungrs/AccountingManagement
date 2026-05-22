@@ -286,21 +286,12 @@ export default function GeneralJournalTable({
 
                                 {/* Đã ghi sổ cái */}
                                 <TableCell className="text-center">
-                                    {row.da_ghi_so_cai ? (
-                                        <Badge
-                                            variant="outline"
-                                            className="bg-green-50 text-green-700 border-green-200 text-xs"
-                                        >
-                                            Đã ghi
-                                        </Badge>
-                                    ) : (
-                                        <Badge
-                                            variant="outline"
-                                            className="bg-slate-50 text-slate-400 border-slate-200 text-xs"
-                                        >
-                                            Chưa
-                                        </Badge>
-                                    )}
+                                    <Badge
+                                        variant="outline"
+                                        className="bg-green-50 text-green-700 border-green-200 text-xs"
+                                    >
+                                        Đã ghi
+                                    </Badge>
                                 </TableCell>
 
                                 {/* STT dòng */}

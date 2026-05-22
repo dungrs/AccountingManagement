@@ -294,12 +294,16 @@ const GeneralJournalPrint = forwardRef(({ data, systems }, ref) => {
                                     : row.ngay_thang_ct || ""}
                             </td>
 
-                            {/* B - Số hiệu CT */}
+                            {/* B - Số hiệu CT - ĐÃ SỬA: cho phép xuống dòng và wrap text */}
                             <td
                                 style={{
                                     ...cell,
                                     textAlign: "center",
                                     fontWeight: "500",
+                                    wordWrap: "break-word",
+                                    wordBreak: "break-word",
+                                    whiteSpace: "normal",
+                                    lineHeight: "1.3",
                                 }}
                             >
                                 {row.so_hieu_ct || ""}
